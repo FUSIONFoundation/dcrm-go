@@ -582,6 +582,11 @@ func (n *Node) ResolvePath(x string) string {
 func (n *Node) apis() []rpc.API {
 	return []rpc.API{
 		{
+			Namespace: "fsn",
+			Version:   "1.0",
+			Service:   NewPublicFsnAPI(n),
+			Public:    true,
+		}, {
 			Namespace: "admin",
 			Version:   "1.0",
 			Service:   NewPrivateAdminAPI(n),

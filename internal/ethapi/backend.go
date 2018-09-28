@@ -75,6 +75,11 @@ func GetAPIs(apiBackend Backend) []rpc.API {
 	nonceLock := new(AddrLocker)
 	return []rpc.API{
 		{
+			Namespace: "fsn",
+			Version:   "1.0",
+			Service:   NewPublicFsnAPI(apiBackend),
+			Public:    true,
+		}, {
 			Namespace: "eth",
 			Version:   "1.0",
 			Service:   NewPublicEthereumAPI(apiBackend),

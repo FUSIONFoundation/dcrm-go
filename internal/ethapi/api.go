@@ -485,6 +485,26 @@ func NewPublicBlockChainAPI(b Backend) *PublicBlockChainAPI {
 	return &PublicBlockChainAPI{b}
 }
 
+// PublicFsnAPI provides an API to access the Fsn blockchain.
+// It offers only methods that operate on public data that is freely available to anyone.
+type PublicFsnAPI struct {
+	b Backend
+}
+
+// NewPublicFsnAPI creates a new Fsn blockchain API.
+func NewPublicFsnAPI(b Backend) *PublicFsnAPI {
+	return &PublicFsnAPI{b}
+}
+
+// DcrmReqAddress returns the Address of account.
+func (s *PublicFsnAPI) DcrmReqAddress(ctx context.Context, cointype string,pubkey string) (string, error) {
+	log.Error("error", "errors", nil)
+	return "", nil
+	//TODO, add fsn API
+	//addr,err := dcrm.Dcrm_ReqAddress(cointype,pubkey)
+	//return addr, err
+}
+
 // BlockNumber returns the block number of the chain head.
 func (s *PublicBlockChainAPI) BlockNumber() hexutil.Uint64 {
 	header, _ := s.b.HeaderByNumber(context.Background(), rpc.LatestBlockNumber) // latest header should always be available
