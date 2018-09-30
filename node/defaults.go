@@ -22,9 +22,9 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/p2p/nat"
-	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/fusion/go-fusion/p2p"
+	"github.com/fusion/go-fusion/p2p/nat"
+	"github.com/fusion/go-fusion/rpc"
 )
 
 const (
@@ -61,7 +61,7 @@ func DefaultDataDir() string {
 		} else if runtime.GOOS == "windows" {
 			return filepath.Join(home, "AppData", "Roaming", "Ethereum")
 		} else {
-			return filepath.Join(home, ".ethereum")
+			return filepath.Join(home, ".fusion")
 		}
 	}
 	// As we cannot guess a stable location, return empty and handle later

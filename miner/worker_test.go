@@ -21,17 +21,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/consensus"
-	"github.com/ethereum/go-ethereum/consensus/clique"
-	"github.com/ethereum/go-ethereum/consensus/ethash"
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/params"
+	"github.com/fusion/go-fusion/common"
+	"github.com/fusion/go-fusion/consensus"
+	"github.com/fusion/go-fusion/consensus/clique"
+	"github.com/fusion/go-fusion/consensus/ethash"
+	"github.com/fusion/go-fusion/core"
+	"github.com/fusion/go-fusion/core/types"
+	"github.com/fusion/go-fusion/core/vm"
+	"github.com/fusion/go-fusion/crypto"
+	"github.com/fusion/go-fusion/ethdb"
+	"github.com/fusion/go-fusion/event"
+	"github.com/fusion/go-fusion/params"
 )
 
 var (

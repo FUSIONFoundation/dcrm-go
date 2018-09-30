@@ -25,7 +25,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ethereum/go-ethereum/log"
+	"github.com/fusion/go-fusion/log"
 )
 
 // walletDockerfile is the Dockerfile required to run a web wallet.
@@ -63,7 +63,7 @@ services:
       - "{{.RPCPort}}:8545"{{if not .VHost}}
       - "{{.WebPort}}:80"{{end}}
     volumes:
-      - {{.Datadir}}:/root/.ethereum
+      - {{.Datadir}}:/root/.fusion
     environment:
       - NODE_PORT={{.NodePort}}/tcp
       - STATS={{.Ethstats}}{{if .VHost}}
@@ -189,7 +189,7 @@ func checkWallet(client *sshClient, network string) (*walletInfos, error) {
 	}
 	// Assemble and return the useful infos
 	stats := &walletInfos{
-		datadir:  infos.volumes["/root/.ethereum"],
+		datadir:  infos.volumes["/root/.fusion"],
 		nodePort: nodePort,
 		rpcPort:  rpcPort,
 		webHost:  host,

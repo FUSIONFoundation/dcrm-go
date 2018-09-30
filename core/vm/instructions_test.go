@@ -20,8 +20,8 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/params"
+	"github.com/fusion/go-fusion/common"
+	"github.com/fusion/go-fusion/params"
 )
 
 type twoOperandTest struct {

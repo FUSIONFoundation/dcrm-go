@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/params"
+	"github.com/fusion/go-fusion/params"
 )
 
 // Forks table defines supported forks and their chain config.

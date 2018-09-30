@@ -31,9 +31,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/crypto/secp256k1"
+	"github.com/fusion/go-fusion/common"
+	"github.com/fusion/go-fusion/crypto"
+	"github.com/fusion/go-fusion/crypto/secp256k1"
 )
 
 const NodeIDBits = 512

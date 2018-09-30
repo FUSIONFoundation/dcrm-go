@@ -21,9 +21,9 @@ import (
 	"math/big"
 
 	ethereum "github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/event"
+	"github.com/fusion/go-fusion/common"
+	"github.com/fusion/go-fusion/core/types"
+	"github.com/fusion/go-fusion/event"
 )
 
 // Account represents an Ethereum account located at a specific location defined

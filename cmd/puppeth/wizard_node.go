@@ -21,9 +21,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts/keystore"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
+	"github.com/fusion/go-fusion/accounts/keystore"
+	"github.com/fusion/go-fusion/common"
+	"github.com/fusion/go-fusion/log"
 )
 
 // deployNode creates a new node configuration based on some user input.

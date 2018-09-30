@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	"github.com/ethereum/go-ethereum/common/math"
-	"github.com/ethereum/go-ethereum/params"
+	"github.com/fusion/go-fusion/common/math"
+	"github.com/fusion/go-fusion/params"
 )
 
 // Config are the configuration options for the Interpreter

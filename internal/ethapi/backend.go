@@ -21,17 +21,17 @@ import (
 	"context"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/eth/downloader"
-	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/fusion/go-fusion/accounts"
+	"github.com/fusion/go-fusion/common"
+	"github.com/fusion/go-fusion/core"
+	"github.com/fusion/go-fusion/core/state"
+	"github.com/fusion/go-fusion/core/types"
+	"github.com/fusion/go-fusion/core/vm"
+	"github.com/fusion/go-fusion/eth/downloader"
+	"github.com/fusion/go-fusion/ethdb"
+	"github.com/fusion/go-fusion/event"
+	"github.com/fusion/go-fusion/params"
+	"github.com/fusion/go-fusion/rpc"
 )
 
 // Backend interface provides the common API services (that are provided by

@@ -21,11 +21,11 @@ import (
 
 	"encoding/json"
 
-	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/internal/ethapi"
-	"github.com/ethereum/go-ethereum/log"
+	"github.com/fusion/go-fusion/accounts"
+	"github.com/fusion/go-fusion/common"
+	"github.com/fusion/go-fusion/common/hexutil"
+	"github.com/fusion/go-fusion/internal/ethapi"
+	"github.com/fusion/go-fusion/log"
 )
 
 type AuditLogger struct {

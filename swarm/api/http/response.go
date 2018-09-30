@@ -24,9 +24,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/metrics"
-	"github.com/ethereum/go-ethereum/swarm/api"
+	"github.com/fusion/go-fusion/log"
+	"github.com/fusion/go-fusion/metrics"
+	"github.com/fusion/go-fusion/swarm/api"
 )
 
 var (

@@ -22,7 +22,7 @@ import (
 	"os"
 	"testing"
 
-	ch "github.com/ethereum/go-ethereum/swarm/chunk"
+	ch "github.com/fusion/go-fusion/swarm/chunk"
 )
 
 var (

@@ -23,9 +23,9 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"github.com/ethereum/go-ethereum/cmd/utils"
-	"github.com/ethereum/go-ethereum/swarm/api"
-	"github.com/ethereum/go-ethereum/swarm/api/client"
+	"github.com/fusion/go-fusion/cmd/utils"
+	"github.com/fusion/go-fusion/swarm/api"
+	"github.com/fusion/go-fusion/swarm/api/client"
 	"gopkg.in/urfave/cli.v1"
 )
 

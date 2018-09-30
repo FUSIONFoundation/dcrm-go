@@ -26,14 +26,14 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/mclock"
-	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/p2p/discover"
-	"github.com/ethereum/go-ethereum/p2p/discv5"
-	"github.com/ethereum/go-ethereum/p2p/nat"
-	"github.com/ethereum/go-ethereum/p2p/netutil"
+	"github.com/fusion/go-fusion/common"
+	"github.com/fusion/go-fusion/common/mclock"
+	"github.com/fusion/go-fusion/event"
+	"github.com/fusion/go-fusion/log"
+	"github.com/fusion/go-fusion/p2p/discover"
+	"github.com/fusion/go-fusion/p2p/discv5"
+	"github.com/fusion/go-fusion/p2p/nat"
+	"github.com/fusion/go-fusion/p2p/netutil"
 )
 
 const (

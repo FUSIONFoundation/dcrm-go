@@ -22,7 +22,7 @@ import (
 	"errors"
 
 	ethereum "github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/fusion/go-fusion/common"
 )
 
 // Subscription represents an event subscription where events are

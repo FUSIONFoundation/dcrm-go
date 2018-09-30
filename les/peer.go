@@ -25,13 +25,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/eth"
-	"github.com/ethereum/go-ethereum/les/flowcontrol"
-	"github.com/ethereum/go-ethereum/light"
-	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/fusion/go-fusion/common"
+	"github.com/fusion/go-fusion/core/types"
+	"github.com/fusion/go-fusion/eth"
+	"github.com/fusion/go-fusion/les/flowcontrol"
+	"github.com/fusion/go-fusion/light"
+	"github.com/fusion/go-fusion/p2p"
+	"github.com/fusion/go-fusion/rlp"
 )
 
 var (

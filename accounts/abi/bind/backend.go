@@ -22,8 +22,8 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/fusion/go-fusion/common"
+	"github.com/fusion/go-fusion/core/types"
 )
 
 var (

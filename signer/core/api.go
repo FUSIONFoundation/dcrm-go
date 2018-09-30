@@ -25,15 +25,15 @@ import (
 	"math/big"
 	"reflect"
 
-	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/accounts/keystore"
-	"github.com/ethereum/go-ethereum/accounts/usbwallet"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/internal/ethapi"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/fusion/go-fusion/accounts"
+	"github.com/fusion/go-fusion/accounts/keystore"
+	"github.com/fusion/go-fusion/accounts/usbwallet"
+	"github.com/fusion/go-fusion/common"
+	"github.com/fusion/go-fusion/common/hexutil"
+	"github.com/fusion/go-fusion/crypto"
+	"github.com/fusion/go-fusion/internal/ethapi"
+	"github.com/fusion/go-fusion/log"
+	"github.com/fusion/go-fusion/rlp"
 )
 
 // ExternalAPI defines the external API through which signing requests are made.

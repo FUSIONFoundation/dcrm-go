@@ -32,14 +32,14 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/node"
-	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/p2p/discover"
-	"github.com/ethereum/go-ethereum/p2p/simulations"
-	"github.com/ethereum/go-ethereum/p2p/simulations/adapters"
-	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/fusion/go-fusion/log"
+	"github.com/fusion/go-fusion/node"
+	"github.com/fusion/go-fusion/p2p"
+	"github.com/fusion/go-fusion/p2p/discover"
+	"github.com/fusion/go-fusion/p2p/simulations"
+	"github.com/fusion/go-fusion/p2p/simulations/adapters"
+	"github.com/fusion/go-fusion/rlp"
+	"github.com/fusion/go-fusion/rpc"
 )
 
 // ProtocolTester is the tester environment used for unit testing protocol

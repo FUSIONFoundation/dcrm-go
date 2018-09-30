@@ -29,21 +29,21 @@ import (
 	"time"
 
 	"github.com/elastic/gosigar"
-	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/accounts/keystore"
-	"github.com/ethereum/go-ethereum/cmd/utils"
-	"github.com/ethereum/go-ethereum/console"
-	"github.com/ethereum/go-ethereum/eth"
-	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum/internal/debug"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/metrics"
-	"github.com/ethereum/go-ethereum/node"
+	"github.com/fusion/go-fusion/accounts"
+	"github.com/fusion/go-fusion/accounts/keystore"
+	"github.com/fusion/go-fusion/cmd/utils"
+	"github.com/fusion/go-fusion/console"
+	"github.com/fusion/go-fusion/eth"
+	"github.com/fusion/go-fusion/ethclient"
+	"github.com/fusion/go-fusion/internal/debug"
+	"github.com/fusion/go-fusion/log"
+	"github.com/fusion/go-fusion/metrics"
+	"github.com/fusion/go-fusion/node"
 	"gopkg.in/urfave/cli.v1"
 )
 
 const (
-	clientIdentifier = "geth" // Client identifier to advertise over the network
+	clientIdentifier = "gfsn" // Client identifier to advertise over the network
 )
 
 var (
