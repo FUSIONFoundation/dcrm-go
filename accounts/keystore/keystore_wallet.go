@@ -19,7 +19,7 @@ package keystore
 import (
 	"math/big"
 
-	ethereum "github.com/ethereum/go-ethereum"
+	ethereum "github.com/fusion/go-fusion"
 	"github.com/fusion/go-fusion/accounts"
 	"github.com/fusion/go-fusion/core/types"
 )

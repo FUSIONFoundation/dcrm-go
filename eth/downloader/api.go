@@ -20,7 +20,7 @@ import (
 	"context"
 	"sync"
 
-	ethereum "github.com/ethereum/go-ethereum"
+	ethereum "github.com/fusion/go-fusion"
 	"github.com/fusion/go-fusion/event"
 	"github.com/fusion/go-fusion/rpc"
 )

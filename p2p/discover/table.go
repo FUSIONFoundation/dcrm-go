@@ -87,6 +87,9 @@ type Table struct {
 type transport interface {
 	ping(NodeID, *net.UDPAddr) error
 	findnode(toid NodeID, addr *net.UDPAddr, target NodeID) ([]*Node, error)
+	//TODO: group
+	findgroup(toid NodeID, addr *net.UDPAddr, target NodeID) ([]*Node, error)
+	send2Node(toaddr *net.UDPAddr, msg *string) error
 	close()
 }
 
@@ -123,6 +126,13 @@ func newTable(t transport, ourID NodeID, ourAddr *net.UDPAddr, nodeDBPath string
 			ips: netutil.DistinctNetSet{Subnet: bucketSubnet, Limit: bucketIPLimit},
 		}
 	}
+	// TODO: group
+	if bootnodes == nil {
+		if err := initGroup(); err != nil {
+			log.Error("ERR: %v", err)
+		}
+	}
+
 	tab.seedRand()
 	tab.loadSeedNodes()
 	// Start the background expiration goroutine after loading seeds so that the search for
@@ -707,6 +717,8 @@ func pushNode(list []*Node, n *Node, max int) ([]*Node, *Node) {
 	removed := list[len(list)-1]
 	copy(list[1:], list)
 	list[0] = n
+	//TODO: group
+	setGroup(n, "add")
 	return list, removed
 }
 
@@ -714,6 +726,8 @@ func pushNode(list []*Node, n *Node, max int) ([]*Node, *Node) {
 func deleteNode(list []*Node, n *Node) []*Node {
 	for i := range list {
 		if list[i].ID == n.ID {
+			//TODO: group
+			setGroup(n, "remove")
 			return append(list[:i], list[i+1:]...)
 		}
 	}

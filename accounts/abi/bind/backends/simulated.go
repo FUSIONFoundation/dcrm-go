@@ -24,7 +24,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum"
+	"github.com/fusion/go-fusion"
 	"github.com/fusion/go-fusion/accounts/abi/bind"
 	"github.com/fusion/go-fusion/common"
 	"github.com/fusion/go-fusion/common/math"

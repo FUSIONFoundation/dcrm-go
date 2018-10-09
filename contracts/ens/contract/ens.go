@@ -6,7 +6,7 @@ package contract
 import (
 	"strings"
 
-	ethereum "github.com/ethereum/go-ethereum"
+	ethereum "github.com/fusion/go-fusion"
 	"github.com/fusion/go-fusion/accounts/abi"
 	"github.com/fusion/go-fusion/accounts/abi/bind"
 	"github.com/fusion/go-fusion/common"

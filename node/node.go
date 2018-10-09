@@ -32,6 +32,7 @@ import (
 	"github.com/fusion/go-fusion/internal/debug"
 	"github.com/fusion/go-fusion/log"
 	"github.com/fusion/go-fusion/p2p"
+	//"github.com/fusion/go-fusion/p2p/dcrm"
 	"github.com/fusion/go-fusion/rpc"
 	"github.com/prometheus/prometheus/util/flock"
 )
@@ -223,6 +224,11 @@ func (n *Node) Start() error {
 	n.services = services
 	n.server = running
 	n.stop = make(chan struct{})
+
+	//TODO: DCRM p2p
+	bn := fmt.Sprintf("%v", n.serverConfig.BootstrapNodes[0])
+	fmt.Printf("bn: %+v\n", bn)
+	//dcrm.P2pInit(2345, bn, "", "")
 
 	return nil
 }

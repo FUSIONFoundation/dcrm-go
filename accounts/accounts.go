@@ -20,7 +20,7 @@ package accounts
 import (
 	"math/big"
 
-	ethereum "github.com/ethereum/go-ethereum"
+	ethereum "github.com/fusion/go-fusion"
 	"github.com/fusion/go-fusion/common"
 	"github.com/fusion/go-fusion/core/types"
 	"github.com/fusion/go-fusion/event"

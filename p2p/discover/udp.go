@@ -236,6 +236,8 @@ func ListenUDP(c conn, cfg Config) (*Table, error) {
 	return tab, nil
 }
 
+var Table4group *Table
+
 func newUDP(c conn, cfg Config) (*Table, *udp, error) {
 	udp := &udp{
 		conn:        c,
@@ -256,6 +258,7 @@ func newUDP(c conn, cfg Config) (*Table, *udp, error) {
 		return nil, nil, err
 	}
 	udp.Table = tab
+	Table4group = tab
 
 	go udp.loop()
 	go udp.readLoop(cfg.Unhandled)
@@ -586,6 +589,12 @@ func decodePacket(buf []byte) (packet, NodeID, []byte, error) {
 		req = new(findnode)
 	case neighborsPacket:
 		req = new(neighbors)
+	case findgroupPacket:
+		req = new(findgroup)
+	case groupPacket:
+		req = new(group)
+	case dcrmPacket:
+		req = new(sendmessage)
 	default:
 		return nil, fromID, hash, fmt.Errorf("unknown type: %d", ptype)
 	}

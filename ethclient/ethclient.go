@@ -24,7 +24,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum"
+	"github.com/fusion/go-fusion"
 	"github.com/fusion/go-fusion/common"
 	"github.com/fusion/go-fusion/common/hexutil"
 	"github.com/fusion/go-fusion/core/types"

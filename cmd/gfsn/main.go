@@ -27,6 +27,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	//"net"
 
 	"github.com/elastic/gosigar"
 	"github.com/fusion/go-fusion/accounts"
@@ -39,6 +40,7 @@ import (
 	"github.com/fusion/go-fusion/log"
 	"github.com/fusion/go-fusion/metrics"
 	"github.com/fusion/go-fusion/node"
+	//"github.com/fusion/go-fusion/p2p/dcrm"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -266,6 +268,13 @@ func geth(ctx *cli.Context) error {
 	}
 	node := makeFullNode(ctx)
 	startNode(ctx, node)
+
+	//TODO, group
+	//bn := node.Server().BootstrapNodes[0]
+	//ipa := &net.UDPAddr{IP:bn.IP, Port:int(bn.UDP)}
+	//dcrm.Init(bn.ID, ipa)
+	//go dcrm.StartTest()
+
 	node.Wait()
 	return nil
 }

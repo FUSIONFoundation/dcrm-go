@@ -25,7 +25,7 @@ import (
 	"testing"
 	"time"
 
-	ethereum "github.com/ethereum/go-ethereum"
+	ethereum "github.com/fusion/go-fusion"
 	"github.com/fusion/go-fusion/common"
 	"github.com/fusion/go-fusion/consensus/ethash"
 	"github.com/fusion/go-fusion/core"
