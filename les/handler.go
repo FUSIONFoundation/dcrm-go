@@ -185,7 +185,7 @@ func (pm *ProtocolManager) Start(maxPeers int) {
 func (pm *ProtocolManager) Stop() {
 	// Showing a log message. During download / process this could actually
 	// take between 5 to 10 seconds and therefor feedback is required.
-	log.Info("Stopping light Ethereum protocol")
+	log.Info("Stopping light Fusion protocol")
 
 	// Quit the sync loop.
 	// After this send has completed, no new peers will be accepted.
@@ -205,7 +205,7 @@ func (pm *ProtocolManager) Stop() {
 	// Wait for any process action
 	pm.wg.Wait()
 
-	log.Info("Light Ethereum protocol stopped")
+	log.Info("Light Fusion protocol stopped")
 }
 
 // runPeer is the p2p protocol run function for the given version.
@@ -247,7 +247,7 @@ func (pm *ProtocolManager) handle(p *peer) error {
 		return p2p.DiscTooManyPeers
 	}
 
-	p.Log().Debug("Light Ethereum peer connected", "name", p.Name())
+	p.Log().Debug("Light Fusion peer connected", "name", p.Name())
 
 	// Execute the LES handshake
 	var (
@@ -258,7 +258,7 @@ func (pm *ProtocolManager) handle(p *peer) error {
 		td      = pm.blockchain.GetTd(hash, number)
 	)
 	if err := p.Handshake(td, hash, number, genesis.Hash(), pm.server); err != nil {
-		p.Log().Debug("Light Ethereum handshake failed", "err", err)
+		p.Log().Debug("Light Fusion handshake failed", "err", err)
 		return err
 	}
 
@@ -279,7 +279,7 @@ func (pm *ProtocolManager) handle(p *peer) error {
 	}
 	// Register the peer locally
 	if err := pm.peers.Register(p); err != nil {
-		p.Log().Error("Light Ethereum peer registration failed", "err", err)
+		p.Log().Error("Light Fusion peer registration failed", "err", err)
 		return err
 	}
 	defer func() {
@@ -319,7 +319,7 @@ func (pm *ProtocolManager) handle(p *peer) error {
 	// main loop. handle incoming messages.
 	for {
 		if err := pm.handleMsg(p); err != nil {
-			p.Log().Debug("Light Ethereum message handling failed", "err", err)
+			p.Log().Debug("Light Fusion message handling failed", "err", err)
 			return err
 		}
 	}
@@ -335,7 +335,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 	if err != nil {
 		return err
 	}
-	p.Log().Trace("Light Ethereum message arrived", "code", msg.Code, "bytes", msg.Size)
+	p.Log().Trace("Light Fusion message arrived", "code", msg.Code, "bytes", msg.Size)
 
 	costs := p.fcCosts[msg.Code]
 	reject := func(reqCnt, maxCnt uint64) bool {

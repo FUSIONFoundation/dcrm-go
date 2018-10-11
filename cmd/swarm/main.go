@@ -103,7 +103,7 @@ var (
 	}
 	SwarmSwapAPIFlag = cli.StringFlag{
 		Name:   "swap-api",
-		Usage:  "URL of the Ethereum API provider to use to settle SWAP payments",
+		Usage:  "URL of the Fusion API provider to use to settle SWAP payments",
 		EnvVar: SWARM_ENV_SWAP_API,
 	}
 	SwarmSyncDisabledFlag = cli.BoolTFlag{
@@ -242,7 +242,7 @@ func init() {
 	utils.ListenPortFlag.Value = 30399
 }
 
-var app = utils.NewApp(gitCommit, "Ethereum Swarm")
+var app = utils.NewApp(gitCommit, "Fusion Swarm")
 
 // This init function creates the cli.App.
 func init() {
@@ -474,12 +474,12 @@ func init() {
 					Description: `
 Export a local chunk database as a tar archive (use - to send to stdout).
 
-    swarm db export ~/.ethereum/swarm/bzz-KEY/chunks chunks.tar
+    swarm db export ~/.fusion/swarm/bzz-KEY/chunks chunks.tar
 
 The export may be quite large, consider piping the output through the Unix
 pv(1) tool to get a progress bar:
 
-    swarm db export ~/.ethereum/swarm/bzz-KEY/chunks - | pv > chunks.tar
+    swarm db export ~/.fusion/swarm/bzz-KEY/chunks - | pv > chunks.tar
 `,
 				},
 				{
@@ -490,12 +490,12 @@ pv(1) tool to get a progress bar:
 					ArgsUsage:          "<chunkdb> <file>",
 					Description: `Import chunks from a tar archive into a local chunk database (use - to read from stdin).
 
-    swarm db import ~/.ethereum/swarm/bzz-KEY/chunks chunks.tar
+    swarm db import ~/.fusion/swarm/bzz-KEY/chunks chunks.tar
 
 The import may be quite large, consider piping the input through the Unix
 pv(1) tool to get a progress bar:
 
-    pv chunks.tar | swarm db import ~/.ethereum/swarm/bzz-KEY/chunks -`,
+    pv chunks.tar | swarm db import ~/.fusion/swarm/bzz-KEY/chunks -`,
 				},
 				{
 					Action:             dbClean,
@@ -639,7 +639,7 @@ func bzzd(ctx *cli.Context) error {
 
 	//optionally set the bootnodes before configuring the node
 	setSwarmBootstrapNodes(ctx, &cfg)
-	//setup the ethereum node
+	//setup the fusion node
 	utils.SetNodeConfig(ctx, &cfg)
 	stack, err := node.New(&cfg)
 	if err != nil {
@@ -649,7 +649,7 @@ func bzzd(ctx *cli.Context) error {
 	//a few steps need to be done after the config phase is completed,
 	//due to overriding behavior
 	initSwarmNode(bzzconfig, stack, ctx)
-	//register BZZ as node.Service in the ethereum node
+	//register BZZ as node.Service in the fusion node
 	registerBzzService(bzzconfig, stack)
 	//start the node
 	utils.StartNode(stack)
@@ -673,7 +673,7 @@ func registerBzzService(bzzconfig *bzzapi.Config, stack *node.Node) {
 		// In production, mockStore must be always nil.
 		return swarm.NewSwarm(bzzconfig, nil)
 	}
-	//register within the ethereum node
+	//register within the fusion node
 	if err := stack.Register(boot); err != nil {
 		utils.Fatalf("Failed to register the Swarm service: %v", err)
 	}

@@ -85,10 +85,10 @@ type cppEthereumGenesisSpecLinearPricing struct {
 	Word uint64 `json:"word"`
 }
 
-// newCppEthereumGenesisSpec converts a go-ethereum genesis block into a Parity specific
+// newCppEthereumGenesisSpec converts a go-fusion genesis block into a Parity specific
 // chain specification format.
 func newCppEthereumGenesisSpec(network string, genesis *core.Genesis) (*cppEthereumGenesisSpec, error) {
-	// Only ethash is currently supported between go-ethereum and cpp-ethereum
+	// Only ethash is currently supported between go-fusion and cpp-fusion
 	if genesis.Config.Ethash == nil {
 		return nil, errors.New("unsupported consensus engine")
 	}
@@ -204,7 +204,7 @@ type parityChainSpec struct {
 			Ethereum struct {
 				Nonce   hexutil.Bytes `json:"nonce"`
 				MixHash hexutil.Bytes `json:"mixHash"`
-			} `json:"ethereum"`
+			} `json:"fusion"`
 		} `json:"seal"`
 
 		Difficulty *hexutil.Big   `json:"difficulty"`
@@ -256,10 +256,10 @@ type parityChainSpecAltBnPairingPricing struct {
 	Pair uint64 `json:"pair"`
 }
 
-// newParityChainSpec converts a go-ethereum genesis block into a Parity specific
+// newParityChainSpec converts a go-fusion genesis block into a Parity specific
 // chain specification format.
 func newParityChainSpec(network string, genesis *core.Genesis, bootnodes []string) (*parityChainSpec, error) {
-	// Only ethash is currently supported between go-ethereum and Parity
+	// Only ethash is currently supported between go-fusion and Parity
 	if genesis.Config.Ethash == nil {
 		return nil, errors.New("unsupported consensus engine")
 	}
@@ -355,7 +355,7 @@ type pyEthereumGenesisSpec struct {
 	ParentHash common.Hash       `json:"parentHash"`
 }
 
-// newPyEthereumGenesisSpec converts a go-ethereum genesis block into a Parity specific
+// newPyEthereumGenesisSpec converts a go-fusion genesis block into a Parity specific
 // chain specification format.
 func newPyEthereumGenesisSpec(network string, genesis *core.Genesis) (*pyEthereumGenesisSpec, error) {
 	// Only ethash is currently supported between go-ethereum and pyethereum

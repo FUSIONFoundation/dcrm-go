@@ -31,6 +31,24 @@ var (
 )
 
 var (
+	// FsnChainConfig contains the chain parameters to run a node on the fusion network.
+	FsnChainConfig = &ChainConfig{
+		ChainID:             big.NewInt(40400),
+		HomesteadBlock:      big.NewInt(1),
+		DAOForkBlock:        nil,
+		DAOForkSupport:      true,
+		EIP150Block:         big.NewInt(2),
+		EIP150Hash:          common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"),
+		EIP155Block:         big.NewInt(3),
+		EIP158Block:         big.NewInt(3),
+		ByzantiumBlock:      big.NewInt(4),
+		ConstantinopleBlock: nil,
+		Clique: &CliqueConfig{
+			Period: 15,
+			Epoch:  30000,
+		},
+	}
+
 	// MainnetChainConfig is the chain parameters to run a node on the main network.
 	MainnetChainConfig = &ChainConfig{
 		ChainID:             big.NewInt(1),

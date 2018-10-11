@@ -27,9 +27,9 @@ Swarm is a distributed storage platform and content distribution service, a nati
 
 Building Swarm requires Go (version 1.10 or later).
 
-    go get -d github.com/ethereum/go-ethereum
+    go get -d github.com/fusion/go-fusion
 
-    go install github.com/ethereum/go-ethereum/cmd/swarm
+    go install github.com/fusion/go-fusion/cmd/swarm
 
 ## Running Swarm
 
@@ -69,12 +69,12 @@ Confirm that it is up and running by pointing your browser to http://localhost:8
 The Ethereum Name Service is the Ethereum equivalent of DNS in the classic web. In order to use ENS to resolve names to Swarm content hashes (e.g. `bzz://theswarm.eth`), `swarm` has to connect to a `geth` instance, which is synced with the Ethereum mainnet. This is done using the `--ens-api` flag.
 
     swarm --bzzaccount <your-account-here> \
-          --ens-api '$HOME/.ethereum/geth.ipc'
+          --ens-api '$HOME/.fusion/gfsn.ipc'
 
     # in our example
 
     swarm --bzzaccount 2f1cd699b0bf461dcfbf0098ad8f5587b038f0f1 \
-          --ens-api '$HOME/.ethereum/geth.ipc'
+          --ens-api '$HOME/.fusion/gfsn.ipc'
 
 For more information on usage, features or command line flags, please consult the Documentation.
 
@@ -90,12 +90,12 @@ Swarm documentation can be found at [https://swarm-guide.readthedocs.io](https:/
 
 We assume that you have Go v1.10 installed, and `GOPATH` is set.
 
-You must have your working copy under `$GOPATH/src/github.com/ethereum/go-ethereum`.
+You must have your working copy under `$GOPATH/src/github.com/fusion/go-fusion`.
 
-Most likely you will be working from your fork of `go-ethereum`, let's say from `github.com/nirname/go-ethereum`. Clone or move your fork into the right place:
+Most likely you will be working from your fork of `go-fusion`, let's say from `github.com/nirname/go-fusion`. Clone or move your fork into the right place:
 
 ```
-git clone git@github.com:nirname/go-ethereum.git $GOPATH/src/github.com/ethereum/go-ethereum
+git clone git@github.com:nirname/go-ethereum.git $GOPATH/src/github.com/fusion/go-fusion
 ```
 
 

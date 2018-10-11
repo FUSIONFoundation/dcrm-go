@@ -26,7 +26,7 @@ import (
 	"time"
 	"net"
 	"sync"
-	"fmt"
+	//"fmt"
 
 	"github.com/fusion/go-fusion/log"
 	"github.com/fusion/go-fusion/rlp"
@@ -155,13 +155,13 @@ func GetGroup(id NodeID, addr *net.UDPAddr, target NodeID) []*Node{
 }
 
 func setGroup(n *Node, replace string){
-	log.Info("==== SetGroup() ====")
+	//log.Info("==== SetGroup() ====")
 	if setgroup == 0 {
 		return
 	}
 	grouplist.Lock()
 	defer grouplist.Unlock()
-	log.Info("grouplist.count=%v", grouplist.count, "groupnum=%v", groupnum)
+	log.Info("grouplist.count=", grouplist.count, ", groupnum=", groupnum)
 	if replace == "add" {
 		log.Info("replace == add")
 		if grouplist.count >= groupnum {
@@ -186,7 +186,7 @@ func setGroup(n *Node, replace string){
 		}
 	}
 	for i := 0; i < grouplist.count; i++{
-		log.Info("dcrm g.peers: %#v", grouplist.Nodes[i])
+		log.Info("dcrm g.peers: ", grouplist.Nodes[i])
 	}
 	return
 }
@@ -231,9 +231,9 @@ func (req *sendmessage) handle(t *udp, from *net.UDPAddr, fromID NodeID, mac []b
                 // (which is a much bigger packet than findnode) to the victim.
                 return errUnknownNode
         }
-	fmt.Printf("sendmessage handle: %#v\n", req)
-	fmt.Printf("req.msg: %+v\n", req.msg)
-	fmt.Printf("mac: %s\n", mac)
+	log.Info("sendmessage handle: %#v\n", req)
+	log.Info("req.msg: %+v\n", req.msg)
+	log.Info("mac: %s\n", mac)
         return nil
 }
 

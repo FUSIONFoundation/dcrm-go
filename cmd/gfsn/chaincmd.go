@@ -166,7 +166,7 @@ Remove blockchain and state databases`,
 		Category: "BLOCKCHAIN COMMANDS",
 		Description: `
 The arguments are interpreted as block numbers or hashes.
-Use "ethereum dump 0" to dump the genesis block.`,
+Use "fusion dump 0" to dump the genesis block.`,
 	}
 )
 

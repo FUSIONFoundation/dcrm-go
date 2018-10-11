@@ -96,7 +96,7 @@ var (
 		},
 		{
 			BinaryName:  "bootnode",
-			Description: "Ethereum bootnode.",
+			Description: "Fusion bootnode.",
 		},
 		{
 			BinaryName:  "evm",
@@ -104,11 +104,11 @@ var (
 		},
 		{
 			BinaryName:  "gfsn",
-			Description: "Ethereum CLI client.",
+			Description: "Fusion CLI client.",
 		},
 		{
 			BinaryName:  "puppeth",
-			Description: "Ethereum private network manager.",
+			Description: "Fusion private network manager.",
 		},
 		{
 			BinaryName:  "rlpdump",
@@ -116,7 +116,7 @@ var (
 		},
 		{
 			BinaryName:  "wnode",
-			Description: "Ethereum Whisper diagnostic tool",
+			Description: "Fusion Whisper diagnostic tool",
 		},
 	}
 
@@ -125,7 +125,7 @@ var (
 		{
 			BinaryName:  "swarm",
 			PackageName: "ethereum-swarm",
-			Description: "Ethereum Swarm daemon and tools",
+			Description: "Fusion Swarm daemon and tools",
 		},
 	}
 
@@ -593,7 +593,7 @@ func (d debExecutable) Package() string {
 func newDebMetadata(distro, author string, env build.Environment, t time.Time, name string, version string, exes []debExecutable) debMetadata {
 	if author == "" {
 		// No signing key, use default author.
-		author = "Ethereum Builds <fjl@ethereum.org>"
+		author = "Fusion Builds <fjl@ethereum.org>"
 	}
 	return debMetadata{
 		PackageName: name,
