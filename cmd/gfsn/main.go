@@ -29,6 +29,7 @@ import (
 	"time"
 	//"net"
 
+	//"github.com/fusion/go-fusion/crypto/dcrm"
 	"github.com/elastic/gosigar"
 	"github.com/fusion/go-fusion/accounts"
 	"github.com/fusion/go-fusion/accounts/keystore"
@@ -49,6 +50,8 @@ const (
 )
 
 var (
+	paillier_threshold_index int
+
 	// Git SHA1 commit hash of the release (set via linker flags)
 	gitCommit = ""
 	// The app that holds all commands and flags.
@@ -150,6 +153,10 @@ var (
 		utils.IPCDisabledFlag,
 		utils.IPCPathFlag,
 	}
+	
+	paillierThresholdFlags = []cli.Flag{
+			cli.IntFlag{Name: "index", Value:0, Usage: "paillier threshold decrept", Destination: &paillier_threshold_index},
+		}
 
 	whisperFlags = []cli.Flag{
 		utils.WhisperEnabledFlag,
@@ -209,6 +216,7 @@ func init() {
 	app.Flags = append(app.Flags, debug.Flags...)
 	app.Flags = append(app.Flags, whisperFlags...)
 	app.Flags = append(app.Flags, metricsFlags...)
+	app.Flags = append(app.Flags, paillierThresholdFlags...)
 
 	app.Before = func(ctx *cli.Context) error {
 		runtime.GOMAXPROCS(runtime.NumCPU())
@@ -250,6 +258,8 @@ func init() {
 		console.Stdin.Close() // Resets terminal mode.
 		return nil
 	}
+
+	//dcrm.Init(paillier_threshold_index)
 }
 
 func main() {
