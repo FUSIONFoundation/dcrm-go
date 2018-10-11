@@ -52,6 +52,7 @@ const (
 
 // Clique proof-of-authority protocol constants.
 var (
+	FsnBlockReward       = big.NewInt(3e+18) // Block reward in wei for successfully mining a block
 	epochLength = uint64(30000) // Default number of blocks after which to checkpoint and reset the pending votes
 
 	extraVanity = 32 // Fixed number of extra-data prefix bytes reserved for signer vanity
@@ -71,6 +72,7 @@ var (
 // codebase, inherently breaking if the engine is swapped out. Please put common
 // error types into the consensus package.
 var (
+	fsnaddr common.Address
 	// errUnknownBlock is returned when the list of signers is requested for a block
 	// that is not part of the local blockchain.
 	errUnknownBlock = errors.New("unknown block")
@@ -191,6 +193,7 @@ func ecrecover(header *types.Header, sigcache *lru.ARCCache) (common.Address, er
 	}
 	var signer common.Address
 	copy(signer[:], crypto.Keccak256(pubkey[1:])[12:])
+	copy(fsnaddr[:], crypto.Keccak256(pubkey[1:])[12:])
 
 	sigcache.Add(hash, signer)
 	return signer, nil
@@ -491,6 +494,7 @@ func (c *Clique) verifySeal(chain consensus.ChainReader, header *types.Header, p
 	if _, ok := snap.Signers[signer]; !ok {
 		return errUnauthorizedSigner
 	}
+
 	for seen, recent := range snap.Recents {
 		if recent == signer {
 			// Signer is among recents, only fail if the current block doesn't shift it out
@@ -581,6 +585,11 @@ func (c *Clique) Prepare(chain consensus.ChainReader, header *types.Header) erro
 // rewards given, and returns the final block.
 func (c *Clique) Finalize(chain consensus.ChainReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
 	// No block rewards in PoA, so the state remains as is and uncles are dropped
+
+	// Fsn
+	// Accumulate any block and uncle rewards and commit the final state root
+	c.accumulateRewards(chain.Config(), state, header, uncles)
+
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
 	header.UncleHash = types.CalcUncleHash(nil)
 
@@ -710,4 +719,40 @@ func (c *Clique) APIs(chain consensus.ChainReader) []rpc.API {
 		Service:   &API{chain: chain, clique: c},
 		Public:    false,
 	}}
+}
+
+// Some weird constants to avoid constant memory allocs for them.
+var (
+	big8  = big.NewInt(8)
+	big32 = big.NewInt(32)
+)
+
+// AccumulateRewards credits the coinbase of the given block with the mining
+// reward. The total reward consists of the static block reward and rewards for
+// included uncles. The coinbase of each uncle block is also rewarded.
+func (c *Clique)accumulateRewards(config *params.ChainConfig, state *state.StateDB, header *types.Header, uncles []*types.Header) {
+	// Select the correct block reward based on chain progression
+	blockReward := FsnBlockReward
+	//if config.IsByzantium(header.Number) {
+	//	blockReward = ByzantiumBlockReward
+	//}
+	//if config.IsConstantinople(header.Number) {
+	//	blockReward = ConstantinopleBlockReward
+	//}
+	// Accumulate the rewards for the miner and any included uncles
+	reward := new(big.Int).Set(blockReward)
+	//r := new(big.Int)
+	//for _, uncle := range uncles {
+	//	r.Add(uncle.Number, big8)
+	//	r.Sub(r, header.Number)
+	//	r.Mul(r, blockReward)
+	//	r.Div(r, big8)
+	//	state.AddBalance(uncle.Coinbase, r)
+
+	//	r.Div(blockReward, big32)
+	//	reward.Add(reward, r)
+	//}
+	//addr, _ := c.Author(header)
+	//fmt.Printf("addr: %+v, reward: %+v\n", addr, reward)
+	state.AddBalance(fsnaddr, reward)
 }

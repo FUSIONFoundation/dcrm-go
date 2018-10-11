@@ -33,7 +33,7 @@ var (
 var (
 	// FsnChainConfig contains the chain parameters to run a node on the fusion network.
 	FsnChainConfig = &ChainConfig{
-		ChainID:             big.NewInt(40400),
+		ChainID:             big.NewInt(1),
 		HomesteadBlock:      big.NewInt(1),
 		DAOForkBlock:        nil,
 		DAOForkSupport:      true,
