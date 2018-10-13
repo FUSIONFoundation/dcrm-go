@@ -44,6 +44,7 @@ import (
 	"github.com/fusion/go-fusion/rpc"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/util"
+	"github.com/fusion/go-fusion/crypto/dcrm"
 )
 
 const (
@@ -496,14 +497,34 @@ func NewPublicFsnAPI(b Backend) *PublicFsnAPI {
 	return &PublicFsnAPI{b}
 }
 
-// DcrmReqAddress returns the Address of account.
-func (s *PublicFsnAPI) DcrmReqAddress(ctx context.Context, cointype string,pubkey string) (string, error) {
-	log.Error("error", "errors", nil)
-	return "", nil
-	//TODO, add fsn API
-	//addr,err := dcrm.Dcrm_ReqAddress(cointype,pubkey)
-	//return addr, err
+//+++++++++++++++++caihaijun+++++++++++++++++++
+
+func (s *PublicFsnAPI) DcrmReqAddress(ctx context.Context,pubkey string,cointype string) (string, error) {
+    fmt.Println("================caihaijun DcrmReqAddress================")
+    addr,err := dcrm.Dcrm_ReqAddress(pubkey,cointype)
+    fmt.Println("================caihaijun DcrmReqAddress ret is %+v================",addr)
+    return addr,err
 }
+
+func (s *PublicFsnAPI) DcrmSign(ctx context.Context,sig string,txhash string,dcrmaddr string,cointype string) (string, error) {
+    sign,err := dcrm.Dcrm_Sign(sig,txhash,dcrmaddr,cointype)
+    fmt.Println("================caihaijun DcrmSign ret is %+v================",sign)
+    return sign,err
+}
+
+func (s *PublicFsnAPI) DcrmNodeInfo(ctx context.Context) (string, error) {
+    info,err := dcrm.Dcrm_NodeInfo()
+    fmt.Println("================caihaijun DcrmNodeInfo ret is %+v================",info)
+    return info,err
+}
+
+func (s *PublicFsnAPI) DcrmGetAccountList(ctx context.Context,pubkey string) (string, error) {
+    accountlist,err := dcrm.Dcrm_GetAccountList(pubkey)
+    fmt.Println("================caihaijun DcrmGetAccountList ret is %+v================",accountlist)
+    return accountlist,err
+}
+
+//+++++++++++++++++++++end+++++++++++++++++++++
 
 // BlockNumber returns the block number of the chain head.
 func (s *PublicBlockChainAPI) BlockNumber() hexutil.Uint64 {

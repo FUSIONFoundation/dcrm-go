@@ -9,8 +9,8 @@ import (
 	"crypto/sha256"
 	"fmt"
 	//"time"
-	"github.com/ethereum/go-ethereum/common/math"
-	"github.com/ethereum/go-ethereum/crypto/dcrm/pbc"
+	"github.com/fusion/go-fusion/common/math"
+	"github.com/fusion/go-fusion/crypto/dcrm/pbc"
 )
 
 type MTDCommitment struct {

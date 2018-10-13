@@ -5,7 +5,7 @@ package dcrm
 
 import (
 	"math/big"
-	"github.com/ethereum/go-ethereum/crypto/dcrm/pbc"
+	"github.com/fusion/go-fusion/crypto/dcrm/pbc"
 )
 
 type CmtMasterPublicKey struct {

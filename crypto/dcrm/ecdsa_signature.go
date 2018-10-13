@@ -6,8 +6,8 @@ package dcrm
 import (
     "math/big"
     "fmt"
-    "github.com/ethereum/go-ethereum/common/math"
-    "github.com/ethereum/go-ethereum/crypto/secp256k1"
+    "github.com/fusion/go-fusion/common/math"
+    "github.com/fusion/go-fusion/crypto/secp256k1"
 )
 
 type ECDSASignature struct {

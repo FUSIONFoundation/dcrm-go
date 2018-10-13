@@ -4,7 +4,7 @@
 package dcrm 
 
 import (
-	"github.com/ethereum/go-ethereum/crypto/dcrm/pbc"
+	"github.com/fusion/go-fusion/crypto/dcrm/pbc"
 )
 
 type Commitment struct {
