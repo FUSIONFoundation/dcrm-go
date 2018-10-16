@@ -588,7 +588,7 @@ func (c *Clique) Finalize(chain consensus.ChainReader, header *types.Header, sta
 
 	// Fsn
 	// Accumulate any block and uncle rewards and commit the final state root
-	c.accumulateRewards(chain.Config(), state, header, uncles)
+	//c.accumulateRewards(chain.Config(), state, header, uncles)
 
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
 	header.UncleHash = types.CalcUncleHash(nil)

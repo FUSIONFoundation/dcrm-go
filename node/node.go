@@ -227,7 +227,7 @@ func (n *Node) Start() error {
 
 	//TODO: DCRM p2p
 	bn := fmt.Sprintf("%v", n.serverConfig.BootstrapNodes[0])
-	fmt.Printf("bn: %+v\n", bn)
+	fmt.Printf("\nbootnode: %+v\n\n", bn)
 	//dcrm.P2pInit(2345, bn, "", "")
 
 	return nil
