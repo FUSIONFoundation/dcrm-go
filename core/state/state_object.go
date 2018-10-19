@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"encoding/json"//caihaijun
 
 	"github.com/fusion/go-fusion/common"
 	"github.com/fusion/go-fusion/crypto"
@@ -34,6 +35,19 @@ type Code []byte
 func (self Code) String() string {
 	return string(self) //strings.Join(Disassemble(self), " ")
 }
+
+//+++++++++++++++caihaijun+++++++++++++++
+type StorageDcrmAccountData map[common.Hash][]byte
+
+func (self StorageDcrmAccountData) Copy() StorageDcrmAccountData {
+	cpy := make(StorageDcrmAccountData)
+	for key, value := range self {
+		cpy[key] = value
+	}
+
+	return cpy
+}
+//+++++++++++++++++++end+++++++++++++++++
 
 type Storage map[common.Hash]common.Hash
 
@@ -80,6 +94,11 @@ type stateObject struct {
 	originStorage Storage // Storage cache of original entries to dedup rewrites
 	dirtyStorage  Storage // Storage entries that need to be flushed to disk
 
+	//++++++++++++++caihaijun+++++++++++++
+	cachedStorageDcrmAccountData StorageDcrmAccountData
+	dirtyStorageDcrmAccountData  StorageDcrmAccountData
+	//+++++++++++++++++end++++++++++++++++
+
 	// Cache flags.
 	// When an object is marked suicided it will be delete from the trie
 	// during the "update" phase of the state transition.
@@ -91,6 +110,7 @@ type stateObject struct {
 // empty returns whether the account is considered empty.
 func (s *stateObject) empty() bool {
 	return s.data.Nonce == 0 && s.data.Balance.Sign() == 0 && bytes.Equal(s.data.CodeHash, emptyCodeHash)
+	//return s.data.Nonce == 0 && s.data.Balance.Sign() == 0 && bytes.Equal(s.data.CodeHash, emptyCodeHash) && len(cachedStorageDcrmAccountData) == 0 && len(dirtyStorageDcrmAccountData) == 0//+++++++caihaijun+++++++
 }
 
 // Account is the Ethereum consensus representation of accounts.
@@ -117,6 +137,11 @@ func newObject(db *StateDB, address common.Address, data Account) *stateObject {
 		data:          data,
 		originStorage: make(Storage),
 		dirtyStorage:  make(Storage),
+		//+++++++++++++caihaijun+++++++++++++
+		cachedStorageDcrmAccountData: make(StorageDcrmAccountData),
+		dirtyStorageDcrmAccountData:  make(StorageDcrmAccountData),
+		//++++++++++++++++end++++++++++++++++
+
 	}
 }
 
@@ -194,6 +219,73 @@ func (self *stateObject) GetCommittedState(db Database, key common.Hash) common.
 	return value
 }
 
+//++++++++++++++++++caihaijun++++++++++++++++++++
+type DcrmAccountData struct {
+    COINTYPE string
+    BALANCE  string
+}
+
+func (self *stateObject) GetDcrmAccountBalance(db Database, key common.Hash,cointype string) *big.Int {
+    s := self.GetStateDcrmAccountData(db,key)
+    if s == nil { 
+	return nil
+    }
+    
+    var a DcrmAccountData
+    json.Unmarshal(s, &a)
+    if a.COINTYPE == cointype {
+	ba,_ := new(big.Int).SetString(a.BALANCE,10)
+	return ba
+    }
+
+    return nil
+}
+
+func (self *stateObject) GetStateDcrmAccountData(db Database, key common.Hash) []byte {
+	// If we have a dirty value for this state entry, return it
+	value, dirty := self.dirtyStorageDcrmAccountData[key]
+	if dirty {
+		return value
+	}
+	// Otherwise return the entry's original value
+	return self.GetCommittedStateDcrmAccountData(db, key)
+}
+
+func (self *stateObject) GetCommittedStateDcrmAccountData(db Database, key common.Hash) []byte {
+	value, exists := self.cachedStorageDcrmAccountData[key]
+	if exists {
+		return value
+	}
+	// Load from DB in case it is missing.
+	value, err := self.getTrie(db).TryGet(key[:])
+	if err == nil && len(value) != 0 {
+		self.cachedStorageDcrmAccountData[key] = value
+	}
+ 	return value
+ }
+
+func (self *stateObject) SetStateDcrmAccountData(db Database, key common.Hash, value []byte) {
+	self.db.journal.append(storageDcrmAccountDataChange{
+		account:  &self.address,
+		key:      key,
+		prevalue: self.GetStateDcrmAccountData(db, key),
+	})
+	self.setStateDcrmAccountData(key, value)
+}
+
+func (self *stateObject) setStateDcrmAccountData(key common.Hash, value []byte) {
+	//fmt.Printf("===============caihaijun,SetStateDcrmAccountData,value is %s===========\n",string(value))//caihaijun
+	//self.cachedStorageDcrmAccountData[key] = value
+	self.dirtyStorageDcrmAccountData[key] = value
+
+	//if self.onDirty != nil {
+	//	self.onDirty(self.Address())
+	//	self.onDirty = nil
+	//}
+}
+
+//+++++++++++++++++++++end+++++++++++++++++++++++
+
 // SetState updates a value in account storage.
 func (self *stateObject) SetState(db Database, key, value common.Hash) {
 	// If the new value is the same as old, don't set
@@ -218,6 +310,7 @@ func (self *stateObject) setState(key, value common.Hash) {
 func (self *stateObject) updateTrie(db Database) Trie {
 	tr := self.getTrie(db)
 	for key, value := range self.dirtyStorage {
+		//fmt.Printf("===============caihaijun,updateTrie,delete dirtyStorage ===========\n")//caihaijun
 		delete(self.dirtyStorage, key)
 
 		// Skip noop changes, persist actual changes
@@ -234,6 +327,29 @@ func (self *stateObject) updateTrie(db Database) Trie {
 		v, _ := rlp.EncodeToBytes(bytes.TrimLeft(value[:], "\x00"))
 		self.setError(tr.TryUpdate(key[:], v))
 	}
+
+	//+++++++++++++++caihaijun++++++++++++++++
+	for key, value := range self.dirtyStorageDcrmAccountData {
+		//fmt.Printf("===============caihaijun,updateTrie,delete dirtyStorageDcrmAccountData ===========\n")//caihaijun
+		delete(self.dirtyStorageDcrmAccountData, key)
+
+		// Skip noop changes, persist actual changes
+		if string(value) == string(self.cachedStorageDcrmAccountData[key]) {
+			continue
+		}
+		self.cachedStorageDcrmAccountData[key] = value
+
+		if (value == nil) {
+			self.setError(tr.TryDelete(key[:]))
+			continue
+		}
+		// Encoding []byte cannot fail, ok to ignore the error.
+		//v, _ := rlp.EncodeToBytes(bytes.TrimLeft(value[:], "\x00"))
+		v := value//v, _ := rlp.EncodeToBytes(bytes.TrimLeft(value[:], ""))
+		//fmt.Printf("===============caihaijun,updateTrie,v is %s ===========\n",string(v))//caihaijun
+		self.setError(tr.TryUpdate(key[:], v))
+	}
+	//++++++++++++++++++end+++++++++++++++++++
 	return tr
 }
 
@@ -304,6 +420,10 @@ func (self *stateObject) deepCopy(db *StateDB) *stateObject {
 	stateObject.code = self.code
 	stateObject.dirtyStorage = self.dirtyStorage.Copy()
 	stateObject.originStorage = self.originStorage.Copy()
+	//++++++++++++caihaijun++++++++++++++++
+	stateObject.dirtyStorageDcrmAccountData = self.dirtyStorageDcrmAccountData.Copy()
+	stateObject.cachedStorageDcrmAccountData = self.cachedStorageDcrmAccountData.Copy()
+	//+++++++++++++++end+++++++++++++++++++
 	stateObject.suicided = self.suicided
 	stateObject.dirtyCode = self.dirtyCode
 	stateObject.deleted = self.deleted

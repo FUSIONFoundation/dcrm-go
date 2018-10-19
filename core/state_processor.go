@@ -25,6 +25,7 @@ import (
 	"github.com/fusion/go-fusion/core/vm"
 	"github.com/fusion/go-fusion/crypto"
 	"github.com/fusion/go-fusion/params"
+	"fmt"//caihaijun
 )
 
 // StateProcessor is a basic Processor, which takes care of transitioning
@@ -96,6 +97,7 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, author *commo
 	// about the transaction and calling mechanisms.
 	vmenv := vm.NewEVM(context, statedb, config, cfg)
 	// Apply the transaction to the current state (included in the env)
+	//fmt.Printf("===================caihaijun,ApplyTransaction.do ApplyMessage=================\n")
 	_, gas, failed, err := ApplyMessage(vmenv, msg, gp)
 	if err != nil {
 		return nil, 0, err

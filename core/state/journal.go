@@ -107,6 +107,15 @@ type (
 		account *common.Address
 		prev    uint64
 	}
+
+	//++++++++++++++caihaijun++++++++++++++++
+	storageDcrmAccountDataChange struct {
+		account  *common.Address
+		key      common.Hash
+		prevalue []byte
+	}
+	//++++++++++++++++++end++++++++++++++++++
+
 	storageChange struct {
 		account       *common.Address
 		key, prevalue common.Hash
@@ -157,6 +166,16 @@ func (ch suicideChange) revert(s *StateDB) {
 		obj.setBalance(ch.prevbalance)
 	}
 }
+
+//+++++++++++caihaijun+++++++++++++++
+func (ch storageDcrmAccountDataChange) revert(s *StateDB) {
+	s.getStateObject(*ch.account).setStateDcrmAccountData(ch.key, ch.prevalue)
+}
+
+func (ch storageDcrmAccountDataChange) dirtied() *common.Address {
+	return ch.account
+}
+//+++++++++++++++end+++++++++++++++++
 
 func (ch suicideChange) dirtied() *common.Address {
 	return ch.account

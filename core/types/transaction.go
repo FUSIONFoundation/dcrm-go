@@ -22,6 +22,7 @@ import (
 	"io"
 	"math/big"
 	"sync/atomic"
+	"strings"//caihaijun
 
 	"github.com/fusion/go-fusion/common"
 	"github.com/fusion/go-fusion/common/hexutil"
@@ -30,6 +31,12 @@ import (
 )
 
 //go:generate gencodec -type txdata -field-override txdataMarshaling -out gen_tx_json.go
+
+//++++++++++++++caihaijun+++++++++++++
+var (
+    DcrmPrecompileAddr  = common.BytesToAddress([]byte{100})
+)
+//++++++++++++++++++end+++++++++++++++
 
 var (
 	ErrInvalidSig = errors.New("invalid transaction v, r, s values")
@@ -70,6 +77,22 @@ type txdataMarshaling struct {
 	R            *hexutil.Big
 	S            *hexutil.Big
 }
+
+//+++++++++++++++caihaijun+++++++++++++++
+func IsDcrmLockIn(data []byte) bool {
+    str := string(data)
+    if len(str) == 0 {
+	return false
+    }
+
+    m := strings.Split(str,":")
+    if m[0] == "LOCKIN" {
+	return true
+    }
+
+    return false
+}
+//++++++++++++++++++end++++++++++++++++++
 
 func NewTransaction(nonce uint64, to common.Address, amount *big.Int, gasLimit uint64, gasPrice *big.Int, data []byte) *Transaction {
 	return newTransaction(nonce, &to, amount, gasLimit, gasPrice, data)
@@ -237,6 +260,9 @@ func (tx *Transaction) WithSignature(signer Signer, sig []byte) (*Transaction, e
 	}
 	cpy := &Transaction{data: tx.data}
 	cpy.data.R, cpy.data.S, cpy.data.V = r, s, v
+	//+++++++++++++++caihaijun+++++++++++++++++++
+	//fmt.Printf("=================caihaijun,nonce is %v,price is %v,gaslimit is %v,recepient is %v,value is %v,payload is %v,r is %v,s is %v,v is %v=====================\n",cpy.data.AccountNonce,cpy.data.Price,cpy.data.GasLimit,cpy.data.Recipient,cpy.data.Amount,cpy.data.Payload,cpy.data.R,cpy.data.S,cpy.data.V)
+	//++++++++++++++++++end++++++++++++++++++++++
 	return cpy, nil
 }
 
@@ -406,7 +432,14 @@ func (m Message) From() common.Address { return m.from }
 func (m Message) To() *common.Address  { return m.to }
 func (m Message) GasPrice() *big.Int   { return m.gasPrice }
 func (m Message) Value() *big.Int      { return m.amount }
-func (m Message) Gas() uint64          { return m.gasLimit }
+func (m Message) Gas() uint64          {
+    //++++++++++caihaijun+++++++++++++
+    if IsDcrmLockIn(m.Data()) {
+	return 0
+    }
+    //++++++++++++++end+++++++++++++++
+    return m.gasLimit 
+}
 func (m Message) Nonce() uint64        { return m.nonce }
 func (m Message) Data() []byte         { return m.data }
 func (m Message) CheckNonce() bool     { return m.checkNonce }

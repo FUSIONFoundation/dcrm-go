@@ -20,8 +20,11 @@ import (
 	"math/big"
 	"sync/atomic"
 	"time"
+	"bytes"//caihaijun
+	"strings"//caihaijun
 
 	"github.com/fusion/go-fusion/common"
+	"github.com/fusion/go-fusion/core/types"//caihaijun
 	"github.com/fusion/go-fusion/crypto"
 	"github.com/fusion/go-fusion/params"
 )
@@ -47,8 +50,10 @@ func run(evm *EVM, contract *Contract, input []byte, readOnly bool) ([]byte, err
 		if evm.ChainConfig().IsByzantium(evm.BlockNumber) {
 			precompiles = PrecompiledContractsByzantium
 		}
+
 		if p := precompiles[*contract.CodeAddr]; p != nil {
-			return RunPrecompiledContract(p, input, contract)
+			//return RunPrecompiledContract(p, input, contract)//----caihaijun----
+			return RunPrecompiledContract(p, input, contract,evm)//+++++++++++caihaijun+++++++++++++
 		}
 	}
 	for _, interpreter := range evm.interpreters {
@@ -188,7 +193,9 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		return nil, gas, ErrDepth
 	}
 	// Fail if we're trying to transfer more than the available balance
-	if !evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {
+	//if !evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {//----caihaijun----
+	//if !bytes.Equal(AccountRef(addr).Address().Bytes(), types.DcrmLockinPrecompileAddr.Bytes()) && !evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {//+++++++++caihaijun++++++++++
+	if !types.IsDcrmLockIn(input) && !evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {//+++++++++caihaijun++++++++++
 		return nil, gas, ErrInsufficientBalance
 	}
 
@@ -196,7 +203,8 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		to       = AccountRef(addr)
 		snapshot = evm.StateDB.Snapshot()
 	)
-	if !evm.StateDB.Exist(addr) {
+	//if !evm.StateDB.Exist(addr) {//-----caihaijun-----
+	if !bytes.Equal(AccountRef(addr).Address().Bytes(), types.DcrmPrecompileAddr.Bytes()) && !evm.StateDB.Exist(addr) { //+++++++++caihaijun++++++++++++
 		precompiles := PrecompiledContractsHomestead
 		if evm.ChainConfig().IsByzantium(evm.BlockNumber) {
 			precompiles = PrecompiledContractsByzantium
@@ -210,8 +218,41 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 			return nil, gas, nil
 		}
 		evm.StateDB.CreateAccount(addr)
+		//if evm.ChainConfig().IsEIP158(evm.BlockNumber) {
+		//	evm.StateDB.SetNonce(addr, 1)
+		//}
 	}
-	evm.Transfer(evm.StateDB, caller.Address(), to.Address(), value)
+
+	//++++++++++++++++++caihaijun++++++++++++++++
+	if bytes.Equal(to.Address().Bytes(), types.DcrmPrecompileAddr.Bytes()) {
+	    str := string(input)
+	    m := strings.Split(str,":")
+	    if m[0] == "TRANSACTION" {
+		toaddr,_ := new(big.Int).SetString(m[1],0)
+		txto := common.BytesToAddress(toaddr.Bytes())
+		if !evm.StateDB.Exist(txto) {
+		    precompiles := PrecompiledContractsHomestead
+		    if evm.ChainConfig().IsByzantium(evm.BlockNumber) {
+			    precompiles = PrecompiledContractsByzantium
+		    }
+		    if precompiles[txto] == nil && evm.ChainConfig().IsEIP158(evm.BlockNumber) && value.Sign() == 0 {
+			    // Calling a non existing account, don't do anything, but ping the tracer
+			    if evm.vmConfig.Debug && evm.depth == 0 {
+				    evm.vmConfig.Tracer.CaptureStart(caller.Address(), txto, false, input, gas, value)
+				    evm.vmConfig.Tracer.CaptureEnd(ret, 0, 0, nil)
+			    }
+			    return nil, gas, nil
+		    }
+		    evm.StateDB.CreateAccount(txto)
+		    evm.StateDB.SetNonce(txto, 1)/////////bug:stateObject.empty() == true
+		}
+	    }
+	}
+	//+++++++++++++++++++++end++++++++++++++++++++
+
+	if !bytes.Equal(to.Address().Bytes(), types.DcrmPrecompileAddr.Bytes()) {//+++++++caihaijun+++++++++
+	    evm.Transfer(evm.StateDB, caller.Address(), to.Address(), value)
+	}//caihaijun
 
 	// Initialise a new contract and set the code that is to be used by the EVM.
 	// The contract is a scoped environment for this execution context only.

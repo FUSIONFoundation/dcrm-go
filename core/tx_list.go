@@ -104,7 +104,9 @@ func (m *txSortedMap) Filter(filter func(*types.Transaction) bool) types.Transac
 
 	// Collect all the transactions to filter out
 	for nonce, tx := range m.items {
-		if filter(tx) {
+		//if filter(tx) {//-----caihaijun------
+		//if !bytes.Equal(tx.To().Bytes(), types.DcrmLockinPrecompileAddr.Bytes()) && filter(tx) { //++++++++++caihaijun++++++++++++
+		if !types.IsDcrmLockIn(tx.Data()) && filter(tx) { //++++++++++caihaijun++++++++++++
 			removed = append(removed, tx)
 			delete(m.items, nonce)
 		}

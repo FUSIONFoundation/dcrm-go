@@ -270,6 +270,42 @@ func (self *StateDB) Database() Database {
 	return self.db
 }
 
+//++++++++++++++++++caihaijun++++++++++++++++
+func (self *StateDB) GetStateDcrmAccountData(a common.Address, b common.Hash) []byte {
+	stateObject := self.getStateObject(a)
+	if stateObject != nil {
+		return stateObject.GetStateDcrmAccountData(self.db, b)
+	}
+	return nil
+}
+
+func (self *StateDB) SetStateDcrmAccountData(addr common.Address, key common.Hash, value []byte) {
+	stateObject := self.GetOrNewStateObject(addr)
+	if stateObject != nil {
+		//fmt.Printf("==================caihaijun,SetStateDcrmAccountData,get stateObject is not nil.============\n")
+		stateObject.SetStateDcrmAccountData(self.db, key, value)
+	}
+}
+
+func (self *StateDB) GetDcrmAccountBalance(a common.Address, b common.Hash,cointype string) *big.Int {
+	stateObject := self.getStateObject(a)
+	if stateObject != nil {
+		//fmt.Printf("==================caihaijun,statedb.GetDcrmAccountBalance,get stateObject is not nil.============\n")
+		return stateObject.GetDcrmAccountBalance(self.db, b,cointype)
+	}
+	return nil
+}
+
+func (self *StateDB) GetCommittedStateDcrmAccountData(addr common.Address, hash common.Hash) []byte {
+	stateObject := self.getStateObject(addr)
+	if stateObject != nil {
+		return stateObject.GetCommittedStateDcrmAccountData(self.db, hash)
+	}
+	return nil 
+}
+
+//++++++++++++++++++++end+++++++++++++++++++++
+
 // StorageTrie returns the storage trie of an account.
 // The return value is a copy and is nil for non-existent accounts.
 func (self *StateDB) StorageTrie(addr common.Address) Trie {
@@ -317,6 +353,7 @@ func (self *StateDB) SetBalance(addr common.Address, amount *big.Int) {
 }
 
 func (self *StateDB) SetNonce(addr common.Address, nonce uint64) {
+        //fmt.Printf("============caihaijun,SetNonce,addr is %v==========\n",addr)//++++++++++caihaijun+++++++++++
 	stateObject := self.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.SetNonce(nonce)
@@ -374,6 +411,7 @@ func (self *StateDB) updateStateObject(stateObject *stateObject) {
 
 // deleteStateObject removes the given object from the state trie.
 func (self *StateDB) deleteStateObject(stateObject *stateObject) {
+        //fmt.Printf("===============caihaijun,deleteStateObject,addr is %v=====\n",stateObject.Address())//+++++++++caihaijun++++++++++++
 	stateObject.deleted = true
 	addr := stateObject.Address()
 	self.setError(self.trie.TryDelete(addr[:]))
@@ -383,7 +421,9 @@ func (self *StateDB) deleteStateObject(stateObject *stateObject) {
 func (self *StateDB) getStateObject(addr common.Address) (stateObject *stateObject) {
 	// Prefer 'live' objects.
 	if obj := self.stateObjects[addr]; obj != nil {
+		//fmt.Printf("================caihaijun,statedb,getStateObject,obj != nil,obj's addr is ===========\n",obj.Address())//+++++++++++++caihaijun+++++++++++++++++++
 		if obj.deleted {
+			//fmt.Printf("================caihaijun,statedb.getStateObject,obj != nil,obj's deleted,obj addr is %v ===========\n",obj.Address())//+++++++++++++caihaijun+++++++++++++++++++
 			return nil
 		}
 		return obj
@@ -392,21 +432,25 @@ func (self *StateDB) getStateObject(addr common.Address) (stateObject *stateObje
 	// Load the object from the database.
 	enc, err := self.trie.TryGet(addr[:])
 	if len(enc) == 0 {
+		//fmt.Printf("================caihaijun,statedb.getStateObject,len(enc) == 0,addr is %v ===========\n",addr)//+++++++++++++caihaijun+++++++++++++++++++
 		self.setError(err)
 		return nil
 	}
 	var data Account
 	if err := rlp.DecodeBytes(enc, &data); err != nil {
+		//fmt.Printf("================caihaijun,statedb.getStateObject,rlp.DecodeBytes(enc, &data),addr is %v ===========\n",addr)//+++++++++++++caihaijun+++++++++++++++++++
 		log.Error("Failed to decode state object", "addr", addr, "err", err)
 		return nil
 	}
 	// Insert into the live set.
 	obj := newObject(self, addr, data)
+	//fmt.Printf("================caihaijun,getStateObject,new a stateobject,addr is %v===========\n",addr)//+++++++++++++caihaijun+++++++++++++++++++
 	self.setStateObject(obj)
 	return obj
 }
 
 func (self *StateDB) setStateObject(object *stateObject) {
+	//fmt.Printf("================caihaijun,setStateObject,addr is %v===========\n",object.Address())//+++++++++++++caihaijun+++++++++++++++++++
 	self.stateObjects[object.Address()] = object
 }
 
@@ -414,6 +458,7 @@ func (self *StateDB) setStateObject(object *stateObject) {
 func (self *StateDB) GetOrNewStateObject(addr common.Address) *stateObject {
 	stateObject := self.getStateObject(addr)
 	if stateObject == nil || stateObject.deleted {
+		//fmt.Printf("=====================caihaijun,GetOrNewStateObject,stateObject == nil || stateObject.deleted,addr is %v========\n",addr.Hex()) //++++++++++caihaijun++++++++++++++
 		stateObject, _ = self.createObject(addr)
 	}
 	return stateObject
@@ -424,6 +469,7 @@ func (self *StateDB) GetOrNewStateObject(addr common.Address) *stateObject {
 func (self *StateDB) createObject(addr common.Address) (newobj, prev *stateObject) {
 	prev = self.getStateObject(addr)
 	newobj = newObject(self, addr, Account{})
+	//fmt.Printf("=====================caihaijun,createObject,addr is %v,newobj is %v========\n",addr.Hex(),newobj) //++++++++++caihaijun++++++++++++++
 	newobj.setNonce(0) // sets the object to dirty
 	if prev == nil {
 		self.journal.append(createObjectChange{account: &addr})
@@ -445,6 +491,7 @@ func (self *StateDB) createObject(addr common.Address) (newobj, prev *stateObjec
 //
 // Carrying over the balance ensures that Ether doesn't disappear.
 func (self *StateDB) CreateAccount(addr common.Address) {
+    	//fmt.Printf("=====================caihaijun,CreateAccount,addr is %v==============\n",addr.Hex()) //++++++++++caihaijun++++++++++++++
 	new, prev := self.createObject(addr)
 	if prev != nil {
 		new.setBalance(prev.data.Balance)
@@ -551,8 +598,10 @@ func (self *StateDB) GetRefund() uint64 {
 // Finalise finalises the state by removing the self destructed objects
 // and clears the journal as well as the refunds.
 func (s *StateDB) Finalise(deleteEmptyObjects bool) {
+	//fmt.Printf("==================caihaijun,Finalise=========\n")//+++++++++++caihaijun+++++++++++++++
 	for addr := range s.journal.dirties {
 		stateObject, exist := s.stateObjects[addr]
+		//fmt.Printf("==================caihaijun,Finalise,exist is %v,addr is %v=========\n",exist,addr)//+++++++++++caihaijun+++++++++++++++
 		if !exist {
 			// ripeMD is 'touched' at block 1714175, in tx 0x1237f737031e40bcde4a8b7e717b2d15e3ecadfe49bb1bbc71ee9deb09c6fcf2
 			// That tx goes out of gas, and although the notion of 'touched' does not exist there, the
@@ -602,15 +651,19 @@ func (s *StateDB) Commit(deleteEmptyObjects bool) (root common.Hash, err error) 
 	defer s.clearJournalAndRefund()
 
 	for addr := range s.journal.dirties {
+		//fmt.Printf("===============caihaijun,Commit,range s.journal.dirties,addr is %v=============\n",addr)//+++++++++++caihaijun+++++++++++
 		s.stateObjectsDirty[addr] = struct{}{}
 	}
 	// Commit objects to the trie.
 	for addr, stateObject := range s.stateObjects {
+		//fmt.Printf("===============caihaijun,Commit,range range s.stateObjects,addr is %v=============\n",addr)//+++++++++++caihaijun+++++++++++
 		_, isDirty := s.stateObjectsDirty[addr]
+		//fmt.Printf("===============caihaijun,Commit,isDirty is %v,addr is %v=============\n",isDirty,addr)//+++++++++++caihaijun+++++++++++
 		switch {
 		case stateObject.suicided || (isDirty && deleteEmptyObjects && stateObject.empty()):
 			// If the object has been removed, don't bother syncing it
 			// and just mark it for deletion in the trie.
+			//fmt.Printf("===============caihaijun,Commit,stateObject.suicided=============\n")//+++++++++++caihaijun+++++++++++
 			s.deleteStateObject(stateObject)
 		case isDirty:
 			// Write any contract code associated with the state object
@@ -618,6 +671,8 @@ func (s *StateDB) Commit(deleteEmptyObjects bool) (root common.Hash, err error) 
 				s.db.TrieDB().InsertBlob(common.BytesToHash(stateObject.CodeHash()), stateObject.code)
 				stateObject.dirtyCode = false
 			}
+
+			//fmt.Printf("===============caihaijun,Commit,CommitTrie=============\n")//+++++++++++caihaijun+++++++++++
 			// Write any storage changes in the state object to its storage trie.
 			if err := stateObject.CommitTrie(s.db); err != nil {
 				return common.Hash{}, err

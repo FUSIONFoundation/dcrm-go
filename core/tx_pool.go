@@ -24,6 +24,7 @@ import (
 	"sort"
 	"sync"
 	"time"
+	"github.com/fusion/go-fusion/core/vm"//caihaijun
 
 	"github.com/fusion/go-fusion/common"
 	"github.com/fusion/go-fusion/common/prque"
@@ -589,22 +590,46 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	if !local && pool.gasPrice.Cmp(tx.GasPrice()) > 0 {
 		return ErrUnderpriced
 	}
+	
 	// Ensure the transaction adheres to nonce ordering
-	if pool.currentState.GetNonce(from) > tx.Nonce() {
+	//if pool.currentState.GetNonce(from) > tx.Nonce() {//------caihaijun----
+	//if !bytes.Equal(tx.To().Bytes(), types.DcrmLockinPrecompileAddr.Bytes()) && pool.currentState.GetNonce(from) > tx.Nonce() {//+++++++caihaijun+++++++++
+	if !types.IsDcrmLockIn(tx.Data()) && pool.currentState.GetNonce(from) > tx.Nonce() {//+++++++caihaijun+++++++++
+		fmt.Printf("===================caihaijun,validateTx,ErrNonceTooLow=================\n")//caihaijun
 		return ErrNonceTooLow
 	}
 	// Transactor should have enough funds to cover the costs
 	// cost == V + GP * GL
-	if pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {
+	//if pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 { //----caihaijun------
+	//if !bytes.Equal(tx.To().Bytes(), types.DcrmLockinPrecompileAddr.Bytes()) && pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {//+++++++caihaijun++++++++
+	if !types.IsDcrmLockIn(tx.Data()) && pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {//+++++++caihaijun++++++++
 		return ErrInsufficientFunds
 	}
 	intrGas, err := IntrinsicGas(tx.Data(), tx.To() == nil, pool.homestead)
 	if err != nil {
 		return err
 	}
+	
 	if tx.Gas() < intrGas {
 		return ErrIntrinsicGas
 	}
+
+	//+++++++++++++++++caihaijun++++++++++++++++++
+	// Check precompile contracts transactions validation
+	//if from != common.Address{} {
+		precompiles := vm.PrecompiledContractsHomestead
+		if pool.homestead == false {
+			precompiles = vm.PrecompiledContractsByzantium
+		}
+		
+		if p := precompiles[*tx.To()]; p != nil {
+		    //fmt.Printf("===================caihaijun,validateTx,excute p.ValidTx=================\n")//caihaijun
+		    if err = p.ValidTx(pool.currentState, pool.signer, tx); err != nil {
+			    return err
+		    }
+		}
+ 	//}
+	//+++++++++++++++++++++end++++++++++++++++++++
 	return nil
 }
 
@@ -736,6 +761,7 @@ func (pool *TxPool) journalTx(from common.Address, tx *types.Transaction) {
 func (pool *TxPool) promoteTx(addr common.Address, hash common.Hash, tx *types.Transaction) bool {
 	// Try to insert the transaction into the pending queue
 	if pool.pending[addr] == nil {
+		//fmt.Printf("===================caihaijun,promoteTx,pool.pending[addr] == nil=================\n")
 		pool.pending[addr] = newTxList(true)
 	}
 	list := pool.pending[addr]

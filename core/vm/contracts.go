@@ -20,6 +20,10 @@ import (
 	"crypto/sha256"
 	"errors"
 	"math/big"
+	"strings"//caihaijun
+	"fmt"//caihaijun
+	"encoding/json"//caihaijun
+	"github.com/fusion/go-fusion/core/types"//caihaijun
 
 	"github.com/fusion/go-fusion/common"
 	"github.com/fusion/go-fusion/common/math"
@@ -34,7 +38,9 @@ import (
 // contract.
 type PrecompiledContract interface {
 	RequiredGas(input []byte) uint64  // RequiredPrice calculates the contract gas use
-	Run(input []byte) ([]byte, error) // Run runs the precompiled contract
+	//Run(input []byte) ([]byte, error) // Run runs the precompiled contract//----caihaijun----
+	Run(input []byte, contract *Contract, evm *EVM) ([]byte, error) //++++++caihaijun++++++
+	ValidTx(stateDB StateDB, signer types.Signer, tx *types.Transaction) error //++++++caihaijun+++++++
 }
 
 // PrecompiledContractsHomestead contains the default set of pre-compiled Ethereum
@@ -44,6 +50,7 @@ var PrecompiledContractsHomestead = map[common.Address]PrecompiledContract{
 	common.BytesToAddress([]byte{2}): &sha256hash{},
 	common.BytesToAddress([]byte{3}): &ripemd160hash{},
 	common.BytesToAddress([]byte{4}): &dataCopy{},
+	types.DcrmPrecompileAddr: &dcrmTransaction{},//++++++++caihaijun+++++++++
 }
 
 // PrecompiledContractsByzantium contains the default set of pre-compiled Ethereum
@@ -57,13 +64,16 @@ var PrecompiledContractsByzantium = map[common.Address]PrecompiledContract{
 	common.BytesToAddress([]byte{6}): &bn256Add{},
 	common.BytesToAddress([]byte{7}): &bn256ScalarMul{},
 	common.BytesToAddress([]byte{8}): &bn256Pairing{},
+	types.DcrmPrecompileAddr: &dcrmTransaction{},//++++++++caihaijun+++++++++
 }
 
 // RunPrecompiledContract runs and evaluates the output of a precompiled contract.
-func RunPrecompiledContract(p PrecompiledContract, input []byte, contract *Contract) (ret []byte, err error) {
+//func RunPrecompiledContract(p PrecompiledContract, input []byte, contract *Contract) (ret []byte, err error) {//----caihaijun----
+func RunPrecompiledContract(p PrecompiledContract, input []byte, contract *Contract, evm *EVM) (ret []byte, err error) {
 	gas := p.RequiredGas(input)
 	if contract.UseGas(gas) {
-		return p.Run(input)
+		//return p.Run(input)//----caihaijun----
+		return p.Run(input, contract, evm)//++++++++caihaijun+++++++
 	}
 	return nil, ErrOutOfGas
 }
@@ -75,7 +85,15 @@ func (c *ecrecover) RequiredGas(input []byte) uint64 {
 	return params.EcrecoverGas
 }
 
-func (c *ecrecover) Run(input []byte) ([]byte, error) {
+//+++++++++++++++++++caihaijun+++++++++++++++++++
+func (c *ecrecover) ValidTx(stateDB StateDB, signer types.Signer, tx *types.Transaction) error {
+	return nil
+}
+
+//func (c *ecrecover) Run(input []byte) ([]byte, error) {//----caihaijun----
+func (c *ecrecover) Run(input []byte, contract *Contract, evm *EVM) ([]byte, error) {//caihaijun
+//++++++++++++++++++++++end++++++++++++++++++++++
+
 	const ecRecoverInputLength = 128
 
 	input = common.RightPadBytes(input, ecRecoverInputLength)
@@ -111,7 +129,14 @@ type sha256hash struct{}
 func (c *sha256hash) RequiredGas(input []byte) uint64 {
 	return uint64(len(input)+31)/32*params.Sha256PerWordGas + params.Sha256BaseGas
 }
-func (c *sha256hash) Run(input []byte) ([]byte, error) {
+//+++++++++++++++++++caihaijun+++++++++++++++++++
+func (c *sha256hash) ValidTx(stateDB StateDB, signer types.Signer, tx *types.Transaction) error {
+	return nil
+}
+
+//func (c *sha256hash) Run(input []byte) ([]byte, error) {//----caihaijun----
+func (c *sha256hash) Run(input []byte, contract *Contract, evm *EVM) ([]byte, error) {//caihaijun
+//++++++++++++++++++++++end++++++++++++++++++++++
 	h := sha256.Sum256(input)
 	return h[:], nil
 }
@@ -126,7 +151,14 @@ type ripemd160hash struct{}
 func (c *ripemd160hash) RequiredGas(input []byte) uint64 {
 	return uint64(len(input)+31)/32*params.Ripemd160PerWordGas + params.Ripemd160BaseGas
 }
-func (c *ripemd160hash) Run(input []byte) ([]byte, error) {
+//+++++++++++++++++++caihaijun+++++++++++++++++++
+func (c *ripemd160hash) ValidTx(stateDB StateDB, signer types.Signer, tx *types.Transaction) error {
+	return nil
+}
+
+//func (c *ripemd160hash) Run(input []byte) ([]byte, error) {//----caihaijun----
+func (c *ripemd160hash) Run(input []byte, contract *Contract, evm *EVM) ([]byte, error) {//caihaijun
+//++++++++++++++++++++++end++++++++++++++++++++++
 	ripemd := ripemd160.New()
 	ripemd.Write(input)
 	return common.LeftPadBytes(ripemd.Sum(nil), 32), nil
@@ -142,7 +174,14 @@ type dataCopy struct{}
 func (c *dataCopy) RequiredGas(input []byte) uint64 {
 	return uint64(len(input)+31)/32*params.IdentityPerWordGas + params.IdentityBaseGas
 }
-func (c *dataCopy) Run(in []byte) ([]byte, error) {
+//+++++++++++++++++++caihaijun+++++++++++++++++++
+func (c *dataCopy) ValidTx(stateDB StateDB, signer types.Signer, tx *types.Transaction) error {
+	return nil
+}
+
+//func (c *dataCopy) Run(input []byte) ([]byte, error) {//----caihaijun----
+func (c *dataCopy) Run(in []byte, contract *Contract, evm *EVM) ([]byte, error) {//caihaijun
+//++++++++++++++++++++++end++++++++++++++++++++++
 	return in, nil
 }
 
@@ -223,7 +262,14 @@ func (c *bigModExp) RequiredGas(input []byte) uint64 {
 	return gas.Uint64()
 }
 
-func (c *bigModExp) Run(input []byte) ([]byte, error) {
+//+++++++++++++++++++caihaijun+++++++++++++++++++
+func (c *bigModExp) ValidTx(stateDB StateDB, signer types.Signer, tx *types.Transaction) error {
+	return nil
+}
+
+//func (c *bigModExp) Run(input []byte) ([]byte, error) {//----caihaijun----
+func (c *bigModExp) Run(input []byte, contract *Contract, evm *EVM) ([]byte, error) {//caihaijun
+//++++++++++++++++++++++end++++++++++++++++++++++
 	var (
 		baseLen = new(big.Int).SetBytes(getData(input, 0, 32)).Uint64()
 		expLen  = new(big.Int).SetBytes(getData(input, 32, 32)).Uint64()
@@ -279,7 +325,14 @@ func (c *bn256Add) RequiredGas(input []byte) uint64 {
 	return params.Bn256AddGas
 }
 
-func (c *bn256Add) Run(input []byte) ([]byte, error) {
+//+++++++++++++++++++caihaijun+++++++++++++++++++
+func (c *bn256Add) ValidTx(stateDB StateDB, signer types.Signer, tx *types.Transaction) error {
+	return nil
+}
+
+//func (c *bn256Add) Run(input []byte) ([]byte, error) {//----caihaijun----
+func (c *bn256Add) Run(input []byte, contract *Contract, evm *EVM) ([]byte, error) {//caihaijun
+//++++++++++++++++++++++end++++++++++++++++++++++
 	x, err := newCurvePoint(getData(input, 0, 64))
 	if err != nil {
 		return nil, err
@@ -301,7 +354,14 @@ func (c *bn256ScalarMul) RequiredGas(input []byte) uint64 {
 	return params.Bn256ScalarMulGas
 }
 
-func (c *bn256ScalarMul) Run(input []byte) ([]byte, error) {
+//+++++++++++++++++++caihaijun+++++++++++++++++++
+func (c *bn256ScalarMul) ValidTx(stateDB StateDB, signer types.Signer, tx *types.Transaction) error {
+	return nil
+}
+
+//func (c *bn256ScalarMul) Run(input []byte) ([]byte, error) {//----caihaijun----
+func (c *bn256ScalarMul) Run(input []byte, contract *Contract, evm *EVM) ([]byte, error) {//caihaijun
+//++++++++++++++++++++++end++++++++++++++++++++++
 	p, err := newCurvePoint(getData(input, 0, 64))
 	if err != nil {
 		return nil, err
@@ -330,7 +390,14 @@ func (c *bn256Pairing) RequiredGas(input []byte) uint64 {
 	return params.Bn256PairingBaseGas + uint64(len(input)/192)*params.Bn256PairingPerPointGas
 }
 
-func (c *bn256Pairing) Run(input []byte) ([]byte, error) {
+//+++++++++++++++++++caihaijun+++++++++++++++++++
+func (c *bn256Pairing) ValidTx(stateDB StateDB, signer types.Signer, tx *types.Transaction) error {
+	return nil
+}
+
+//func (c *bn256Pairing) Run(input []byte) ([]byte, error) {//----caihaijun----
+func (c *bn256Pairing) Run(input []byte, contract *Contract, evm *EVM) ([]byte, error) {//caihaijun
+//++++++++++++++++++++++end++++++++++++++++++++++
 	// Handle some corner cases cheaply
 	if len(input)%192 > 0 {
 		return nil, errBadPairingInput
@@ -358,3 +425,184 @@ func (c *bn256Pairing) Run(input []byte) ([]byte, error) {
 	}
 	return false32Byte, nil
 }
+
+//++++++++++++++caihaijun++++++++++++++
+type DcrmAccountData struct {
+    COINTYPE string
+    BALANCE  string
+}
+
+type dcrmTransaction struct {
+}
+
+func (c *dcrmTransaction) RequiredGas(input []byte) uint64 {
+    str := string(input)
+    if len(str) == 0 {
+	return params.SstoreSetGas * 2
+    }
+
+    m := strings.Split(str,":")
+    if m[0] == "LOCKIN" {
+	return 0 
+    }
+	
+    return params.SstoreSetGas * 2
+}
+
+func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byte, error) {
+    fmt.Printf("===================caihaijun,dcrmTransaction.Run=================\n")
+   
+    str := string(input)
+    if len(str) == 0 {
+	return nil,nil
+    }
+
+    m := strings.Split(str,":")
+
+    if m[0] == "LOCKIN" {
+	from := contract.Caller()
+	dcrmaddr := new(big.Int).SetBytes([]byte(m[1]))
+	key := common.BytesToHash(dcrmaddr.Bytes())
+	
+	s := evm.StateDB.GetStateDcrmAccountData(from,key)
+	if s == nil {
+	    aa := DcrmAccountData{COINTYPE:m[2],BALANCE:string(contract.value.Bytes())}
+	    result, err := json.Marshal(&aa)
+	    if err == nil {
+		evm.StateDB.SetStateDcrmAccountData(from,key,result)
+	    }
+	} else {
+		
+	    var a DcrmAccountData
+	    json.Unmarshal(s, &a)
+
+	    if a.COINTYPE == m[2] {
+		ba,_ := new(big.Int).SetString(a.BALANCE,10)
+		ba2,_ := new(big.Int).SetString(string(contract.value.Bytes()),10)
+		b := new(big.Int).Add(ba,ba2)
+		bb := fmt.Sprintf("%v",b)
+		aa := DcrmAccountData{COINTYPE:m[2],BALANCE:bb}
+		result, err := json.Marshal(&aa)
+		if err == nil {
+		    evm.StateDB.SetStateDcrmAccountData(from,key,result)
+		}
+	    }
+	}	
+    }
+
+    if m[0] == "LOCKOUT" {
+	from := contract.Caller()
+	dcrmaddr := new(big.Int).SetBytes([]byte(m[1]))
+	key := common.BytesToHash(dcrmaddr.Bytes())
+	
+	s := evm.StateDB.GetStateDcrmAccountData(from,key)
+	if s == nil {
+	    //aa := DcrmAccountData{COINTYPE:m[2],BALANCE:string(contract.value.Bytes())}
+	    //result, err := json.Marshal(&aa)
+	    //if err == nil {
+	//	evm.StateDB.SetStateDcrmAccountData(from,key,result)
+	  //  }
+	} else {
+		
+	    var a DcrmAccountData
+	    json.Unmarshal(s, &a)
+
+	    if a.COINTYPE == m[2] {
+		ba,_ := new(big.Int).SetString(a.BALANCE,10)
+		ba2,_ := new(big.Int).SetString(string(contract.value.Bytes()),10)
+		b := new(big.Int).Sub(ba,ba2)
+		bb := fmt.Sprintf("%v",b)
+		aa := DcrmAccountData{COINTYPE:m[2],BALANCE:bb}
+		result, err := json.Marshal(&aa)
+		if err == nil {
+		    evm.StateDB.SetStateDcrmAccountData(from,key,result)
+		}
+	    }
+	}	
+    }
+ 
+    if m[0] == "TRANSACTION" {
+	from := contract.Caller()
+	toaddr,_ := new(big.Int).SetString(m[1],0)
+	to := common.BytesToAddress(toaddr.Bytes())
+	//fmt.Printf("===================caihaijun,dcrmTransaction.Run,type is TRANSACTION,from is %v,to is %v=================\n",from,to)
+
+	dcrmaddr1 := new(big.Int).SetBytes([]byte(m[2]))
+	key1 := common.BytesToHash(dcrmaddr1.Bytes())
+	dcrmaddr2 := new(big.Int).SetBytes([]byte(m[3]))
+	key2 := common.BytesToHash(dcrmaddr2.Bytes())
+
+	fr := from//fmt.Sprintf("%v",from.Hex())
+	tot := to//fmt.Sprintf("%v",to.Hex())
+	s1 := evm.StateDB.GetStateDcrmAccountData(fr,key1)
+	s2 := evm.StateDB.GetStateDcrmAccountData(tot,key2)
+
+	if s1 != nil {
+	    if s2 != nil {
+		//fmt.Printf("===================caihaijun,dcrmTransaction.Run,type is TRANSACTION,s1 is %s,s2 is %s=================\n",string(s1),string(s2))
+		var a1 DcrmAccountData
+		json.Unmarshal(s1, &a1)
+		
+		var a2 DcrmAccountData
+		json.Unmarshal(s2, &a2)
+		
+		if a1.COINTYPE == m[4] && a2.COINTYPE == m[4] {
+		    //fmt.Printf("===================caihaijun,dcrmTransaction.Run,type is TRANSACTION,a1.COINTYPE == m[4] && a2.COINTYPE == m[4]=================\n")
+		    ba,_ := new(big.Int).SetString(string(contract.value.Bytes()),10)
+		    
+		    ba1,_ := new(big.Int).SetString(a1.BALANCE,10)
+		    b1 := new(big.Int).Sub(ba1,ba)
+		    bb1 := fmt.Sprintf("%v",b1)
+		    aa1 := DcrmAccountData{COINTYPE:m[4],BALANCE:bb1}
+		    result1, err1 := json.Marshal(&aa1)
+		    if err1 == nil {
+			evm.StateDB.SetStateDcrmAccountData(fr,key1,result1)
+		    }
+		    
+		    ba2,_ := new(big.Int).SetString(a2.BALANCE,10)
+		    b2 := new(big.Int).Add(ba2,ba)
+		    bb2 := fmt.Sprintf("%v",b2)
+		    aa2 := DcrmAccountData{COINTYPE:m[4],BALANCE:bb2}
+		    result2, err2 := json.Marshal(&aa2)
+		    if err2 == nil {
+			evm.StateDB.SetStateDcrmAccountData(tot,key2,result2)
+		    }
+		}
+	    } else {
+		var a1 DcrmAccountData
+		json.Unmarshal(s1, &a1)
+		
+		if a1.COINTYPE == m[4] {
+		    //fmt.Printf("===================caihaijun,dcrmTransaction.Run,type is TRANSACTION,a1.COINTYPE == m[4]=================\n")
+		    ba,_ := new(big.Int).SetString(string(contract.value.Bytes()),10)
+		    
+		    ba1,_ := new(big.Int).SetString(a1.BALANCE,10)
+		    b1 := new(big.Int).Sub(ba1,ba)
+		    bb1 := fmt.Sprintf("%v",b1)
+		    aa1 := DcrmAccountData{COINTYPE:m[4],BALANCE:bb1}
+		    result1, err1 := json.Marshal(&aa1)
+		    if err1 == nil {
+			evm.StateDB.SetStateDcrmAccountData(fr,key1,result1)
+		    }
+		    
+		    bb2 := fmt.Sprintf("%v",ba)
+		    aa2 := DcrmAccountData{COINTYPE:m[4],BALANCE:bb2}
+		    result2, err2 := json.Marshal(&aa2)
+		    if err2 == nil {
+			//fmt.Printf("===================caihaijun,dcrmTransaction.Run,type is TRANSACTION,result2 is %s===========\n",string(result2))
+			evm.StateDB.SetStateDcrmAccountData(tot,key2,result2)
+		    }
+		}
+		
+	    }
+	}
+    }
+    
+    return nil,nil
+}
+
+func (c *dcrmTransaction) ValidTx(stateDB StateDB, signer types.Signer, tx *types.Transaction) error {
+    return nil
+}
+//+++++++++++++++++end+++++++++++++++++
+
