@@ -32,6 +32,7 @@ import (
 	"github.com/fusion/go-fusion/eth"
 	"github.com/fusion/go-fusion/node"
 	"github.com/fusion/go-fusion/params"
+	"github.com/fusion/go-fusion/p2p/dcrm"
 	whisper "github.com/fusion/go-fusion/whisper/whisperv6"
 	"github.com/naoina/toml"
 )
@@ -77,6 +78,8 @@ type ethstatsConfig struct {
 type gethConfig struct {
 	Eth       eth.Config
 	Shh       whisper.Config
+	//TODO
+	Dcrm      dcrm.Config
 	Node      node.Config
 	Ethstats  ethstatsConfig
 	Dashboard dashboard.Config
@@ -115,6 +118,7 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 		Eth:       eth.DefaultConfig,
 		Shh:       whisper.DefaultConfig,
 		Node:      defaultNodeConfig(),
+		Dcrm:      dcrm.DefaultConfig,
 		Dashboard: dashboard.DefaultConfig,
 	}
 
@@ -132,6 +136,7 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 		utils.Fatalf("Failed to create the protocol stack: %v", err)
 	}
 	utils.SetEthConfig(ctx, stack, &cfg.Eth)
+	cfg.Dcrm.DcrmNodes = cfg.Node.P2P.DcrmNodes
 	if ctx.GlobalIsSet(utils.EthStatsURLFlag.Name) {
 		cfg.Ethstats.URL = ctx.GlobalString(utils.EthStatsURLFlag.Name)
 	}
@@ -180,6 +185,10 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 	if cfg.Ethstats.URL != "" {
 		utils.RegisterEthStatsService(stack, cfg.Ethstats.URL)
 	}
+	//TODO
+	//if ctx.GlobalIsSet(utils.DcrmFlag.Name) {
+		utils.RegisterDcrmService(stack, &cfg.Dcrm)
+	//}
 	return stack
 }
 

@@ -125,6 +125,7 @@ var (
 		utils.DeveloperPeriodFlag,
 		utils.TestnetFlag,
 		utils.RinkebyFlag,
+		utils.DcrmFlag,
 		utils.VMEnableDebugFlag,
 		utils.NetworkIdFlag,
 		utils.RPCCORSDomainFlag,
@@ -153,7 +154,7 @@ var (
 		utils.IPCDisabledFlag,
 		utils.IPCPathFlag,
 	}
-	
+
 	paillierThresholdFlags = []cli.Flag{
 			cli.IntFlag{Name: "index", Value:0, Usage: "paillier threshold decrept", Destination: &paillier_threshold_index},
 		}
@@ -179,7 +180,7 @@ func init() {
 	// Initialize the CLI app and start Geth
 	app.Action = geth
 	app.HideVersion = true // we have a command to print the version
-	app.Copyright = "Copyright 2013-2018 The go-ethereum Authors"
+	app.Copyright = "Copyright 2018-2023 The go-fusion Authors"
 	app.Commands = []cli.Command{
 		// See chaincmd.go:
 		initCommand,
@@ -259,7 +260,6 @@ func init() {
 		return nil
 	}
 
-	//dcrm.Init(paillier_threshold_index)
 }
 
 func main() {
@@ -285,6 +285,7 @@ func geth(ctx *cli.Context) error {
 	//dcrm.Init(bn.ID, ipa)
 	//go dcrm.StartTest()
 
+	//dcrm.Init(paillier_threshold_index)
 	node.Wait()
 	return nil
 }

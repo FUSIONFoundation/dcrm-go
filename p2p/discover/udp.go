@@ -490,6 +490,7 @@ func init() {
 
 func (t *udp) send(toaddr *net.UDPAddr, ptype byte, req packet) ([]byte, error) {
 	packet, hash, err := encodePacket(t.priv, ptype, req)
+	encodePacket(t.priv, ptype, packet)
 	if err != nil {
 		return hash, err
 	}
@@ -593,8 +594,10 @@ func decodePacket(buf []byte) (packet, NodeID, []byte, error) {
 		req = new(findgroup)
 	case groupPacket:
 		req = new(group)
-	case dcrmPacket:
-		req = new(sendmessage)
+	case DcrmPacket:
+		req = new(groupmessage)
+	case DcrmMsgPacket:
+		req = new(message)
 	default:
 		return nil, fromID, hash, fmt.Errorf("unknown type: %d", ptype)
 	}

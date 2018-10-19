@@ -96,7 +96,7 @@ var (
 
     cur_enode string
     enode_cnts int 
-    other_nodes string
+    //other_nodes string
 
     // 0:main net  
     //1:test net
@@ -106,7 +106,7 @@ var (
     //rpc-req
     RpcMaxWorker = 10000
     RpcMaxQueue  = 10000
-    DcrmDataMaxQueue  = 1000 
+    DcrmDataMaxQueue  = 10//1000 
     RpcReqQueue chan RpcReq 
     DcrmDataQueue chan DcrmData
     makedata chan bool
@@ -235,11 +235,13 @@ func call(msg interface{}) {
 	SetUpMsgList(msg.(string))
 }
 
-func Init(paillier_threshold_index int) {
+func Init(paillier_dprivkey *big.Int,nodecnt int) {
+   NodeCnt = nodecnt
+    fmt.Println("==============NodeCnt is %v====================\n",NodeCnt)
     p2pdcrm.RegisterCallback(call)
-    SetPaillierThresholdIndex(paillier_threshold_index)
+    //SetPaillierThresholdIndex(paillier_threshold_index)
     //paillier
-    GetPaillierKey(crand.Reader,1024)
+    GetPaillierKey(crand.Reader,1024,paillier_dprivkey)
     fmt.Println("==============new paillier finish====================")
     //zk
     GetPublicParams(secp256k1.S256(), 256, 512, SecureRnd)
@@ -571,25 +573,30 @@ func (w RpcReqWorker) Stop() {
 //rpc-req
 
 		func GetEnodesInfo() {
-		    cnt,nodes := p2pdcrm.GetEnodes()
-		    others := strings.Split(nodes,sep2)
+		    cnt,_ := p2pdcrm.GetEnodes()
+		    //others := strings.Split(nodes,sep2)
 		    enode_cnts = cnt
-		    if cnt < NodeCnt {
-			return
-		    }
+		    //if cnt < NodeCnt {
+		//	return
+		  //  }
 
-		    var s []string
+		    cur_enode = p2pdcrm.GetSelfID().String()
+		    /*var s []string
 		    for _,ens := range others {
-			en := strings.Split(ens,"@")
-			s = append(s,en[0])
-		    }
+			en1 := strings.Split(ens,"//")
+			en := strings.Split(en1[1],"@")
 
-		    cur_enode = s[0]
-		    other_nodes = strings.Join(s[1:],sep2)
+			fmt.Printf("cur_enode: %+v, en[0]: %+v\n", cur_enode, en[0])
+			if cur_enode != en[0] {
+				s = append(s,en[0])
+			}
+		    }*/
+
+		    //other_nodes = strings.Join(s[:],sep2)
 		}
 
-		func GetPaillierKey(rnd io.Reader, bitlen int) {
-		    priv_Key = new_paillier_Key(rnd,bitlen)
+		func GetPaillierKey(rnd io.Reader, bitlen int,paillier_dprivkey *big.Int) {
+		    priv_Key = new_paillier_Key(rnd,bitlen,paillier_dprivkey)
 		}
 
 		func GetPublicParams(BitCurve *secp256k1.BitCurve,primeCertainty int32,kPrime int32,rnd *rand.Rand) {

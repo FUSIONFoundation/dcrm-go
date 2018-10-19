@@ -89,7 +89,8 @@ type transport interface {
 	findnode(toid NodeID, addr *net.UDPAddr, target NodeID) ([]*Node, error)
 	//TODO: group
 	findgroup(toid NodeID, addr *net.UDPAddr, target NodeID) ([]*Node, error)
-	send2Node(toaddr *net.UDPAddr, msg *string) error
+	sendToPeer(toid NodeID, toaddr *net.UDPAddr, msg string) error
+	sendMsgToPeer(toid NodeID, toaddr *net.UDPAddr, msg string) error
 	close()
 }
 
@@ -379,10 +380,12 @@ loop:
 	for {
 		select {
 		case <-refresh.C:
-			tab.seedRand()
-			if refreshDone == nil {
-				refreshDone = make(chan struct{})
-				go tab.doRefresh(refreshDone)
+			if setgroup == 0 {
+				tab.seedRand()
+				if refreshDone == nil {
+					refreshDone = make(chan struct{})
+					go tab.doRefresh(refreshDone)
+				}
 			}
 		case req := <-tab.refreshReq:
 			waiting = append(waiting, req)

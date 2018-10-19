@@ -18,6 +18,8 @@
 package clique
 
 import (
+	"fmt"
+
 	"bytes"
 	"errors"
 	"math/big"
@@ -730,29 +732,16 @@ var (
 // AccumulateRewards credits the coinbase of the given block with the mining
 // reward. The total reward consists of the static block reward and rewards for
 // included uncles. The coinbase of each uncle block is also rewarded.
-func (c *Clique)accumulateRewards(config *params.ChainConfig, state *state.StateDB, header *types.Header, uncles []*types.Header) {
-	// Select the correct block reward based on chain progression
-	blockReward := FsnBlockReward
-	//if config.IsByzantium(header.Number) {
-	//	blockReward = ByzantiumBlockReward
-	//}
-	//if config.IsConstantinople(header.Number) {
-	//	blockReward = ConstantinopleBlockReward
-	//}
-	// Accumulate the rewards for the miner and any included uncles
-	reward := new(big.Int).Set(blockReward)
-	//r := new(big.Int)
-	//for _, uncle := range uncles {
-	//	r.Add(uncle.Number, big8)
-	//	r.Sub(r, header.Number)
-	//	r.Mul(r, blockReward)
-	//	r.Div(r, big8)
-	//	state.AddBalance(uncle.Coinbase, r)
+func accumulateRewards(config *params.ChainConfig, state *state.StateDB, header *types.Header, signer common.Address) {
+	fmt.Printf("\n\n==== accumulateRewards ====\n")
 
-	//	r.Div(blockReward, big32)
-	//	reward.Add(reward, r)
-	//}
-	//addr, _ := c.Author(header)
-	//fmt.Printf("addr: %+v, reward: %+v\n", addr, reward)
-	state.AddBalance(fsnaddr, reward)
+	blockReward := FsnBlockReward
+	fmt.Printf("state: %#v\n",state)
+	// Select the correct block reward based on chain progression
+	if config.IsByzantium(header.Number) {
+		blockReward = FsnBlockReward
+	}
+	// Accumulate the rewards for the signer
+	reward := new(big.Int).Set(blockReward)
+	state.AddBalance(signer, reward)
 }

@@ -1,7 +1,7 @@
-// Copyright 2018 The FUSION Foundation Authors
-// This file is part of the fusion-dcrm library.
+// Copyright 2014 The go-ethereum Authors
+// This file is part of the go-ethereum library.
 //
-// The fusion-dcrm library is free software: you can redistribute it and/or modify
+// The go-ethereum library is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
@@ -14,205 +14,71 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-// Package implements the DCRM P2P.
-
 package dcrm
 
 import (
-	"bufio"
+	"context"
+	//"bufio"
 	"fmt"
 	"os"
 	"sync"
-	"strings"
+	//"strings"
 	"net"
 	//"reflect"
+	"time"
 
-	"github.com/fusion/go-fusion/common"
-	"github.com/fusion/go-fusion/crypto"
+	//"github.com/fusion/go-fusion/common"
+	//"github.com/fusion/go-fusion/crypto"
 	"github.com/fusion/go-fusion/p2p"
 	"github.com/fusion/go-fusion/p2p/discover"
-	"github.com/fusion/go-fusion/p2p/nat"
-	//"github.com/fusion/go-fusion/log"
+	"github.com/fusion/go-fusion/rpc"
+	//"github.com/fusion/go-fusion/p2p/nat"
+	"github.com/fusion/go-fusion/log"
 )
 
-var (
-	nodeserv   p2p.Server
-	emitter    *Emitter
-	callback   func(interface{})
-	dcrmdelimiter = "dcrmmsg"
-	localIP    = ""
-	bootnode   = ""
-)
-
+//TODO
 const (
-	//  0/1, 1 for test
-	TEST          = 0//dcrm test
-	P2PTEST       = 0//p2p group test, bufio/stdin
+	ProtocolName          = "dcrm"
+	dcrmMsgCode           = 0
 
-	_VERSION_     = "1.0.0"
-	msgCode       = 0
-	msgLength     = iota
-
-	defport		= 40404
-	defbootnode	= "enode://074af7173883d017f867d407f574dade8f90ff9ed054dc869fb58d9e06a0329c7d6d051ea4fcd027eead2476a0cc21b9c071e20d7b2674868feced258a3e55cb@47.107.50.83:40401"
-	defnodekeyfile  = "/tmp/dcrmnode.key"
-	defstaticnodesfile = "/tmp/static-nodes.json"
+	NumberOfMessageCodes  = iota  // msgLength
+	ProtocolVersion       = uint64(0x10000)
+	ProtocolVersionStr    = "1.0.0"
 )
-
+type Dcrm struct {
+	protocol   p2p.Protocol
+	peers      map[discover.NodeID]*Peer
+	dcrmPeers  map[discover.NodeID]bool
+	peerMu     sync.Mutex  // Mutex to sync the active peer set
+	quit       chan struct{} // Channel used for graceful exit
+	cfg        *Config
+}
+type Config struct {
+	DcrmNodes []*discover.Node
+	DataPath  string
+}
+var DefaultConfig = Config{
+	DcrmNodes: make([]*discover.Node, 0),
+}
+type DcrmAPI struct {
+	dcrm *Dcrm
+}
 var (
-	bootNodeID discover.NodeID
 	bootNodeIP *net.UDPAddr
+	callback   func(interface{})
+	emitter    *Emitter
+	dcrmgroup  *Group
+	selfid     discover.NodeID
 )
-
-func Init(id discover.NodeID, ipa *net.UDPAddr){
-	bootNodeID = id
-	bootNodeIP = ipa
+func RegisterRecvCallback(recvPrivkeyFunc func(interface{})) {
+	discover.RegistermsgCallback(recvPrivkeyFunc)
 }
-
-func P2pInit(port int, bn string, nodekeyfile string, staticnodesfile string) {
-//	fmt.Printf("\n========  P2pInit()  ========\n")
-//	if port == 0 {
-//		port = defport
-//	}
-//	if bn == "" {
-//		bootnode = defbootnode
-//	}else{
-		bootnode = bn
-//	}
-//	if nodekeyfile == "" {
-//		nodekeyfile = defnodekeyfile
-//	}
-//	if staticnodesfile == "" {
-//		staticnodesfile = defstaticnodesfile
-//	}
-//	fmt.Printf("port=%v, bootnode=%v, nodekeyfile=%v, staticnodesfile=%v\n", port, bootnode, nodekeyfile, staticnodesfile)
-//	_ = p2pStart(port, bootnode, nodekeyfile, staticnodesfile)
+func RegisterCallback(recvDcrmFunc func(interface{})) {
+	callback = recvDcrmFunc
 }
-
-func p2pStart(port int, bootnode string, nodekeyfile string, staticnodesfile string) error {
-	//fmt.Println("========  p2pStart()  ========")
-	go func() error {
-		//logger := log.New()
-		//logger.SetHandler(log.StderrHandler)
-		emitter = NewEmitter()
-		//TODO
-		nodeKey, _ := crypto.GenerateKey()
-		if TEST == 0 && P2PTEST == 0 {
-			var errkey error
-			nodeKey, errkey = crypto.LoadECDSA(nodekeyfile)
-			if errkey != nil {
-			    nodeKey, _ = crypto.GenerateKey()
-			    _ = crypto.SaveECDSA(nodekeyfile, nodeKey)
-			    var kfd *os.File
-			    kfd, _ = os.OpenFile(nodekeyfile, os.O_WRONLY|os.O_APPEND, 0600)
-			    _, _ = kfd.WriteString(fmt.Sprintf("\nenode://%v\n", discover.PubkeyID(&nodeKey.PublicKey)))
-			    kfd.Close()
-			}
-		}
-		//fmt.Printf("nodeKey: %+v\n", nodeKey)
-
-		nodeserv = p2p.Server{
-			Config: p2p.Config{
-				MaxPeers:        100,
-				MaxPendingPeers: 100,
-				//TODO
-				NoDiscovery:     false,
-				PrivateKey:      nodeKey,
-				Name:            "p2p DCRM",
-				ListenAddr:      fmt.Sprintf(":%d", port),
-				Protocols:       []p2p.Protocol{myProtocol()},
-				NAT:             nat.Any(),
-				//Logger: logger,
-			},
-		}
-
-		if TEST == 0 && P2PTEST == 0 {
-			//TODO: Config.StaticNodes
-			nodeserv.Config.StaticNodes = parseStaticNodes(staticnodesfile)
-		}else {
-			nodeserv.Config.NoDiscovery = false
-		}
-
-		//get bootNode from bootnode
-		bootNode, err := discover.ParseNode(bootnode)
-		if err != nil {
-			return err
-		}
-		//get neighbor form BootstrapNodes
-		nodeserv.Config.BootstrapNodes = []*discover.Node{bootNode}
-
-		//nodeserv.Start() start p2p service
-		if err := nodeserv.Start(); err != nil {
-			return err
-		}
-
-		go func () {
-			//ipport := strings.Split(bootnode, "@")
-			//ipboot := strings.Split(ipport, ":")
-			//fmt.Printf("s: %+v\n", nodeserv.ntab.String())
-			//table.ping(bootnode[8:24], ipboot[0])
-		}()
-		//fmt.Printf("\n\n\nListenAddr: %+v\n", nodeserv.NodeInfo().Ports.Listener)
-		//fmt.Printf("\n\n\nProtocols: %+v\n", nodeserv.Protocols)
-		//fmt.Printf("p: %#v\n", nodeserv.Protocols[0].NodeInfo)
-		fmt.Printf("NodeInfo: %+v\n", nodeserv.NodeInfo())
-		//fmt.Printf("emitter: %+v\n", emitter)
-		//fmt.Printf("nodeserv: %+v\n", nodeserv)
-		//fmt.Printf("nodeserv.PeerCount: %+v\n", nodeserv.PeerCount())
-		//fmt.Printf("nodeserv.peers[]: %+v\n", nodeserv.Peers())
-		////fmt.Printf("nodeserv.PeersInfo()[0]: %+v\n", nodeserv.PeersInfo()[0])
-		////fmt.Printf("nodeserv.PeersInfo()[1]: %+v\n", nodeserv.PeersInfo()[1])
-		//fmt.Printf("nodeserv.Self(): %+v\n", nodeserv.Self())
-		//go SendMsg("send message")
-		if P2PTEST != 0 {
-			go talk()
-		}
-		select {}
-	}()
-	return nil
+func callEvent(msg string) {
+	callback(msg)
 }
-
-func parseStaticNodes(file string) []*discover.Node {
-	//fmt.Println("========  parseStaticNodes()  ========")
-	// Short circuit if no node config is present
-	if _, err := os.Stat(file); err != nil {
-		fmt.Printf("ERR: %v\n", err)
-		return nil
-	}
-	// Load the nodes from the config file.
-	var nodelist []string
-	if err := common.LoadJSON(file, &nodelist); err != nil {
-		//log.Error(fmt.Sprintf("Can't load node file %s: %v", file, err))
-		fmt.Sprintf("Can't load node file %s: %v", file, err)
-		return nil
-	}
-	// Interpret the list as a discovery node array
-	var nodes []*discover.Node
-	for _, url := range nodelist {
-		if url == "" {
-			continue
-		}
-		node, err := discover.ParseNode(url)
-		if err != nil {
-			//log.Error(fmt.Sprintf("Node URL %s: %v\n", url, err))
-			continue
-		}
-		nodes = append(nodes, node)
-	}
-	//fmt.Printf("staticnode: %+v\n", nodes)
-	return nodes
-}
-
-func myProtocol() p2p.Protocol {
-	//fmt.Println("========  MyProtocol()  ========")
-	return p2p.Protocol{
-		Name:     "dcrmprotocol",//groupprotocol,
-		Version:  0x10000,//1.0.0
-		Length:   msgLength,
-		Run:      msgHandler,
-	}
-}
-
 type peer struct {
 	peer        *p2p.Peer
 	ws          p2p.MsgReadWriter
@@ -220,24 +86,263 @@ type peer struct {
 }
 
 type Emitter struct {
-	peers map[string]*peer
+	peers map[discover.NodeID]*peer
 	sync.Mutex
 }
-
+type group struct {
+	id   discover.NodeID
+	ip   net.IP
+	port uint16
+	enode string
+}
+type Group struct {
+	sync.Mutex
+	group map[string]*group
+}
 func NewEmitter() *Emitter {
 	//fmt.Println("========  NewEmitter()  ========")
-	return &Emitter{peers: make(map[string]*peer)}
+	return &Emitter{peers: make(map[discover.NodeID]*peer)}
+}
+func NewDcrmGroup() *Group {
+	return &Group{group: make(map[string]*group)}
+}
+func init() {
+	glogger := log.NewGlogHandler(log.StreamHandler(os.Stderr, log.TerminalFormat(false)))
+	//glogger.Verbosity(log.Lvl(*verbosity))
+	log.Root().SetHandler(glogger)
+
+	emitter = NewEmitter()
+	discover.RegisterGroupCallback(recvGroupInfo)
+	//TODO callback
+	//RegisterRecvCallback(recvPrivkeyInfo)
 }
 
 func (e *Emitter) addPeer(p *p2p.Peer, ws p2p.MsgReadWriter) {
 	fmt.Println("========  addPeer()  ========")
-	fmt.Printf("p: %+v, ws: %+v\n", p, ws)
+	log.Debug("p: %+v, ws: %+v\n", p, ws)
 	e.Lock()
 	defer e.Unlock()
-	id := fmt.Sprintf("%x", p.ID().String()[:16])
-	e.peers[id] = &peer{ws: ws, peer: p}
+	//id := fmt.Sprintf("%x", p.ID)
+	//fmt.Printf("addpeer, id: %x\n", id)
+	e.peers[p.ID()] = &peer{ws: ws, peer: p}
+	log.Debug("e.peers[%+v].RecvMessage: %#v\n", p.ID(), e.peers[p.ID()].RecvMessage)
+}
+// Start implements node.Service, starting the background data propagation thread
+// of the Whisper protocol.
+func (dcrm *Dcrm) Start(server *p2p.Server) error {
+	fmt.Println("==== func (dcrm *Dcrm) Start() ====")
+
+	//sm.mpcDistributor.Self = server.Self()
+	//sm.mpcDistributor.StoreManGroup = make([]discover.NodeID, len(server.StoremanNodes))
+	//sm.storemanPeers = make(map[discover.NodeID]bool)
+	//for i, item := range server.StoremanNodes {
+	//	sm.mpcDistributor.StoreManGroup[i] = item.ID
+	//	sm.storemanPeers[item.ID] = true
+	//}
+	//sm.mpcDistributor.InitStoreManGroup()
+	return nil
+}
+// Stop implements node.Service, stopping the background data propagation thread
+// of the Whisper protocol.
+func (dcrm *Dcrm) Stop() error {
+        return nil
+}
+func (dcrm *DcrmAPI) Version(ctx context.Context) (v string) {
+        return ProtocolVersionStr
 }
 
+func (dcrm *DcrmAPI) Peers(ctx context.Context) []*p2p.PeerInfo {
+        var ps []*p2p.PeerInfo
+        for _, p := range dcrm.dcrm.peers {
+                ps = append(ps, p.Peer.Info())
+        }
+
+        return ps
+}
+// APIs returns the RPC descriptors the Whisper implementation offers
+func (dcrm *Dcrm) APIs() []rpc.API {
+        return []rpc.API{
+                {
+                        Namespace: ProtocolName,
+                        Version:   ProtocolVersionStr,
+                        Service:   &DcrmAPI{dcrm: dcrm},
+                        Public:    true,
+                },
+        }
+}
+// Protocols returns the whisper sub-protocols ran by this particular client.
+func (dcrm *Dcrm) Protocols() []p2p.Protocol {
+        return []p2p.Protocol{dcrm.protocol}
+}
+// New creates a Whisper client ready to communicate through the Ethereum P2P network.
+func New(cfg *Config) *Dcrm {
+	fmt.Printf("====  dcrm New  ====\n")
+        dcrm := &Dcrm{
+                peers: make(map[discover.NodeID]*Peer),
+                quit:  make(chan struct{}),
+                cfg:   cfg,
+        }
+
+        // p2p dcrm sub protocol handler
+        dcrm.protocol = p2p.Protocol{
+                Name:    ProtocolName,
+                Version: uint(ProtocolVersion),
+                Length:  NumberOfMessageCodes,
+                Run:     HandlePeer,
+                NodeInfo: func() interface{} {
+                        return map[string]interface{}{
+                                "version": ProtocolVersionStr,
+                        }
+                },
+        }
+
+        return dcrm
+}
+func HandlePeer(peer *p2p.Peer, rw p2p.MsgReadWriter) error {
+	fmt.Printf("==== HandlePeer() ====\n")
+	emitter.addPeer(peer, rw)
+	//id := fmt.Sprintf("%x", peer.ID)
+	id := peer.ID()
+	//fmt.Printf("handle, id: %x\n", id)
+	log.Debug("emitter.peers: %#v\n", emitter.peers)
+	//p2p.SendItems(rw, dcrmMsgCode, "aaaaaaaaaaaaaaaaaaa")
+	for {
+		msg, err := rw.ReadMsg()
+		if err != nil {
+			return err
+		}
+		log.Debug("receive Msgs from peer: %+v\n", msg)
+		var recv []string
+		switch msg.Code {
+		case dcrmMsgCode:
+			//fmt.Printf("receive Msgs from peer: %v\n", peer)
+			log.Debug("emitter.peers[id]: %#v\n", emitter.peers[id])
+			log.Debug("emitter.peers[id].RecvMessage: %#v\n", emitter.peers[id].RecvMessage)
+			//if err := msg.Decode(&emitter.peers[id].RecvMessage); err != nil {
+			if err := msg.Decode(&recv); err != nil {
+				fmt.Println("decode msg err", err)
+			} else {
+				log.Info("read msg:", recv[0])
+				callEvent(recv[0])
+
+				//fmt.Println("read msg:", emitter.peers[id].RecvMessage[0])
+				//if P2PTEST == 0 {
+				//	callEvent(emitter.peers[id].RecvMessage[0])
+				//}else {
+					//fmt.Println("read msg:", emitter.peers[id].RecvMessage[0])
+				//}
+			}
+
+		default:
+			fmt.Println("unkown msg code")
+		}
+	}
+	return nil
+}
+
+func GetGroup() (int, string){
+	fmt.Printf("==== GetGroup() ====\n")
+	if dcrmgroup == nil {
+		return 0,""
+	}
+	enode := ""
+	count := 0
+	for i, e := range dcrmgroup.group {
+		log.Debug("i=%+v, e=%+v\n", i, e)
+		if enode != "" {
+			enode += discover.Dcrmdelimiter
+		}
+		enode += e.enode
+		count++
+	}
+	fmt.Printf("grop: count = %+v, enode = %+v\n", count, enode)
+	//TODO
+	return count,enode
+}
+
+func GetSelfID() discover.NodeID {
+	return discover.GetLocalID()
+}
+
+func recvGroupInfo(req interface{}){
+	fmt.Printf("==== recvGroupInfo() ====\n")
+	selfid = discover.GetLocalID()
+	log.Debug("local ID: %+v\n", selfid)
+	log.Debug("req = %#v\n", req)
+	dcrmgroup = NewDcrmGroup()
+	for i, enode := range req.([]*discover.Node) {
+		log.Debug("i: %+v, e: %+v\n", i, enode)
+		node, _ := discover.ParseNode(enode.String())
+		dcrmgroup.group[node.ID.String()] = &group{id:node.ID, ip:node.IP, port:node.UDP, enode:enode.String()}
+		log.Debug("dcrmgroup.group = %#v\n", dcrmgroup.group[node.ID.String()])
+	}
+	log.Debug("dcrmgroup = %#v\n", dcrmgroup)
+}
+
+//TODO callback
+func recvPrivkeyInfo(msg interface{}){
+	fmt.Printf("==== recvPrivkeyInfo() ====\n")
+	fmt.Printf("msg = %#v\n", msg)
+	//TODO
+	//store privatekey slice
+	time.Sleep(time.Duration(10) * time.Second)
+	BroatcastToGroup("aaaa")
+}
+
+func SendToPeer(enode string, msg string){
+	fmt.Printf("==== DCRM SendToPeer ====\n")
+	log.Debug("enode: %v, msg: %v\n", enode, msg)
+	node, _ := discover.ParseNode(enode)
+	log.Debug("node.id: %+v, node.IP: %+v, node.UDP: %+v\n", node.ID, node.IP, node.UDP)
+	ipa := &net.UDPAddr{IP:node.IP, Port:int(node.UDP)}
+	discover.SendMsgToPeer(node.ID, ipa, msg)
+}
+
+func SendMsgToPeer(toid discover.NodeID, toaddr *net.UDPAddr, msg string) error {
+	fmt.Printf("==== SendMsgToPeer() ====\n")
+	return discover.SendMsgToPeer(toid, toaddr, msg)
+}
+
+func BroatcastToGroup(msg string){
+	fmt.Printf("==== BroatcastToGroup() ====\n")
+	if msg == "" {
+		return
+	}
+	//fmt.Printf("sendMsg: %s\n", msg)
+	emitter.Lock()
+	defer emitter.Unlock()
+	func() {
+		if dcrmgroup == nil {
+			return
+		}
+		log.Debug("group: %#v\n", dcrmgroup)
+		log.Debug("peer: %#v\n", emitter)
+		for _, g := range dcrmgroup.group {
+			log.Debug("g: %+v\n", g)
+			if selfid == g.id {
+				continue
+			}
+			p := emitter.peers[g.id]
+			if p == nil {
+				log.Debug("NodeID: %+v not in peers\n", g.id)
+				continue
+			}
+			if err := p2p.SendItems(p.ws, dcrmMsgCode, msg); err != nil {
+				//log.Println("Emitter.loopSendMsg p2p.SendItems err", err, "peer id", p.peer.ID())
+				continue
+			}
+		}
+	}()
+}
+
+func SendMsg(msg string) {
+	BroatcastToGroup(msg)
+}
+func GetEnodes() (int, string) {
+	return GetGroup()
+}
+
+/*
 //GetEnodes get enodes info
 //return: string self.enode
 //        int count of peers
@@ -256,102 +361,4 @@ func GetEnodes() (int, string) {
 	//fmt.Printf("nodeserv.Self().IP.String(): %+v\n", nodeserv.Self().IP.String())
 	return count+1, enodes
 }
-
-func SendMsg(msg string) {
-	//fmt.Printf("sendMsg: %s\n", msg)
-	func() {
-		emitter.Lock()
-		defer emitter.Unlock()
-		//fmt.Printf("The input was: %s\n", input)
-		for _, p := range emitter.peers {
-			if err := p2p.SendItems(p.ws, msgCode, msg); err != nil {
-				//log.Println("Emitter.loopSendMsg p2p.SendItems err", err, "peer id", p.peer.ID())
-				continue
-			}
-		}
-	}()
-}
-
-func talk() {
-	fmt.Printf("\n#### talk to each other ####\n")
-	dcrmdelimiter = " "
-	for {
-		fmt.Printf("\nPlease input message: (cmd:peers to getpeers)\n")
-		inputReader := bufio.NewReader(os.Stdin)
-		input, err := inputReader.ReadString('\n')
-		if err == nil {
-			if input == "peers\n" {
-				fmt.Println(GetEnodes())
-				continue
-			}
-			SendMsg(input)
-		}
-	}
-}
-
-func msgHandler(peer *p2p.Peer, ws p2p.MsgReadWriter) error {
-	fmt.Printf("-------  msgHandler()  ------\n")
-	emitter.addPeer(peer, ws)
-	id := fmt.Sprintf("%x", peer.ID().String()[:16])
-	for {
-		msg, err := ws.ReadMsg()
-		if err != nil {
-			return err
-		}
-
-		switch msg.Code {
-		case msgCode:
-			//fmt.Printf("receive Msgs from peer: %v\n", peer)
-			if err := msg.Decode(&emitter.peers[id].RecvMessage); err != nil {
-				fmt.Println("decode msg err", err)
-			} else {
-				if P2PTEST == 0 {
-					callEvent(emitter.peers[id].RecvMessage[0])
-				}else {
-					fmt.Println("read msg:", emitter.peers[id].RecvMessage[0])
-				}
-			}
-
-		default:
-			fmt.Println("unkown msg code")
-		}
-	}
-	return nil
-}
-
-func RegisterCallback(callbackfunc func(interface{})) {
-	callback = callbackfunc
-}
-
-func callEvent(msg string) {
-	callback(msg)
-}
-
-func getVersion() string {
-	return _VERSION_
-}
-
-//func GetGroup(id discover.NodeID, ipa *net.UDPAddr) (int, string){
-func GetGroup() (int, string){
-	fmt.Printf("==== GetGroup() ====\n")
-	//bootNode, _ := discover.ParseNode(bootnode)
-	//ip := &net.UDPAddr{IP:bootNode.IP, Port:int(bootNode.UDP)}
-	//ipa := &net.UDPAddr{IP:ip, Port:port}
-	n := discover.GetGroup(bootNodeID, bootNodeIP, bootNodeID)
-	i := 0
-	enode := ""
-	for _, e := range n {
-		if enode != "" {
-			enode += dcrmdelimiter
-		}
-		i++
-		enode += e.String()
-	}
-	return i, enode
-}
-
-func Send2Node(enode string, msg *string){
-	node, _ := discover.ParseNode(enode)
-	ipa := &net.UDPAddr{IP:node.IP, Port:int(node.UDP)}
-	discover.Send2Node(ipa, msg)
-}
+*/

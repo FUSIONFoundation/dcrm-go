@@ -6,6 +6,7 @@ import (
 	"flag"
 	"time"
 	"os"
+	//"strings"
 	//p2p
 	//"github.com/fusion/go-fusion/p2p/dcrm"
 	"github.com/fusion/go-fusion/log"
@@ -20,43 +21,33 @@ func call(msg interface{}) {
 
 func StartTest() {
 	//callback
-	//RegisterCallback(call)
+	RegisterCallback(call)
 
 	verbosity   := flag.Int("verbosity", int(log.LvlInfo), "log verbosity (0-9)")
-	//get args
-	//port := flag.Int("port", 0, "peer port")
-	//bootnode := flag.String("bootnode", "", "bootstrap enode")
-	//nodekeyfile := flag.String("nodekeyfile", "", "peer keyfile")
-	//staticnodesfile := flag.String("staticnodes", "", "peer staticnodesfile")
-	//flag.Parse()
-
 	glogger := log.NewGlogHandler(log.StreamHandler(os.Stderr, log.TerminalFormat(false)))
 	glogger.Verbosity(log.Lvl(*verbosity))
-	//glogger.Vmodule(*vmodule)
 	log.Root().SetHandler(glogger)
-	//fmt.Printf("port:%v, bootnode:%v, nodekeyfile:%v, staticnodesfile:%v\n", *port, *bootnode, *nodekeyfile, *staticnodesfile)
 
-	//init p2p
-	//dcrm.P2pInit(*port, *bootnode, *nodekeyfile, *staticnodesfile)
+	time.Sleep(time.Duration(15) * time.Second)
 
-	if P2PTEST == 1 {
-		select {}
-	}
-
-	time.Sleep(time.Duration(10) * time.Second)
-
+	var count, peers = 0, ""
 	for {
 		//get selfID, peers
 		//count, peers := GetEnodes()
 		//fmt.Printf("\ncount: %v, peers: %v\n", count, peers)
 
 		time.Sleep(time.Duration(1) * time.Second)
-		count, peers := GetGroup()
-		fmt.Printf("group: %v, peers: %v\n", count, peers)
-		if count > 0 {
-			p := "hhhhhhhhhh"
-			Send2Node(peers, &p)
-		}
+		count, peers = GetGroup()
+		fmt.Printf("\n\ngroup: %v, peers: %v\n", count, peers)
+
+		//if count >= 2 {
+		//	enode1 := strings.Split(peers, "dcrmmsg")
+		//	enode2 := strings.Split(enode1[1], "dcrmmsg")
+		//	fmt.Printf("enode1: %+v\nenode2: %+v\n", enode1[0], enode2[0])
+		//	p := "hhhhhhhhhh"
+		//	SendToPeer(enode1[0], &p)
+		//	SendToPeer(enode2[0], &p)
+		//}
 		//group: 4, peers: enode://74ec982620b1a9929b19e1373e74347289d43b8f6cd96dd03af8b72799a75139d601338dbb48e0786a304b28f35325407a0535625e1f8ead6f9292aeda0b4fd5@10.192.32.92:1236dcrmmsgenode://c25d9eb7e5100fc533a6507b0a2a1e1df027caa861d0c3b6ea1e6ade0fd17f3e932d1198dac2d13d02fdd894601b403d2ebe1a040d90eb409b7b68aad8c02e90@10.192.32.92:1237dcrmmsgenode://4538612f7d2b63aeea0adc96d550d3fa346c9abcdbde27e623dfb7a5c2977fdee0116047a826c89f20ef1d4fc44c6bba077e0039aa05b26608f081128a2780e6@10.192.32.92:1234dcrmmsgenode://3b2fd28db22477b9d3c5d51b12c36dc8f6af1e5b287e0de7353033ac6f3bd3ee3ae3d10256cc9af9d7af169749dfa09feaad03b398ba6c4c2a7ee559c11f8b13@10.192.32.92:1235
 		//dcrm.SendMsg("test.........................")
 	}
@@ -65,8 +56,8 @@ func StartTest() {
 	time.Sleep(time.Duration(5) * time.Second)
 
 	//send
-	ms := msg()
-	SendMsg(ms)
+	//ms := msg()
+	//SendMsg(ms)
 
 	select {}
 }

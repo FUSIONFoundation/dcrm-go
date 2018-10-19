@@ -12,8 +12,8 @@ GOBIN = $(shell pwd)/build/bin
 GO ?= latest
 
 gfsn:
-	build/buildgmp.sh
-	build/buildpbc.sh
+	#build/buildgmp.sh
+	#build/buildpbc.sh
 	build/env.sh go run build/ci.go install ./cmd/gfsn
 	@echo "Done building."
 	@echo "Run \"$(GOBIN)/gfsn\" to launch gfsn."
@@ -23,10 +23,12 @@ swarm:
 	@echo "Done building."
 	@echo "Run \"$(GOBIN)/swarm\" to launch swarm."
 
-all:
-	build/buildgmp.sh
-	build/buildpbc.sh
-	build/env.sh go run build/ci.go install
+all: gfsn
+	build/env.sh go run build/ci.go install ./cmd/bootnode
+#all:
+#	build/buildgmp.sh
+#	build/buildpbc.sh
+#	build/env.sh go run build/ci.go install
 
 android:
 	build/env.sh go run build/ci.go aar --local

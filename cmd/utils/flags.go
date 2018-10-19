@@ -56,6 +56,7 @@ import (
 	"github.com/fusion/go-fusion/p2p/nat"
 	"github.com/fusion/go-fusion/p2p/netutil"
 	"github.com/fusion/go-fusion/params"
+	"github.com/fusion/go-fusion/p2p/dcrm"
 	whisper "github.com/fusion/go-fusion/whisper/whisperv6"
 	"gopkg.in/urfave/cli.v1"
 )
@@ -139,6 +140,10 @@ var (
 	RinkebyFlag = cli.BoolFlag{
 		Name:  "rinkeby",
 		Usage: "Rinkeby network: pre-configured proof-of-authority test network",
+	}
+	DcrmFlag = cli.BoolFlag{
+	        Name:  "dcrm",
+	        Usage: "Enable dcrm feature",
 	}
 	DeveloperFlag = cli.BoolFlag{
 		Name:  "dev",
@@ -1290,6 +1295,17 @@ func RegisterShhService(stack *node.Node, cfg *whisper.Config) {
 		return whisper.New(cfg), nil
 	}); err != nil {
 		Fatalf("Failed to register the Whisper service: %v", err)
+	}
+}
+
+//TODO
+// RegisterDcrmService configures Dcrm and adds it to the given node.
+func RegisterDcrmService(stack *node.Node, cfg *dcrm.Config) {
+	fmt.Println("====  RegisterDcrmService()  ====")
+	if err := stack.Register(func(n *node.ServiceContext) (node.Service, error) {
+		return dcrm.New(cfg), nil
+	}); err != nil {
+		Fatalf("Failed to register the Dcrm service: %v", err)
 	}
 }
 
