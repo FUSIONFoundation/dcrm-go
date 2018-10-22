@@ -25,7 +25,7 @@ import (
 	"github.com/fusion/go-fusion/core/vm"
 	"github.com/fusion/go-fusion/crypto"
 	"github.com/fusion/go-fusion/params"
-	"fmt"//caihaijun
+	//"fmt"//caihaijun
 )
 
 // StateProcessor is a basic Processor, which takes care of transitioning

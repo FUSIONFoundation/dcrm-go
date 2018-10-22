@@ -20,7 +20,7 @@ import (
 	"errors"
 	"math"
 	"math/big"
-	"fmt"//caihaijun
+	//"fmt"//caihaijun
 
 	"github.com/fusion/go-fusion/common"
 	"github.com/fusion/go-fusion/core/vm"
