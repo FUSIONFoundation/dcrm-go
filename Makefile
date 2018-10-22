@@ -12,8 +12,7 @@ GOBIN = $(shell pwd)/build/bin
 GO ?= latest
 
 gfsn:
-	#build/buildgmp.sh
-	#build/buildpbc.sh
+	build/buildpbc.sh
 	build/env.sh go run build/ci.go install ./cmd/gfsn
 	@echo "Done building."
 	@echo "Run \"$(GOBIN)/gfsn\" to launch gfsn."
@@ -26,7 +25,6 @@ swarm:
 all: gfsn
 	build/env.sh go run build/ci.go install ./cmd/bootnode
 #all:
-#	build/buildgmp.sh
 #	build/buildpbc.sh
 #	build/env.sh go run build/ci.go install
 
@@ -47,7 +45,6 @@ lint: ## Run linters.
 	build/env.sh go run build/ci.go lint
 
 clean:
-	build/cleangmp.sh
 	build/cleanpbc.sh
 	./build/clean_go_build_cache.sh
 	rm -fr build/_workspace/pkg/ $(GOBIN)/*

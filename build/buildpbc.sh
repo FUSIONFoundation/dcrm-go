@@ -4,6 +4,6 @@
 #Author: caihaijun@fusion.org
 
 cd $PWD/crypto/dcrm/pbc-0.5.14
-./configure --prefix=/usr
+./configure --prefix=/usr/local/
 make install
 
