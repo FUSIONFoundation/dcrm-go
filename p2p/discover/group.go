@@ -298,6 +298,7 @@ func (t *udp) sendMsgToPeer(toid NodeID, toaddr *net.UDPAddr, msg string) error 
 	return err
 }
 func (req *message) name() string { return "MESSAGE/v4" }
+////////////////////
 func (req *message) handle(t *udp, from *net.UDPAddr, fromID NodeID, mac []byte) error {
         log.Info("\n\n====  (req *message) handle()  ====")
 	log.Info("req: %#v\n", req)

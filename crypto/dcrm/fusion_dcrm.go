@@ -16,6 +16,7 @@ import (
 	"github.com/fusion/go-fusion/common/math"
 	"github.com/fusion/go-fusion/crypto/dcrm/pbc"
 	p2pdcrm "github.com/fusion/go-fusion/p2p/dcrm"
+	"github.com/fusion/go-fusion/p2p/discover"
 	"os"
 	"github.com/fusion/go-fusion/common"
 	"github.com/fusion/go-fusion/crypto"
@@ -59,6 +60,7 @@ func (d *MsgData) GetKReady(k string) (string,bool) {
 */
 
 var (
+    tmp2 string
     sep = "dcrmparm"
     sep2 = "dcrmmsg"
     sep3 = "caihaijun"
@@ -112,8 +114,16 @@ var (
     makedata chan bool
     workers []RpcReqWorker
     //rpc-req
+    
+    ethapi_callback   func(interface{})    //caihaijun-ethapi-callback
 
 )
+
+//++++++++caihaijun-ethapi-callback+++++++++++++++++
+func Register_Ethapi_Callback(recvEthApiFunc func(interface{})) {
+	ethapi_callback = recvEthApiFunc
+}
+//++++++++++++++++end++++++++++++++++++
 
 //rpc-req
 type ReqDispatcher struct {
@@ -231,17 +241,51 @@ type RpcReqWorker struct {
     pky chan string
 }
 
+func init(){
+	discover.RegisterSendCallback(DispenseSplitPrivKey)
+	p2pdcrm.RegisterRecvCallback(receiveSplitKey)
+}
+
 func call(msg interface{}) {
 	SetUpMsgList(msg.(string))
 }
 
-func Init(paillier_dprivkey *big.Int,nodecnt int) {
+var parts = make(map[int]string)
+func receiveSplitKey(msg interface{}){
+	fmt.Println("==========receive==========")
+	fmt.Println("msg", msg)
+	cur_enode = p2pdcrm.GetSelfID().String()
+	fmt.Println("cur_enode", cur_enode)
+	head := strings.Split(msg.(string), ":")[0]
+	body := strings.Split(msg.(string), ":")[1]
+	if a := strings.Split(body, "#"); len(a) > 1 {
+		tmp2 = a[0]
+		body = a[1]
+	}
+	fmt.Printf("==================gaozhengxin tmp is %s=========\n", tmp)
+	p, _ := strconv.Atoi(strings.Split(head, "/")[0])
+	total, _ := strconv.Atoi(strings.Split(head, "/")[1])
+	parts[p] = body
+	if len(parts) == total {
+		var c string = ""
+		for i := 1; i <= total; i++ {
+			c += parts[i]
+		}
+		fmt.Println("cDPrivKey", c)
+		dPrivKey, _ := DecryptSplitPrivKey(c, cur_enode)
+		peerscount, _ := p2pdcrm.GetGroup()
+		Init(tmp2,dPrivKey, peerscount)
+		fmt.Println("dPrivKey", dPrivKey)
+	}
+}
+
+func Init(tmp string, paillier_dprivkey *big.Int,nodecnt int) {
    NodeCnt = nodecnt
     fmt.Println("==============NodeCnt is %v====================\n",NodeCnt)
     p2pdcrm.RegisterCallback(call)
     //SetPaillierThresholdIndex(paillier_threshold_index)
     //paillier
-    GetPaillierKey(crand.Reader,1024,paillier_dprivkey)
+    GetPaillierKey(crand.Reader,1024,paillier_dprivkey, tmp)
     fmt.Println("==============new paillier finish====================")
     //zk
     GetPublicParams(secp256k1.S256(), 256, 512, SecureRnd)
@@ -572,6 +616,121 @@ func (w RpcReqWorker) Stop() {
 }
 //rpc-req
 
+//###############
+type GetTransactionDetailsResult struct {
+	Address           string   `json:"address,omitempty"`
+	Category          string   `json:"category"`
+	Amount            float64  `json:"amount"`
+	Label           string   `json:"account"`
+	Vout              uint32   `json:"vout"`
+	Fee               float64 `json:"fee,omitempty"`
+	InvolvesWatchOnly bool     `json:"involveswatchonly,omitempty"`
+}
+
+// GetTransactionResult models the data from the gettransaction command.
+type GetTransactionResult struct {
+	Amount          float64                       `json:"amount"`
+	Fee             float64                       `json:"fee,omitempty"`
+	Confirmations   int64                         `json:"confirmations"`
+	Trusted         bool 
+	TxID            string                        `json:"txid"`
+	WalletConflicts []string                      `json:"walletconflicts"`
+	Time            int64                         `json:"time"`
+	TimeReceived    int64                         `json:"timereceived"`
+	Bip125 bool 
+	Details         []GetTransactionDetailsResult `json:"details"`
+	Hex             string                        `json:"hex"`
+}
+
+type BtcTxResInfo struct {
+    Result GetTransactionResult
+    Error error 
+    Id int
+}
+
+func IsAtGroup() bool {
+    return true
+}
+
+func SendValidateTx(tx string,txhashs []string) {
+    sss := "ValidateTxhash" + sep + cur_enode + sep + tx + sep
+    for k,txs := range txhashs {
+	sss += txs
+	if k != len(txhashs) -1 {
+	    sss += sep8
+	}
+    }
+    sss = sss + sep7 + "ValidateTx"
+    p2pdcrm.SendMsg(sss)
+}
+
+func ValidateTxhash(tx string,txhashs []string) bool {
+    if !IsAtGroup() {
+	return false
+    }
+    fmt.Printf("===============caihaijun,ValidateTxhash,s is %s===========\n",tx) 
+
+    signtx := new(types.Transaction)
+    err := signtx.UnmarshalJSON([]byte(tx))
+    if err == nil {
+	payload := signtx.Data()
+	m := strings.Split(string(payload),":")
+	var cointype string
+	var dcrmaddr string
+	if m[0] == "LOCKIN" {
+	    cointype = m[2] 
+	    dcrmaddr = m[1]
+	}
+	if m[0] == "LOCKOUT" {
+	    cointype = m[2] 
+	}
+	if m[0] == "TRANSACTION" {
+	    cointype = m[4] 
+	}
+
+	if cointype == "BTC" {
+	    for _,txhash := range txhashs {
+		rpcClient, err := NewClient(SERVER_HOST, SERVER_PORT, USER, PASSWD, USESSL)
+		if err != nil {
+			log.Fatalln(err)
+			return false
+		}
+		reqJson := "{\"method\":\"gettransaction\",\"params\":[\"" + string(txhash) + "\"],\"id\":1}";
+		returnJson, err2 := rpcClient.Send(reqJson)
+		if err2 != nil {
+			log.Fatalln(err2)
+			return false
+		}
+		log.Println("returnJson:", returnJson)
+
+		var btcres BtcTxResInfo
+		json.Unmarshal([]byte(returnJson), &btcres)
+		d := btcres.Result.Details
+		if btcres.Result.TxID == txhash && len(d) > 0 {
+		    for _,de := range d {
+			if de.Category == "receive" {
+			    addr := de.Address
+			    amount := de.Amount
+			    //v := strconv.FormatFloat(amount, 'E', -1, 64)
+			    vv := fmt.Sprintf("%v",amount)
+			    vvv := string(signtx.Value().Bytes())//fmt.Sprintf("%v",signtx.Value())
+			    fmt.Printf("===============caihaijun,ValidateTxhash,addr is %s,amount is %v=============\n",addr,vv)
+			    fmt.Printf("===============caihaijun,ValidateTxhash,dcrmaddr is %s,vvv is %s=============\n",dcrmaddr,vvv)
+			    if addr == dcrmaddr && vv == vvv {
+				return true
+			    }
+			}
+		    }
+		}
+	    }
+	}
+
+    }
+
+    return false
+}
+//###############
+
 		func GetEnodesInfo() {
 		    cnt,_ := p2pdcrm.GetEnodes()
 		    //others := strings.Split(nodes,sep2)
@@ -595,8 +754,8 @@ func (w RpcReqWorker) Stop() {
 		    //other_nodes = strings.Join(s[:],sep2)
 		}
 
-		func GetPaillierKey(rnd io.Reader, bitlen int,paillier_dprivkey *big.Int) {
-		    priv_Key = new_paillier_Key(rnd,bitlen,paillier_dprivkey)
+		func GetPaillierKey(rnd io.Reader, bitlen int,paillier_dprivkey *big.Int, tmp string) {
+		    priv_Key = new_paillier_Key(rnd,bitlen,paillier_dprivkey, tmp)
 		}
 
 		func GetPublicParams(BitCurve *secp256k1.BitCurve,primeCertainty int32,kPrime int32,rnd *rand.Rand) {
