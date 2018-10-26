@@ -35,7 +35,7 @@ import (
 
 func main() {
 	var (
-		listenAddr  = flag.String("addr", ":30301", "listen address")
+		listenAddr  = flag.String("addr", ":40401", "listen address")
 		genKey      = flag.String("genkey", "", "generate a node key")
 		writeAddr   = flag.Bool("writeaddress", false, "write out the node's pubkey hash and quit")
 		nodeKeyFile = flag.String("nodekey", "", "private key filename")
@@ -130,6 +130,11 @@ func main() {
 		if _, err := discover.ListenUDP(conn, cfg); err != nil {
 			utils.Fatalf("%v", err)
 		}
+	}
+
+	// TODO: group
+	if err := discover.InitGroup(); err != nil {
+		log.Error("ERR: %v", err)
 	}
 
 	select {}

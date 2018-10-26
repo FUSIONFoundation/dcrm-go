@@ -41,7 +41,7 @@ var (
 )
 
 const (
-	groupnum = 2
+	groupnum = 3
 
 	findgroupPacket = iota + 10 + neighborsPacket//14
 	groupPacket
@@ -161,10 +161,10 @@ func (req *group) handle(t *udp, from *net.UDPAddr, fromID NodeID, mac []byte) e
         return nil
 }
 
-func initGroup() error{
+func InitGroup() error{
 	log.Info("==== InitGroup() ====")
 	setgroup = 1
-	grouplist = &group{msg: "aaa", count:0, Expiration: ^uint64(0)}
+	grouplist = &group{msg: "fsn", count:0, Expiration: ^uint64(0)}
 	return nil
 }
 
