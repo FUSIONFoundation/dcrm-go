@@ -1925,7 +1925,7 @@ func Dcrm_ReqAddress(wr WorkReq) (string, error) {
     return ret.ret,ret.err
 }
 
-func Dcrm_Sign(sig string,txhash string,dcrmaddr string,cointype string) (string,error) {
+func Dcrm_Sign(wr WorkReq) (string,error) {
     //rpc-req
     /*rch := make(chan interface{},1)
     ss := "Dcrm_Sign" + sep3 + sig + sep3 + txhash + sep3 + dcrmaddr + sep3 + cointype
