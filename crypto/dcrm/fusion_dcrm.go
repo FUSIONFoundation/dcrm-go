@@ -26,6 +26,10 @@ import (
 	"encoding/json"
 	"strconv"
 	"log"
+	"context"
+	"time"
+	"github.com/fusion/go-fusion/rpc"
+	"github.com/fusion/go-fusion/common/hexutil"
 )
 
 /*
@@ -920,6 +924,23 @@ type BtcTxResInfo struct {
     Id int
 }
 
+type RPCTransaction struct {
+	BlockHash        common.Hash     `json:"blockHash"`
+	BlockNumber      *hexutil.Big    `json:"blockNumber"`
+	From             common.Address  `json:"from"`
+	Gas              hexutil.Uint64  `json:"gas"`
+	GasPrice         *hexutil.Big    `json:"gasPrice"`
+	Hash             common.Hash     `json:"hash"`
+	Input            hexutil.Bytes   `json:"input"`
+	Nonce            hexutil.Uint64  `json:"nonce"`
+	To               *common.Address `json:"to"`
+	TransactionIndex hexutil.Uint    `json:"transactionIndex"`
+	Value            *hexutil.Big    `json:"value"`
+	V                *hexutil.Big    `json:"v"`
+	R                *hexutil.Big    `json:"r"`
+	S                *hexutil.Big    `json:"s"`
+}
+
 func IsAtGroup() bool {
     return true
 }
@@ -933,89 +954,162 @@ func validate_txhash(msgprex string,tx string,txhashs []string,ch chan interface
 	return
     }
 
+    fmt.Printf("===============caihaijun,validate_txhash===========\n")
     workid := getworkerid(msgprex,cur_enode)
     worker := workers[workid]
 
     signtx := new(types.Transaction)
     err := signtx.UnmarshalJSON([]byte(tx))
-    if err == nil {
-	payload := signtx.Data()
-	m := strings.Split(string(payload),":")
-	var cointype string
-	var dcrmaddr string
-	if m[0] == "LOCKIN" {
-	    cointype = m[2] 
-	    dcrmaddr = m[1]
-	}
-	if m[0] == "LOCKOUT" {
-	    cointype = m[2] 
-	}
-	if m[0] == "TRANSACTION" {
-	    cointype = m[4] 
-	}
+    if err != nil {
+	var ret2 Err
+	ret2.info = "new transaction fail."
+	res := RpcDcrmRes{ret:"",err:ret2}
+	ch <- res
+	return
+    }
 
-	if cointype == "BTC" {
-	    for _,txhash := range txhashs {
-		rpcClient, err := NewClient(SERVER_HOST, SERVER_PORT, USER, PASSWD, USESSL)
-		if err != nil {
-			var ret2 Err
-			ret2.info = "new client fail."
-			res := RpcDcrmRes{ret:"",err:ret2}
-			ch <- res
-			return
-		}
-		reqJson := "{\"method\":\"gettransaction\",\"params\":[\"" + string(txhash) + "\"],\"id\":1}";
-		returnJson, err2 := rpcClient.Send(reqJson)
-		if err2 != nil {
-			var ret2 Err
-			ret2.info = "send rpc fail."
-			res := RpcDcrmRes{ret:"",err:ret2}
-			ch <- res
-			return
-		}
-		log.Println("returnJson:", returnJson)
+    payload := signtx.Data()
+    m := strings.Split(string(payload),":")
+    var cointype string
+    var dcrmaddr string
+    if m[0] == "LOCKIN" {
+	cointype = m[2] 
+	dcrmaddr = m[1]
+    }
+    if m[0] == "LOCKOUT" {
+	cointype = m[2] 
+    }
+    if m[0] == "TRANSACTION" {
+	cointype = m[4] 
+    }
 
-		var btcres BtcTxResInfo
-		json.Unmarshal([]byte(returnJson), &btcres)
-		d := btcres.Result.Details
-		if btcres.Result.TxID == txhash && len(d) > 0 {
-		    for _,de := range d {
-			if de.Category == "receive" {
-			    addr := de.Address
-			    amount := de.Amount
-			    //v := strconv.FormatFloat(amount, 'E', -1, 64)
-			    vv := fmt.Sprintf("%v",amount)
-			    vvv := string(signtx.Value().Bytes())//fmt.Sprintf("%v",signtx.Value())
-			    fmt.Printf("===============caihaijun,ValidateTxhash,addr is %s,amount is %v=============\n",addr,vv)
-			    fmt.Printf("===============caihaijun,ValidateTxhash,dcrmaddr is %s,vvv is %s=============\n",dcrmaddr,vvv)
-			    if addr == dcrmaddr && vv == vvv {
-				valiinfo := msgprex + sep + tx + msgtypesep + "txhash_validate_pass"
-				p2pdcrm.SendMsg(valiinfo)
-				<-worker.btxvalidate
-				i := 0
-				for i = 0;i<NodeCnt-1;i++ {
-				    va := <-worker.msg_txvalidate
-				    mm := strings.Split(va,msgtypesep)
-				    if mm[1] == "txhash_validate_no_pass" {
-					var ret2 Err
-					ret2.info = "txhash validate fail."
-					res := RpcDcrmRes{ret:"",err:ret2}
-					ch <- res
-					return 
-				    }
+    if cointype == "BTC" {
+	for _,txhash := range txhashs {
+	    rpcClient, err := NewClient(SERVER_HOST, SERVER_PORT, USER, PASSWD, USESSL)
+	    if err != nil {
+		    var ret2 Err
+		    ret2.info = "new client fail."
+		    res := RpcDcrmRes{ret:"",err:ret2}
+		    ch <- res
+		    return
+	    }
+	    reqJson := "{\"method\":\"gettransaction\",\"params\":[\"" + string(txhash) + "\"],\"id\":1}";
+	    returnJson, err2 := rpcClient.Send(reqJson)
+	    if err2 != nil {
+		    var ret2 Err
+		    ret2.info = "send rpc fail."
+		    res := RpcDcrmRes{ret:"",err:ret2}
+		    ch <- res
+		    return
+	    }
+	    log.Println("returnJson:", returnJson)
+
+	    var btcres BtcTxResInfo
+	    json.Unmarshal([]byte(returnJson), &btcres)
+	    d := btcres.Result.Details
+	    if btcres.Result.TxID == txhash && len(d) > 0 {
+		for _,de := range d {
+		    if de.Category == "receive" {
+			addr := de.Address
+			amount := de.Amount
+			//v := strconv.FormatFloat(amount, 'E', -1, 64)
+			vv := fmt.Sprintf("%v",amount)
+			vvv := string(signtx.Value().Bytes())//fmt.Sprintf("%v",signtx.Value())
+			fmt.Printf("===============caihaijun,ValidateTxhash,addr is %s,amount is %v=============\n",addr,vv)
+			fmt.Printf("===============caihaijun,ValidateTxhash,dcrmaddr is %s,vvv is %s=============\n",dcrmaddr,vvv)
+			if addr == dcrmaddr && vv == vvv {
+			    valiinfo := msgprex + sep + tx + msgtypesep + "txhash_validate_pass"
+			    p2pdcrm.SendMsg(valiinfo)
+			    <-worker.btxvalidate
+			    i := 0
+			    for i = 0;i<NodeCnt-1;i++ {
+				va := <-worker.msg_txvalidate
+				mm := strings.Split(va,msgtypesep)
+				if mm[1] == "txhash_validate_no_pass" {
+				    var ret2 Err
+				    ret2.info = "txhash validate fail."
+				    res := RpcDcrmRes{ret:"",err:ret2}
+				    ch <- res
+				    return 
 				}
-
-				res := RpcDcrmRes{ret:"true",err:nil}
-				ch <- res
-				return 
 			    }
+
+			    res := RpcDcrmRes{ret:"true",err:nil}
+			    ch <- res
+			    return 
 			}
 		    }
 		}
 	    }
 	}
-
     }
+
+    if cointype == "ETH" {
+
+	 client, err := rpc.Dial("http://localhost:40405")
+        if err != nil {
+		fmt.Printf("===============caihaijun,validate_txhash,eth rpc.Dial error.===========\n")
+		var ret2 Err
+		ret2.info = "eth rpc.Dial error."
+		res := RpcDcrmRes{ret:"",err:ret2}
+		ch <- res
+		return
+        }
+
+        ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+        defer cancel()
+
+	for _,txhash := range txhashs {
+	    var result RPCTransaction
+	    err = client.CallContext(ctx, &result, "eth_getTransactionByHash",txhash)
+	    if err != nil {
+		    fmt.Printf("===============caihaijun,validate_txhash,client call error.===========\n")
+		    var ret2 Err
+		    ret2.info = "client call error."
+		    res := RpcDcrmRes{ret:"",err:ret2}
+		    ch <- res
+		    return
+	    }
+
+	    //from := result.From.Hex()
+	    to := (*result.To).Hex()
+	    value, _ := new(big.Int).SetString(result.Value.String(), 0)
+	    vv := fmt.Sprintf("%v",value)
+	    
+	    vvv := string(signtx.Value().Bytes())
+	    
+	    fmt.Printf("===============caihaijun,validate_txhash,txhash is %s===========\n",txhash)
+	    fmt.Printf("===============caihaijun,validate_txhash,value is %v===========\n",value)
+	    fmt.Printf("===============caihaijun,validate_txhash,to is %s,dcrmaddr is %s,vv is %s,vvv is %s===========\n",to,dcrmaddr,vv,vvv)
+
+	    if strings.EqualFold(to,dcrmaddr) && vv == vvv {
+		
+		fmt.Printf("===============caihaijun,validate_txhash,to == dcrmaddr && vv == vvv===========\n")
+		valiinfo := msgprex + sep + tx + msgtypesep + "txhash_validate_pass"
+		p2pdcrm.SendMsg(valiinfo)
+		<-worker.btxvalidate
+		i := 0
+		for i = 0;i<NodeCnt-1;i++ {
+		    va := <-worker.msg_txvalidate
+		    mm := strings.Split(va,msgtypesep)
+		    if mm[1] == "txhash_validate_no_pass" {
+			fmt.Printf("===============caihaijun,validate_txhash,mm[1] == txhash_validate_no_pass===========\n")
+			var ret2 Err
+			ret2.info = "txhash validate fail."
+			res := RpcDcrmRes{ret:"",err:ret2}
+			ch <- res
+			return 
+		    }
+		}
+
+		res := RpcDcrmRes{ret:"true",err:nil}
+		ch <- res
+		return
+	    }
+	}
+    }
+
+    fmt.Printf("===============caihaijun,validate_txhash,aaaaaaaaaaaaaaaaaaaaaaaa===========\n")
 
     valiinfo := msgprex + sep + tx + msgtypesep + "txhash_validate_no_pass"
     p2pdcrm.SendMsg(valiinfo)
