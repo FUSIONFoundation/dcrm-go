@@ -127,12 +127,6 @@ func newTable(t transport, ourID NodeID, ourAddr *net.UDPAddr, nodeDBPath string
 			ips: netutil.DistinctNetSet{Subnet: bucketSubnet, Limit: bucketIPLimit},
 		}
 	}
-	// TODO: group
-	if bootnodes == nil {
-		if err := initGroup(); err != nil {
-			log.Error("ERR: %v", err)
-		}
-	}
 
 	tab.seedRand()
 	tab.loadSeedNodes()
