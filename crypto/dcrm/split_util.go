@@ -1,3 +1,6 @@
+// Copyright 2018 The fusion-dcrm 
+//Author: gaozhengxin@fusion.org
+
 package dcrm
 import (
 	"fmt"
