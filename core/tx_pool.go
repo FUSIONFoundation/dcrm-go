@@ -616,7 +616,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 
 	//+++++++++++++++++caihaijun++++++++++++++++++
 	// Check precompile contracts transactions validation
-	//if from != common.Address{} {
+	if  tx.To() != nil {
 		precompiles := vm.PrecompiledContractsHomestead
 		if pool.homestead == false {
 			precompiles = vm.PrecompiledContractsByzantium
@@ -628,7 +628,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 			    return err
 		    }
 		}
- 	//}
+ 	}
 	//+++++++++++++++++++++end++++++++++++++++++++
 	return nil
 }
