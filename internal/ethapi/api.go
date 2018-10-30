@@ -565,9 +565,9 @@ func (s *PublicFsnAPI) DcrmLockIn(ctx context.Context,fusionaddr string,dcrmaddr
 	    return common.Hash{},nil 
 	}
 	
-	if cointype == "BTC" && dcrm.ValidateAddress(1,string(dcrmaddrs[:])) == false {
-	    return common.Hash{},nil 
-	}
+	//if cointype == "BTC" && dcrm.ValidateAddress(1,string(dcrmaddrs[:])) == false {
+	  //  return common.Hash{},nil 
+	//}
 
 	fromaddr,_ := new(big.Int).SetString(fusionaddr,0)
 	txfrom := common.BytesToAddress(fromaddr.Bytes())

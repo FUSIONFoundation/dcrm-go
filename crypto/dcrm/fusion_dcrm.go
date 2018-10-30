@@ -893,7 +893,9 @@ func (w RpcReqWorker) Stop() {
 //rpc-req
 
 //###############
-type GetTransactionDetailsResult struct {
+
+//for btc regtest
+/*type GetTransactionDetailsResult struct {
 	Address           string   `json:"address,omitempty"`
 	Category          string   `json:"category"`
 	Amount            float64  `json:"amount"`
@@ -916,14 +918,9 @@ type GetTransactionResult struct {
 	Bip125 bool 
 	Details         []GetTransactionDetailsResult `json:"details"`
 	Hex             string                        `json:"hex"`
-}
+}*/
 
-type BtcTxResInfo struct {
-    Result GetTransactionResult
-    Error error 
-    Id int
-}
-
+//for eth 
 type RPCTransaction struct {
 	BlockHash        common.Hash     `json:"blockHash"`
 	BlockNumber      *hexutil.Big    `json:"blockNumber"`
@@ -941,8 +938,145 @@ type RPCTransaction struct {
 	S                *hexutil.Big    `json:"s"`
 }
 
+/////////////////////for btc main chain
+type Scriptparm struct {
+    Asm string
+    Hex string
+    ReqSigs int64
+    Type string
+    Addresses []string
+}
+
+type Voutparm struct {
+    Value float64
+    N int64
+    ScriptPubKey Scriptparm
+}
+
+//for btc main chain noinputs
+type BtcTxResInfoNoInputs struct {
+    Result GetTransactionResultNoInputs
+    Error error 
+    Id int
+}
+
+type VinparmNoInputs struct {
+    Coinbase string
+    Sequence int64
+}
+
+type GetTransactionResultNoInputs struct {
+    Txid string
+    Hash string
+    Version int64
+    Size int64
+    Vsize int64
+    Weight int64
+    Locktime int64
+    Vin []VinparmNoInputs
+    Vout []Voutparm
+    Hex string
+    Blockhash string
+    Confirmations   int64
+    Time            int64
+    BlockTime            int64
+}
+
+//for btc main chain noinputs
+type BtcTxResInfo struct {
+    Result GetTransactionResult
+    Error error 
+    Id int
+}
+
+type ScriptSigParam struct {
+    Asm string 
+    Hex string
+}
+
+type Vinparm struct {
+    Txid string
+    Vout int64
+    ScriptSig ScriptSigParam
+    Sequence int64
+}
+
+type GetTransactionResult struct {
+    Txid string
+    Hash string
+    Version int64
+    Size int64
+    Vsize int64
+    Weight int64
+    Locktime int64
+    Vin []Vinparm
+    Vout []Voutparm
+    Hex string
+    Blockhash string
+    Confirmations   int64
+    Time            int64
+    BlockTime            int64
+}
+
+//////////////////////////
+
 func IsAtGroup() bool {
     return true
+}
+
+func IsValidBTCTx(returnJson string,txhash string,dcrmaddr string,value string) bool {
+
+    fmt.Printf("=================caihaijun,IsValidBTCTx,returnJson is %s========\n",returnJson)
+    fmt.Printf("=================caihaijun,IsValidBTCTx,txhash is %s========\n",txhash)
+    fmt.Printf("=================caihaijun,IsValidBTCTx,dcrmaddr is %s========\n",dcrmaddr)
+    fmt.Printf("=================caihaijun,IsValidBTCTx,value is %s========\n",value)
+    if len(returnJson) == 0 {
+	return false
+    }
+
+    var btcres_noinputs BtcTxResInfoNoInputs
+    json.Unmarshal([]byte(returnJson), &btcres_noinputs)
+    if btcres_noinputs.Result.Vout != nil && btcres_noinputs.Result.Txid == txhash {
+	fmt.Printf("=================caihaijun,IsValidBTCTx,btcres_noinputs.Result.Vout != nil========\n")
+	vparam := btcres_noinputs.Result.Vout
+	for _,vp := range vparam {
+	    spub := vp.ScriptPubKey
+	    sas := spub.Addresses
+	    for _,sa := range sas {
+		if sa == dcrmaddr {
+		    amount := vp.Value
+		    vv := fmt.Sprintf("%v",amount)
+		    fmt.Printf("=================caihaijun,IsValidBTCTx,vv is %s========\n",vv)
+		    if vv == value {
+			return true
+		    }
+		}
+	    }
+	}
+    }
+    
+    var btcres BtcTxResInfo
+    json.Unmarshal([]byte(returnJson), &btcres)
+    if btcres.Result.Vout != nil && btcres.Result.Txid == txhash {
+	fmt.Printf("=================caihaijun,IsValidBTCTx,btcres.Result.Vout != nil========\n")
+	vparam := btcres.Result.Vout
+	for _,vp := range vparam {
+	    spub := vp.ScriptPubKey
+	    sas := spub.Addresses
+	    for _,sa := range sas {
+		if sa == dcrmaddr {
+		    amount := vp.Value
+		    vv := fmt.Sprintf("%v",amount)
+		    fmt.Printf("=================caihaijun,IsValidBTCTx,vv is %s========\n",vv)
+		    if vv == value {
+			return true
+		    }
+		}
+	    }
+	}
+    }
+
+    return false
 }
 
 func validate_txhash(msgprex string,tx string,txhashs []string,ch chan interface{}) {
@@ -993,7 +1127,7 @@ func validate_txhash(msgprex string,tx string,txhashs []string,ch chan interface
 		    ch <- res
 		    return
 	    }
-	    reqJson := "{\"method\":\"gettransaction\",\"params\":[\"" + string(txhash) + "\"],\"id\":1}";
+	    reqJson := "{\"method\":\"getrawtransaction\",\"params\":[\"" + string(txhash) + "\"" + "," + "true" + "],\"id\":1}";
 	    returnJson, err2 := rpcClient.Send(reqJson)
 	    if err2 != nil {
 		    var ret2 Err
@@ -1003,43 +1137,26 @@ func validate_txhash(msgprex string,tx string,txhashs []string,ch chan interface
 		    return
 	    }
 	    log.Println("returnJson:", returnJson)
-
-	    var btcres BtcTxResInfo
-	    json.Unmarshal([]byte(returnJson), &btcres)
-	    d := btcres.Result.Details
-	    if btcres.Result.TxID == txhash && len(d) > 0 {
-		for _,de := range d {
-		    if de.Category == "receive" {
-			addr := de.Address
-			amount := de.Amount
-			//v := strconv.FormatFloat(amount, 'E', -1, 64)
-			vv := fmt.Sprintf("%v",amount)
-			vvv := string(signtx.Value().Bytes())//fmt.Sprintf("%v",signtx.Value())
-			fmt.Printf("===============caihaijun,ValidateTxhash,addr is %s,amount is %v=============\n",addr,vv)
-			fmt.Printf("===============caihaijun,ValidateTxhash,dcrmaddr is %s,vvv is %s=============\n",dcrmaddr,vvv)
-			if addr == dcrmaddr && vv == vvv {
-			    valiinfo := msgprex + sep + tx + msgtypesep + "txhash_validate_pass"
-			    p2pdcrm.SendMsg(valiinfo)
-			    <-worker.btxvalidate
-			    i := 0
-			    for i = 0;i<NodeCnt-1;i++ {
-				va := <-worker.msg_txvalidate
-				mm := strings.Split(va,msgtypesep)
-				if mm[1] == "txhash_validate_no_pass" {
-				    var ret2 Err
-				    ret2.info = "txhash validate fail."
-				    res := RpcDcrmRes{ret:"",err:ret2}
-				    ch <- res
-				    return 
-				}
-			    }
-
-			    res := RpcDcrmRes{ret:"true",err:nil}
-			    ch <- res
-			    return 
-			}
+	    if IsValidBTCTx(returnJson,txhash,dcrmaddr,string(signtx.Value().Bytes())) {
+		valiinfo := msgprex + sep + tx + msgtypesep + "txhash_validate_pass"
+		p2pdcrm.SendMsg(valiinfo)
+		<-worker.btxvalidate
+		i := 0
+		for i = 0;i<NodeCnt-1;i++ {
+		    va := <-worker.msg_txvalidate
+		    mm := strings.Split(va,msgtypesep)
+		    if mm[1] == "txhash_validate_no_pass" {
+			var ret2 Err
+			ret2.info = "txhash validate fail."
+			res := RpcDcrmRes{ret:"",err:ret2}
+			ch <- res
+			return 
 		    }
 		}
+
+		res := RpcDcrmRes{ret:"true",err:nil}
+		ch <- res
+		return 
 	    }
 	}
     }

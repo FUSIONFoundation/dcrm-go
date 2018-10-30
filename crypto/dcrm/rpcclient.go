@@ -21,8 +21,8 @@ const (
 	VERSION           = 0.1
 	RPCCLIENT_TIMEOUT = 30
 	
-	SERVER_HOST        = "localhost"
-	SERVER_PORT        = 18443 
+	SERVER_HOST        = "10.192.32.87"  //"localhost"
+	SERVER_PORT        = 81  //18443 
 	USER               = "xxmm"
 	PASSWD             = "123456"
 	USESSL             = false
