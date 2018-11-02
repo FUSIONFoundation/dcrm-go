@@ -266,6 +266,11 @@ func (s *Ethereum) APIs() []rpc.API {
 			Service:   NewPublicFsnAPI(s),
 			Public:    true,
 		}, {
+			Namespace: "lilo",
+			Version:   "1.0",
+			Service:   NewPublicFsnAPI(s),
+			Public:    true,
+		}, {
 			Namespace: "eth",
 			Version:   "1.0",
 			Service:   NewPublicEthereumAPI(s),

@@ -444,8 +444,11 @@ func (tab *Table) doRefresh(done chan struct{}) {
 }
 
 func (tab *Table) loadSeedNodes() {
-	seeds := tab.db.querySeeds(seedCount, seedMaxAge)
-	seeds = append(seeds, tab.nursery...)
+	seeds := make([]*Node, 0)
+	seeds = append(seeds, tab.nursery...)//bootstrap first
+	seeds = append(seeds, tab.db.querySeeds(seedCount, seedMaxAge)...)//db last
+	//seeds := tab.db.querySeeds(seedCount, seedMaxAge)
+	//seeds = append(seeds, tab.nursery...)
 	for i := range seeds {
 		seed := seeds[i]
 		age := log.Lazy{Fn: func() interface{} { return time.Since(tab.db.lastPongReceived(seed.ID)) }}
