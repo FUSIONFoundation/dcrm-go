@@ -499,6 +499,61 @@ func NewPublicFsnAPI(b Backend) *PublicFsnAPI {
 
 //+++++++++++++++++caihaijun+++++++++++++++++++
 
+func (s *PublicFsnAPI) DcrmLiLoReqAddress(ctx context.Context,fusionaddr string,pubkey string,cointype string) (string, error) {
+    fmt.Println("================caihaijun DcrmLiLoReqAddress================")
+    
+    fusions := []rune(fusionaddr)
+    if len(fusions) != 42 { //42 = 2 + 20*2 =====>0x + addr
+	return "",nil 
+    }
+    
+    fromaddr,_ := new(big.Int).SetString(fusionaddr,0)
+    txfrom := common.BytesToAddress(fromaddr.Bytes())
+
+    toaddr := new(common.Address)
+    *toaddr = types.DcrmPrecompileAddr
+    args := SendTxArgs{From: txfrom,To:toaddr}
+    str := "DCRMREQADDR" + ":" + fusionaddr + ":" + cointype
+    args.Data = new(hexutil.Bytes) 
+    args.Input = new(hexutil.Bytes) 
+    *args.Data = []byte(str)
+    *args.Input = []byte(str)
+
+    // Look up the wallet containing the requested signer
+    account := accounts.Account{Address: args.From}
+
+    wallet, err := s.b.AccountManager().Find(account)
+    if err != nil {
+	    return "", err
+    }
+
+    if err := args.setDefaults(ctx, s.b); err != nil {
+	    return "", err
+    }
+    tx := args.toTransaction()
+
+    var chainID *big.Int
+    if config := s.b.ChainConfig(); config.IsEIP155(s.b.CurrentBlock().Number()) {
+	    chainID = config.ChainID
+    }
+    signed, err := wallet.SignTx(account, tx, chainID)
+    if err != nil {
+	    return "", err
+    }
+    result,err := signed.MarshalJSON()
+    fmt.Printf("===================caihaijun,DcrmLiLoReqAddress,tx hash is %v================\n",signed.Hash())
+
+    v := dcrm.DcrmLiLoReqAddress{Txhash:signed.Hash(),Fusionaddr:fusionaddr,Pub:pubkey,Cointype:cointype}
+    addr,err := dcrm.Dcrm_LiLoReqAddress(&v)
+    if addr == "" || err != nil {
+	    return "", err
+    }
+
+    rethash,err2 := s.DcrmSendTransaction(ctx,string(result))
+    fmt.Printf("===================caihaijun,DcrmLiLoReqAddress,ret tx hash is %s================\n",rethash.Hex())
+    return rethash.Hex(),err2
+}
+
 func (s *PublicFsnAPI) DcrmReqAddress(ctx context.Context,pubkey string,cointype string) (string, error) {
     fmt.Println("================caihaijun DcrmReqAddress================")
     v := dcrm.DcrmReqAddress{Pub:pubkey,Cointype:cointype}
@@ -610,8 +665,7 @@ func (s *PublicFsnAPI) DcrmLockIn(ctx context.Context,fusionaddr string,dcrmaddr
 	//dcrm.Register_Ethapi_Callback(callethapi) //caihaijun-ethapi-callback
 
 	v := dcrm.DcrmLockIn{Tx:string(result),Txhashs:txhashs}
-	//if _,err = dcrm.ValidateTxhash(string(result),txhashs);err != nil {
-	if _,err = dcrm.ValidateTxhash(&v);err != nil {
+	if _,err = dcrm.Validate_Txhash(&v);err != nil {
 		return common.Hash{}, err
 	}
 	
@@ -744,7 +798,7 @@ func (s *PublicFsnAPI) DcrmLockIn2(ctx context.Context,fusionaddr string,dcrmadd
 
 func (s *PublicFsnAPI) DcrmLockOut(ctx context.Context,fusionaddr string,dcrmaddr string,value string,cointype string) (common.Hash, error) {
 
-	fmt.Printf("=============caihaijun,DcrmLockOutFinish================\n")
+	fmt.Printf("=============caihaijun,DcrmLockOut================\n")
 
 	//========================================================
 	fusions := []rune(fusionaddr)
@@ -927,6 +981,53 @@ func (s *PublicFsnAPI) GetDcrmAccountBalance(ctx context.Context, fusionaddr str
 	fmt.Printf("=============caihaijun,GetDcrmAccountBalance,ret is %v================\n",ret)
 	ret2 := fmt.Sprintf("%v",ret)
 	return ret2, state.Error()
+}
+
+func (s *PublicFsnAPI) GetTransactionByHash(ctx context.Context, hash common.Hash) *RPCTransaction {
+	// Try to return an already finalized transaction
+	if tx, blockHash, blockNumber, index := rawdb.ReadTransaction(s.b.ChainDb(), hash); tx != nil {
+		return newRPCTransaction(tx, blockHash, blockNumber, index)
+	}
+	// No finalized transaction, try to retrieve it from the pool
+	if tx := s.b.GetPoolTransaction(hash); tx != nil {
+		return newRPCPendingTransaction(tx)
+	}
+	// Transaction unknown, return as such
+	return nil
+}
+
+func (s *PublicFsnAPI) GetLiLoDcrmAddr(ctx context.Context,fusionaddr string,txhash string) (string,error) {
+
+    state, _, err := s.b.StateAndHeaderByNumber(ctx,rpc.LatestBlockNumber)
+    if state == nil || err != nil {
+	    return "", err
+    }
+    
+    fusions := []rune(fusionaddr)
+    if len(fusions) != 42 { //42 = 2 + 20*2 =====>0x + addr
+	return "",nil 
+    }
+   
+    //bi,_ := new(big.Int).SetString(txhash,16)
+    res := s.GetTransactionByHash(ctx,common.HexToHash(txhash))
+    if res == nil {
+	return "",nil
+    }
+
+    input := ([]byte)(res.Input)
+    str := string(input)     //str     DCRMREQADDR:fusionaddr:BTC  
+    m := strings.Split(str,":")
+    if m[0] == "DCRMREQADDR" {
+
+	fromaddr,_ := new(big.Int).SetString(fusionaddr,0)
+	from := common.BytesToAddress(fromaddr.Bytes())
+	fmt.Printf("============caihaijun,GetLiLoDcrmAddr,txhash is %v========\n",common.HexToHash(txhash))
+	fmt.Printf("===============caihaijun,GetLiLoDcrmAddr,from is %v,type is %s",from,m[2])
+	ret := state.GetDcrmAddress(from,common.HexToHash(txhash),m[2])
+	return ret,nil
+    }
+    
+    return "",nil
 }
 
 //+++++++++++++++++++++end+++++++++++++++++++++

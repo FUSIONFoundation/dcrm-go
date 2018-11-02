@@ -52,6 +52,7 @@ type StateDB interface {
 	SetStateDcrmAccountData(common.Address, common.Hash, []byte)
 	GetDcrmAccountBalance(common.Address, common.Hash,string) *big.Int
 	GetCommittedStateDcrmAccountData(common.Address, common.Hash) []byte
+	GetDcrmAddress(common.Address, common.Hash,string) string 
 	//+++++++++++++++++end+++++++++++++++++++
 
 	Suicide(common.Address) bool

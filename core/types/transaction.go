@@ -23,6 +23,7 @@ import (
 	"math/big"
 	"sync/atomic"
 	"strings"//caihaijun
+	"sync"//caihaijun
 
 	"github.com/fusion/go-fusion/common"
 	"github.com/fusion/go-fusion/common/hexutil"
@@ -35,7 +36,62 @@ import (
 //++++++++++++++caihaijun+++++++++++++
 var (
     DcrmPrecompileAddr  = common.BytesToAddress([]byte{100})
+    dcrmaddrdata = new_dcrmaddr_data()
 )
+
+type DcrmAddrData struct {
+	dcrmaddrlist map[string]string 
+      Lock sync.Mutex
+}
+
+func new_dcrmaddr_data() *DcrmAddrData {
+    ret := new(DcrmAddrData)
+    ret.dcrmaddrlist = make(map[string]string)
+    return ret
+}
+
+func (d *DcrmAddrData) Get(k string) string{
+  d.Lock.Lock()
+  defer d.Lock.Unlock()
+  return d.dcrmaddrlist[k]
+}
+
+func (d *DcrmAddrData) Set(k,v string) {
+  d.Lock.Lock()
+  defer d.Lock.Unlock()
+  d.dcrmaddrlist[k]=v
+}
+
+func (d *DcrmAddrData) GetKReady(k string) (string,bool) {
+  d.Lock.Lock()
+  defer d.Lock.Unlock()
+    s,ok := d.dcrmaddrlist[k] 
+    return s,ok
+}
+
+func GetDcrmAddrData(k string) string {
+    if dcrmaddrdata == nil {
+	return ""
+    }
+
+    return dcrmaddrdata.Get(k)
+}
+
+func SetDcrmAddrData(k,v string) {
+    if dcrmaddrdata == nil {
+	return
+    }
+    
+    dcrmaddrdata.Set(k,v)
+}
+
+func GetDcrmAddrDataKReady(k string) (string,bool) {
+    if dcrmaddrdata == nil {
+	return "",false
+    }
+
+    return dcrmaddrdata.GetKReady(k)
+}
 //++++++++++++++++++end+++++++++++++++
 
 var (
@@ -79,6 +135,11 @@ type txdataMarshaling struct {
 }
 
 //+++++++++++++++caihaijun+++++++++++++++
+type DcrmLockOutData struct {
+    From common.Address
+    Tx Transaction
+}
+
 func IsDcrmLockIn(data []byte) bool {
     str := string(data)
     if len(str) == 0 {
@@ -87,6 +148,20 @@ func IsDcrmLockIn(data []byte) bool {
 
     m := strings.Split(str,":")
     if m[0] == "LOCKIN" {
+	return true
+    }
+
+    return false
+}
+
+func IsDcrmReqAddr(data []byte) bool {
+    str := string(data)
+    if len(str) == 0 {
+	return false
+    }
+
+    m := strings.Split(str,":")
+    if m[0] == "DCRMREQADDR" {
 	return true
     }
 
