@@ -190,6 +190,12 @@ func (c *Console) init(preload []string) error {
 			obj.Set("sign", bridge.Sign)
 		}
 	}
+	if c.prompter != nil {
+		_, err := c.jsre.Get("lilo")
+		if err != nil {
+			return err
+		}
+	}
 	// The admin.sleep and admin.sleepBlocks are offered by the console and not by the RPC layer.
 	admin, err := c.jsre.Get("admin")
 	if err != nil {

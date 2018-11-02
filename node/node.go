@@ -593,6 +593,11 @@ func (n *Node) apis() []rpc.API {
 			Service:   NewPublicFsnAPI(n),
 			Public:    true,
 		}, {
+			Namespace: "lilo",
+			Version:   "1.0",
+			Service:   NewPublicFsnAPI(n),
+			Public:    true,
+		}, {
 			Namespace: "admin",
 			Version:   "1.0",
 			Service:   NewPrivateAdminAPI(n),
