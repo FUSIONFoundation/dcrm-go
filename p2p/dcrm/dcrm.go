@@ -255,7 +255,7 @@ func GetGroup() (int, string){
 		enode += e.enode
 		count++
 	}
-	fmt.Printf("grop: count = %+v, enode = %+v\n", count, enode)
+	fmt.Printf("group: count = %+v, enode = %+v\n", count, enode)
 	//TODO
 	return count,enode
 }
@@ -342,23 +342,3 @@ func GetEnodes() (int, string) {
 	return GetGroup()
 }
 
-/*
-//GetEnodes get enodes info
-//return: string self.enode
-//        int count of peers
-//        string peers.id delimiter with dcrmdelimiter
-func GetEnodes() (int, string) {
-	localip := discover.GetLocalIP()
-	enodes := nodeserv.NodeInfo().ID[:16]+"@"+localip
-	peers := nodeserv.Peers()
-	count := nodeserv.PeerCount()
-	for i := 0; i < count; i++ {
-		words := strings.Fields(peers[i].String())//enode[:16] ip:port
-		enodes += dcrmdelimiter
-		ipge := strings.Split(words[2], ":")//ip:port
-		enodes += words[1]+"@"+ipge[0]
-	}
-	//fmt.Printf("nodeserv.Self().IP.String(): %+v\n", nodeserv.Self().IP.String())
-	return count+1, enodes
-}
-*/

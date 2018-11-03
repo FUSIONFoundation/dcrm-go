@@ -683,6 +683,18 @@ web3._extend({
 	property: 'lilo',
 	methods: [
 		new web3._extend.Method({
+			name: 'dcrmLiLoReqAddress',
+			call: 'lilo_dcrmLiLoReqAddress',
+			params: 3,
+			inputFormatter: [null,null,null]
+		}),
+		new web3._extend.Method({
+			name: 'getLiLoDcrmAddr',
+			call: 'lilo_getLiLoDcrmAddr',
+			params: 2,
+			inputFormatter: [null,null]
+		}),
+		new web3._extend.Method({
 			name: 'dcrmLockIn',
 			call: 'lilo_dcrmLockIn',
 			params: 5,
@@ -698,3 +710,16 @@ web3._extend({
 	properties:[]
 });
 `
+//TODO: call will be panic
+//		new web3._extend.Method({
+//			name: 'dcrmLockOut',
+//			call: 'lilo_dcrmLockOut',
+//			params: 7,
+//			inputFormatter: [null,null,null,null,null,null,null]
+//		}),
+//		new web3._extend.Method({
+//			name: 'dcrmTransaction',
+//			call: 'lilo_dcrmTransaction',
+//			params: 6,
+//			inputFormatter: [null,null,null,null,null,null]
+//		}),
