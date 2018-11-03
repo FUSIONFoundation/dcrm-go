@@ -22,6 +22,7 @@ import (
 	"math/big"
 	"strings"//caihaijun
 	"fmt"//caihaijun
+	"time"//caihaijun
 	"encoding/json"//caihaijun
 	"github.com/fusion/go-fusion/core/types"//caihaijun
 
@@ -521,7 +522,17 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 
     if m[0] == "DCRMREQADDR" {
 	//c.Tx  txhash   msgprex:fusionaddr:dcrmaddr:BTC
-	dcrmdatas := types.GetDcrmAddrData(evm.GetTxhash()) 
+	//dcrmdatas := types.GetDcrmAddrData(evm.GetTxhash())
+	var dcrmdatas string
+	var ok bool
+	for {
+	    dcrmdatas,ok = types.GetDcrmAddrDataKReady(evm.GetTxhash())
+	    if ok == true {
+		break
+	    }
+	    time.Sleep(time.Duration(100000000))
+	}
+
 	fmt.Printf("==================caihaijun,dcrmTransaction.Run,dcrmdatas is %s=========\n",dcrmdatas)
 	dcrmdata := strings.Split(dcrmdatas,":")
 	fmt.Printf("==================caihaijun,dcrmTransaction.Run,txhash is %s=========\n",evm.GetTxhash())

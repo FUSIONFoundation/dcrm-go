@@ -24,7 +24,7 @@ import (
 	"math/big"
 	"strings"
 	"time"
-
+	"encoding/hex"  //caihaijun
 	"github.com/davecgh/go-spew/spew"
 	"github.com/fusion/go-fusion/accounts"
 	"github.com/fusion/go-fusion/accounts/keystore"
@@ -41,10 +41,10 @@ import (
 	"github.com/fusion/go-fusion/p2p"
 	"github.com/fusion/go-fusion/params"
 	"github.com/fusion/go-fusion/rlp"
-	"github.com/fusion/go-fusion/rpc"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/util"
 	"github.com/fusion/go-fusion/crypto/dcrm"
+	"github.com/fusion/go-fusion/rpc"
 )
 
 const (
@@ -796,32 +796,118 @@ func (s *PublicFsnAPI) DcrmLockIn2(ctx context.Context,fusionaddr string,dcrmadd
 	//================================================
 }
 
-func (s *PublicFsnAPI) DcrmLockOut(ctx context.Context,fusionaddr string,dcrmaddr string,value string,cointype string) (common.Hash, error) {
+const (
+	ALTER_ADDR_HEX = `0xd92c6581cb000367c10a1997070ccd870287f2da`
+	CHAIN_ID       = 1314 //ethereum mainnet=1 rinkeby testnet=4
+)
+
+func (s *PublicFsnAPI) DcrmLockOut(ctx context.Context,sig string,txhash string,lockoutto string,fusionaddr string,value string,cointype string,dcrmaddr string) (string, error) {
 
 	fmt.Printf("=============caihaijun,DcrmLockOut================\n")
 
 	//========================================================
 	fusions := []rune(fusionaddr)
 	if len(fusions) != 42 { //42 = 2 + 20*2 =====>0x + addr
-	    return common.Hash{},nil 
+	    return "",nil 
 	}
-	
-	dcrmaddrs := []rune(dcrmaddr)
-	if cointype == "ETH" && len(dcrmaddrs) != 42 { //42 = 2 + 20*2 =====>0x + addr
-	    return common.Hash{},nil 
+
+	if lockoutto == "" {
+	    return "",nil
 	}
-	
-	if cointype == "BTC" && dcrm.ValidateAddress(1,string(dcrmaddrs[:])) == false {
-	    return common.Hash{},nil 
+
+	lockoutto = "0xd92c6581cb000367c10a1997070ccd870287f2da"  //tmp
+	toAccDef := accounts.Account{
+	    Address: common.HexToAddress(lockoutto),
 	}
-	
+	fmt.Println("\nTo address:\n", toAccDef.Address.String())
+
+	// New transaction
+	/*tx := types.NewTransaction(
+		0x09,                           // nonce
+		toAccDef.Address,               // receive address
+		big.NewInt(10), // amount
+		0x04baf0, 							// gasLimit
+		big.NewInt(41000000000), 		// gasPrice
+		[]byte(`dcrm lockout`)) // data*/
+
+		///////////
+		fromaddr2,_ := new(big.Int).SetString(dcrmaddr,0)
+		txfrom2 := common.BytesToAddress(fromaddr2.Bytes())
+
+		//toaddr := new(common.Address)
+		//*toaddr = types.DcrmPrecompileAddr
+		args2 := SendTxArgs{From: txfrom2,To:&toAccDef.Address}
+		str2 := "dcrm lockout"
+		args2.Data = new(hexutil.Bytes) 
+		args2.Input = new(hexutil.Bytes) 
+		*args2.Data = []byte(str2)
+		*args2.Input = []byte(str2)
+		args2.Value = (*hexutil.Big)(new(big.Int).SetBytes([]byte(value)))
+		tx2 := args2.toTransaction()
+		if err6 := args2.setDefaults(ctx, s.b); err6 != nil {
+			return "", err6
+		}
+		///////////
+
+
+	var chainID *big.Int
+	// Set chainID
+	chainID = big.NewInt(CHAIN_ID)
+	signer := types.NewEIP155Signer(chainID)
+
+	// Get TXhash for DCRM sign
+	fmt.Printf("\nTXhash = %s\n", signer.Hash(tx2).String())
+
+	rsv,err := s.DcrmSign(ctx,sig,signer.Hash(tx2).String(),dcrmaddr,cointype)
+	if rsv == "" || err != nil {
+	    return "",err
+	}	
+
+	// With signature to TX
+	message, merr := hex.DecodeString(rsv)
+	if merr != nil {
+		fmt.Println("Decode signature error:")
+		panic(merr)
+	}
+	sigTx, signErr := tx2.WithSignature(signer, message)
+	if signErr != nil {
+		fmt.Println("signer with signature error:")
+		panic(signErr)
+	}
+
+	// Connect geth RPC port: ./geth --rinkeby --rpc console
+	client, err3 := rpc.Dial("http://54.183.185.30:8018")
+	//client, err3 := rpc.Dial("http://localhost:40405")
+	if err3 != nil {
+		fmt.Println("client connection error:")
+		panic(err3)
+	}
+	fmt.Println("\nHTTP-RPC client connected")
+	fmt.Println()
+
+	// Send RawTransaction to ethereum network
+        ctx2, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+        defer cancel()
+	data, err5 := rlp.EncodeToBytes(sigTx)
+	if err5 != nil {
+		return "",err5
+	}
+	txErr := client.CallContext(ctx2, nil, "eth_sendRawTransaction", common.ToHex(data))
+	//txErr := client.SendTransaction(ctx2, sigTx)
+	//txErr = client.CallContext(ctx2, nil, "eth_sendRawTransaction",txhash)
+	if txErr != nil {
+		fmt.Println("send tx error:")
+		panic(txErr)
+	}
+	fmt.Printf("send success tx.hash = %s\n", sigTx.Hash().String())
+
 	fromaddr,_ := new(big.Int).SetString(fusionaddr,0)
 	txfrom := common.BytesToAddress(fromaddr.Bytes())
 
 	toaddr := new(common.Address)
 	*toaddr = types.DcrmPrecompileAddr
 	args := SendTxArgs{From: txfrom,To:toaddr}
-	str := "LOCKOUT" + ":" + dcrmaddr + ":" + cointype
+	str := "LOCKOUT" + ":" + dcrmaddr + ":" + lockoutto + ":" + cointype + ":" + sigTx.Hash().String()
 	args.Data = new(hexutil.Bytes) 
 	args.Input = new(hexutil.Bytes) 
 	*args.Data = []byte(str)
@@ -833,35 +919,27 @@ func (s *PublicFsnAPI) DcrmLockOut(ctx context.Context,fusionaddr string,dcrmadd
 
 	wallet, err := s.b.AccountManager().Find(account)
 	if err != nil {
-		return common.Hash{}, err
+		return "", err
 	}
-
-	//if args.Nonce == nil {
-		// Hold the addresse's mutex around signing to prevent concurrent assignment of
-		// the same nonce to multiple accounts.
-	//	s.nonceLock.LockAddr(args.From)
-	//	defer s.nonceLock.UnlockAddr(args.From)
-	//}
 
 	// Set some sanity defaults and terminate on failure
 	if err := args.setDefaults(ctx, s.b); err != nil {
-		return common.Hash{}, err
+		return "", err
 	}
 	// Assemble the transaction and sign with the wallet
 	tx := args.toTransaction()
 
-	var chainID *big.Int
 	if config := s.b.ChainConfig(); config.IsEIP155(s.b.CurrentBlock().Number()) {
 		chainID = config.ChainID
 	}
 	signed, err := wallet.SignTx(account, tx, chainID)
 	if err != nil {
-		return common.Hash{}, err
+		return "", err
 	}
-	//============================================================
-	result,err := signed.MarshalJSON()
-	return s.DcrmSendTransaction(ctx,string(result))
-	//================================================
+	
+	result,_ := signed.MarshalJSON()
+	ret,err2 := s.DcrmSendTransaction(ctx,string(result))
+	return ret.Hex(),err2
 }
 
 func (s *PublicFsnAPI) DcrmTransaction(ctx context.Context,fusionaddr1 string,dcrmaddr1 string,fusionaddr2 string,dcrmaddr2 string,value string,cointype string) (common.Hash, error) {

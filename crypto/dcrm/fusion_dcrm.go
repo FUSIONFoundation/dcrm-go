@@ -32,7 +32,6 @@ import (
 	"time"
 	"github.com/fusion/go-fusion/rpc"
 	"github.com/fusion/go-fusion/common/hexutil"
-	"github.com/fusion/go-fusion/rlp"
 )
 
 
@@ -1315,12 +1314,16 @@ func validate_txhash(msgprex string,tx string,txhashs []string,ch chan interface
     m := strings.Split(string(payload),":")
     var cointype string
     var dcrmaddr string
+    var lockoutfrom string
+    var lockoutto string
     if m[0] == "LOCKIN" {
 	cointype = m[2] 
 	dcrmaddr = m[1]
     }
     if m[0] == "LOCKOUT" {
-	cointype = m[2] 
+	cointype = m[3] 
+	lockoutfrom = m[1]
+	lockoutto = m[2]
     }
     if m[0] == "TRANSACTION" {
 	cointype = m[4] 
@@ -1372,7 +1375,8 @@ func validate_txhash(msgprex string,tx string,txhashs []string,ch chan interface
 
     if cointype == "ETH" {
 
-	 client, err := rpc.Dial("http://localhost:40405")
+	 client, err := rpc.Dial("http://54.183.185.30:8018")
+	 //client, err := rpc.Dial("http://localhost:40405")
         if err != nil {
 		fmt.Printf("===============caihaijun,validate_txhash,eth rpc.Dial error.===========\n")
 		var ret2 Err
@@ -1397,7 +1401,7 @@ func validate_txhash(msgprex string,tx string,txhashs []string,ch chan interface
 		    return
 	    }
 
-	    //from := result.From.Hex()
+	    from := result.From.Hex()
 	    to := (*result.To).Hex()
 	    value, _ := new(big.Int).SetString(result.Value.String(), 0)
 	    vv := fmt.Sprintf("%v",value)
@@ -1408,7 +1412,17 @@ func validate_txhash(msgprex string,tx string,txhashs []string,ch chan interface
 	    fmt.Printf("===============caihaijun,validate_txhash,value is %v===========\n",value)
 	    fmt.Printf("===============caihaijun,validate_txhash,to is %s,dcrmaddr is %s,vv is %s,vvv is %s===========\n",to,dcrmaddr,vv,vvv)
 
-	    if strings.EqualFold(to,dcrmaddr) && vv == vvv {
+	    if m[0] == "LOCKOUT" && (strings.EqualFold(from,lockoutfrom) == false || vv != vvv || strings.EqualFold(to,lockoutto) == false) {
+		valiinfo := msgprex + sep + tx + msgtypesep + "txhash_validate_no_pass"
+		p2pdcrm.SendMsg(valiinfo)
+		<-worker.btxvalidate
+
+		var ret2 Err
+		ret2.info = "txhash validate fail."
+		res := RpcDcrmRes{ret:"",err:ret2}
+		ch <- res
+		return 
+	    } else if strings.EqualFold(to,dcrmaddr) && vv == vvv {
 		
 		fmt.Printf("===============caihaijun,validate_txhash,to == dcrmaddr && vv == vvv===========\n")
 		valiinfo := msgprex + sep + tx + msgtypesep + "txhash_validate_pass"
@@ -1459,35 +1473,15 @@ func Validate_DcrmLockOut(do types.DcrmLockOutData) (string,error) {
     m := strings.Split(input,":")
     if m[0] == "LOCKOUT" {
 	if m[2] == "ETH" {
-	    fmt.Printf("===============caihaijun,Validate_DcrmLockOut.m[2]=ETH ===========\n")
-	     client, err := rpc.Dial("http://localhost:40405")
-	     if err != nil {
-		fmt.Printf("===============caihaijun,Validate_DcrmLockOut,eth rpc.Dial error.===========\n")
-		var ret2 Err
-		ret2.info = "eth rpc.Dial error."
-		return "",ret2
-	    }
-
-	    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	    defer cancel()
-
-	    data, err2 := rlp.EncodeToBytes(tx)
-	    if err2 != nil {
-		    return "",err2
-	    }
-	    var result SendRawTxRes
-	    client.CallContext(ctx, &result,"eth_sendRawTransaction", common.ToHex(data))
-	    time.Sleep(time.Duration(20*time.Second))
 	    txs,_ := tx.MarshalJSON()
 	    var s []string
-	    vv := fmt.Sprintf("%v",result.Hash)
-	    fmt.Printf("===============caihaijun,Validate_DcrmLockOut.vv is %s ===========\n",vv)
-	    s = append(s,vv)
+	    s = append(s,m[4])
 	    v := DcrmLockIn{Tx:string(txs),Txhashs:s}
-	    if _,err = Validate_Txhash(&v);err != nil {
+	    if _,err := Validate_Txhash(&v);err != nil {
 		    return "", err
 	    }
 
+	    fmt.Printf("===============caihaijun,Validate_DcrmLockOut.validate is true===========\n")
 	    return "true",nil
 	}
     }
@@ -1907,8 +1901,8 @@ func Validate_Txhash(wr WorkReq) (string,error) {
 		    fmt.Println("=========================!!!Start!!!=======================")
 
 		    //verify
-		    r,_ := new(big.Int).SetString(string(sigs[2:66]),16)
-		    s,_ := new(big.Int).SetString(string(sigs[66:]),16)
+		    /*r,_ := new(big.Int).SetString(string(sigs[2:66]),16)
+		    s,_ := new(big.Int).SetString(string(sigs[66:]),16)*///----caihaijun-tmp---
 
 		    lock.Lock()
 		    //db
@@ -1936,10 +1930,10 @@ func Validate_Txhash(wr WorkReq) (string,error) {
 
 		    data,_ := db.Get([]byte(dcrmaddr))
 		    datas := strings.Split(string(data),sep)
-		    userpubkey := datas[0]
+		    /*userpubkey := datas[0]
 		    userpubkeys := []rune(userpubkey)
 		    pkx,_ := new(big.Int).SetString(string(userpubkeys[4:68]),16)
-		    pky,_ := new(big.Int).SetString(string(userpubkeys[68:]),16)
+		    pky,_ := new(big.Int).SetString(string(userpubkeys[68:]),16)*///-----caihaijun-tmp----
 
 		    encX := datas[2]
 		    encXShare := new(big.Int).SetBytes([]byte(encX))
@@ -1953,7 +1947,7 @@ func Validate_Txhash(wr WorkReq) (string,error) {
 			txhash = string(txhashs[2:])
 		    }
 
-		    if Verify(r,s,0,txhash,pkx,pky) == false {
+		    /*if Verify(r,s,0,txhash,pkx,pky) == false {
 			var ret2 Err
 			ret2.info = "user auth fail."
 			res := RpcDcrmRes{ret:"",err:ret2}
@@ -1961,7 +1955,7 @@ func Validate_Txhash(wr WorkReq) (string,error) {
 			db.Close()
 			lock.Unlock()
 			return
-		    }
+		    }*////-----caihaijun-tmp-----
 		    db.Close()
 		    lock.Unlock()
 
