@@ -567,8 +567,10 @@ func (pool *TxPool) local() map[common.Address]types.Transactions {
 // validateTx checks whether a transaction is valid according to the consensus
 // rules and adheres to some heuristic limits of the local node (price and size).
 func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
+	fmt.Printf("===================caihaijun,validateTx,excute p.ValidTx=================\n")//caihaijun
 	// Heuristic limit, reject transactions over 32KB to prevent DOS attacks
 	if tx.Size() > 32*1024 {
+		fmt.Printf("===================caihaijun,validateTx,excute p.ValidTx11111=================\n")//caihaijun
 		return ErrOversizedData
 	}
 	// Transactions can't be negative. This may never happen using RLP decoded
@@ -583,11 +585,13 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	// Make sure the transaction is signed properly
 	from, err := types.Sender(pool.signer, tx)
 	if err != nil {
+		fmt.Printf("===================caihaijun,validateTx,excute p.ValidTx22222=================\n")//caihaijun
 		return ErrInvalidSender
 	}
 	// Drop non-local transactions under our own minimal accepted gas price
 	local = local || pool.locals.contains(from) // account may be local even if the transaction arrived from the network
 	if !local && pool.gasPrice.Cmp(tx.GasPrice()) > 0 {
+		fmt.Printf("===================caihaijun,validateTx,excute p.ValidTx3333=================\n")//caihaijun
 		return ErrUnderpriced
 	}
 	
@@ -603,14 +607,17 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	//if pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 { //----caihaijun------
 	//if !bytes.Equal(tx.To().Bytes(), types.DcrmLockinPrecompileAddr.Bytes()) && pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {//+++++++caihaijun++++++++
 	if !types.IsDcrmLockIn(tx.Data()) && pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {//+++++++caihaijun++++++++
+		fmt.Printf("===================caihaijun,validateTx,excute p.ValidTx44444=================\n")//caihaijun
 		return ErrInsufficientFunds
 	}
 	intrGas, err := IntrinsicGas(tx.Data(), tx.To() == nil, pool.homestead)
 	if err != nil {
+		fmt.Printf("===================caihaijun,validateTx,excute p.ValidTx55555=================\n")//caihaijun
 		return err
 	}
 	
 	if tx.Gas() < intrGas {
+		fmt.Printf("===================caihaijun,validateTx,excute p.ValidTx6666=================\n")//caihaijun
 		return ErrIntrinsicGas
 	}
 
@@ -630,6 +637,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 		}
  	}
 	//+++++++++++++++++++++end++++++++++++++++++++
+		fmt.Printf("===================caihaijun,validateTx,excute p.ValidTx7777=================\n")//caihaijun
 	return nil
 }
 
@@ -979,7 +987,8 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 			queuedNofundsCounter.Inc(1)
 		}
 		// Gather all executable transactions and promote them
-		for _, tx := range list.Ready(pool.pendingState.GetNonce(addr)) {
+		//for _, tx := range list.Ready(pool.pendingState.GetNonce(addr)) {//----caihaijun-----
+		for _, tx := range list.Ready(pool,pool.pendingState.GetNonce(addr)) {     //caihaijun
 			hash := tx.Hash()
 			if pool.promoteTx(addr, hash, tx) {
 				log.Trace("Promoting queued transaction", "hash", hash)

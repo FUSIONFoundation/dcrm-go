@@ -241,6 +241,15 @@ func (self *stateObject) GetDcrmAccountBalance(db Database, key common.Hash,coin
     return nil
 }
 
+func (self *stateObject) GetDcrmAddress(db Database, txhash common.Hash,cointype string) string {
+    s := self.GetStateDcrmAccountData(db,txhash)
+    if s == nil { 
+	return "" 
+    }
+    
+    return string(s) 
+}
+
 func (self *stateObject) GetStateDcrmAccountData(db Database, key common.Hash) []byte {
 	// If we have a dirty value for this state entry, return it
 	value, dirty := self.dirtyStorageDcrmAccountData[key]

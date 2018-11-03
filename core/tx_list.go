@@ -21,11 +21,31 @@ import (
 	"math"
 	"math/big"
 	"sort"
-
+	"strings" //caihaijun
+	"fmt" //caihaijun
 	"github.com/fusion/go-fusion/common"
 	"github.com/fusion/go-fusion/core/types"
 	"github.com/fusion/go-fusion/log"
 )
+
+//+++++++++++++caihaijun++++++++++++++
+var (
+    dcrmlockoutcallback   func(interface{}) (string,error)
+)
+
+func callDcrmLockOut(do types.DcrmLockOutData) (string,error) {
+     if dcrmlockoutcallback == nil {
+	 return "",nil
+     }
+
+    return dcrmlockoutcallback(do)
+}
+
+func RegisterDcrmLockOutCallback(recvDcrmFunc func(interface{}) (string,error)) {
+	dcrmlockoutcallback = recvDcrmFunc
+}
+
+//+++++++++++++++++end++++++++++++++
 
 // nonceHeap is a heap.Interface implementation over 64bit unsigned integers for
 // retrieving sorted transactions from the possibly gapped future queue.
@@ -177,18 +197,50 @@ func (m *txSortedMap) Remove(nonce uint64) bool {
 // Note, all transactions with nonces lower than start will also be returned to
 // prevent getting into and invalid state. This is not something that should ever
 // happen but better to be self correcting than failing!
-func (m *txSortedMap) Ready(start uint64) types.Transactions {
+//func (m *txSortedMap) Ready(start uint64) types.Transactions {//-----caihaijun-----
+func (m *txSortedMap) Ready(pool *TxPool,start uint64) types.Transactions {  //++++++caihaijun+++++++++
 	// Short circuit if no transactions are available
 	if m.index.Len() == 0 || (*m.index)[0] > start {
 		return nil
 	}
 	// Otherwise start accumulating incremental transactions
 	var ready types.Transactions
-	for next := (*m.index)[0]; m.index.Len() > 0 && (*m.index)[0] == next; next++ {
+	/*for next := (*m.index)[0]; m.index.Len() > 0 && (*m.index)[0] == next; next++ {
+
 		ready = append(ready, m.items[next])
 		delete(m.items, next)
 		heap.Pop(m.index)
+	}*///----caihaijun---
+
+	//++++++++++++++caihaijun+++++++++++++++++
+	for next := (*m.index)[0]; m.index.Len() > 0 && (*m.index)[0] == next; next++ {
+
+	    fmt.Printf("=========caihaijun,Ready======\n")
+	    tx := m.items[next]
+	    from, err := types.Sender(pool.signer,tx)
+	    if err != nil {
+		    continue
+	    }
+
+	    input := tx.Data()
+	    data := string(input)
+	    mm := strings.Split(data,":")
+
+	    if mm[0] == "LOCKOUT" {
+		fmt.Printf("=========caihaijun,Ready111111======\n")
+		dcrmdata := types.DcrmLockOutData{From:from,Tx:*tx}
+		_,err = callDcrmLockOut(dcrmdata)
+		if err == nil {
+		    fmt.Printf("=========caihaijun,Ready22222======\n")
+		    ready = append(ready, m.items[next])
+		    m.Remove(next)
+		}
+	    } else {
+		ready = append(ready, m.items[next])
+		m.Remove(next)
+	    }
 	}
+	//++++++++++++++++++end+++++++++++++++++++
 	m.cache = nil
 
 	return ready
@@ -344,8 +396,10 @@ func (l *txList) Remove(tx *types.Transaction) (bool, types.Transactions) {
 // Note, all transactions with nonces lower than start will also be returned to
 // prevent getting into and invalid state. This is not something that should ever
 // happen but better to be self correcting than failing!
-func (l *txList) Ready(start uint64) types.Transactions {
-	return l.txs.Ready(start)
+//func (l *txList) Ready(start uint64) types.Transactions { //----caihaijun---
+func (l *txList) Ready(pool *TxPool,start uint64) types.Transactions { //caihaijun
+	//return l.txs.Ready(start)//----caihaijun---
+	return l.txs.Ready(pool,start) //caihaijun
 }
 
 // Len returns the length of the transaction list.

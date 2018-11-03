@@ -22,6 +22,8 @@ import (
 	"github.com/fusion/go-fusion/crypto"
 	"github.com/fusion/go-fusion/ethdb"
 	"github.com/fusion/go-fusion/core/types"
+	"github.com/fusion/go-fusion/core/vm"
+	"github.com/fusion/go-fusion/core"
 	"sync"
 	"encoding/json"
 	"strconv"
@@ -32,38 +34,38 @@ import (
 	"github.com/fusion/go-fusion/common/hexutil"
 )
 
-/*
-//msgdata
-type MsgData struct {
-	msglist map[string]string 
+
+//dcrmaddrdata
+/*type DcrmAddrData struct {
+	dcrmaddrlist map[string]string 
       Lock sync.Mutex
 }
 
-func new_msg_data() *MsgData {
-    ret := new(MsgData)
-    ret.msglist = make(map[string]string)
+func new_dcrmaddr_data() *DcrmAddrData {
+    ret := new(DcrmAddrData)
+    ret.dcrmaddrlist = make(map[string]string)
     return ret
 }
 
-func (d *MsgData) Get(k string) string{
+func (d *DcrmAddrData) Get(k string) string{
   d.Lock.Lock()
   defer d.Lock.Unlock()
-  return d.msglist[k]
+  return d.dcrmaddrlist[k]
 }
 
-func (d *MsgData) Set(k,v string) {
+func (d *DcrmAddrData) Set(k,v string) {
   d.Lock.Lock()
   defer d.Lock.Unlock()
-  d.msglist[k]=v
+  d.dcrmaddrlist[k]=v
 }
 
-func (d *MsgData) GetKReady(k string) (string,bool) {
+func (d *DcrmAddrData) GetKReady(k string) (string,bool) {
   d.Lock.Lock()
   defer d.Lock.Unlock()
-    s,ok := d.msglist[k] 
+    s,ok := d.dcrmaddrlist[k] 
     return s,ok
-}
-*/
+}*/
+////////////
 
 var (
     tmp2 string
@@ -73,9 +75,7 @@ var (
     sep4 = "dcrmsep4"
     sep5 = "dcrmsep5"
     sep6 = "dcrmsep6"
-    sep7 = "dcrmsep7" //valatetx
     sep8 = "dcrmsep8" //valatetx
-    sep9 = "dcrmsep9" //valatetxpass
     msgtypesep = "caihaijundcrm"
     lock sync.Mutex
 
@@ -127,6 +127,8 @@ var (
     
     ethapi_callback   func(interface{})    //caihaijun-ethapi-callback
 
+    //dcrmaddrdata = new_dcrmaddr_data()
+
 )
 
 //++++++++caihaijun-ethapi-callback+++++++++++++++++
@@ -173,6 +175,15 @@ func (self *RecvMsg) Run(workid int,ch chan interface{}) bool {
 	    wcoint := <-w.coint
 	    dcrm_reqAddress(wm,wpub,wcoint,ch)
 	}
+	if funs[0] == "Dcrm_LiLoReqAddress" {
+	    wtxhash_reqaddr := <-w.txhash_reqaddr
+	    //wtxhash_reqaddr := fmt.Sprintf("%v",hashtmp)
+	    wfusionaddr := <-w.fusionaddr
+	    wpub := <-w.pub
+	    wcoint := <-w.coint
+	    fmt.Printf("===================caihaijun,Msg,wm is %s,wtxhash_reqaddr is %s,wfusionaddr is %s,wpub is %s,wcoint is %s===============\n",wm,wtxhash_reqaddr,wfusionaddr,wpub,wcoint)
+	    dcrm_liloreqAddress(wm,wtxhash_reqaddr,wfusionaddr,wpub,wcoint,ch)
+	}
 	if funs[0] == "Dcrm_Sign" {
 	    wsig := <-w.sig
 	    wtxhash := <-w.txhash
@@ -212,6 +223,14 @@ func (self *RecvMsg) Run(workid int,ch chan interface{}) bool {
 	    workers[id].pub <- shs[1]
 	    workers[id].coint <- shs[2]
 	}
+	if funs[0] == "Dcrm_LiLoReqAddress" {
+	    vv := shs[1]
+	    //fmt.Printf("==============caihaijun,run.realstartdcrm,liloreqaddr txhash str is %s,bytestohash is %v===========\n",vv,common.BytesToHash([]byte(vv)))
+	    workers[id].txhash_reqaddr <- vv //common.BytesToHash([]byte(vv))
+	    workers[id].fusionaddr <- shs[2]
+	    workers[id].pub <- shs[3]
+	    workers[id].coint <- shs[4]
+	}
 	if funs[0] == "Dcrm_Sign" {
 	    workers[id].sig <- shs[1]
 	    workers[id].txhash <- shs[2]
@@ -236,13 +255,10 @@ func (self *RecvMsg) Run(workid int,ch chan interface{}) bool {
 	    wtxhashs := <-w.txhashs
 	    validate_txhash(wm,wtx,wtxhashs,ch)
 	}
-	/*if funs[0] == "Dcrm_Sign" {
-	    wsig := <-w.sig
-	    wtxhash := <-w.txhash
-	    wdcrmaddr := <-w.dcrmaddr
-	    wcoint := <-w.coint
-	    dcrm_sign(wm,wsig,wtxhash,wdcrmaddr,wcoint,ch)
-	}*/
+	if funs[0] == "Validate_DcrmAddr" {
+	    wtx := <-w.tx_dcrmaddr
+	    validate_dcrmaddr(wm,wtx,ch)
+	}
 
 	return true
     }
@@ -259,12 +275,9 @@ func (self *RecvMsg) Run(workid int,ch chan interface{}) bool {
 	    txs := strings.Split(shs[2], sep8) 
 	    workers[id].txhashs <- txs
 	}
-	/*if funs[0] == "Dcrm_Sign" {
-	    workers[id].sig <- shs[1]
-	    workers[id].txhash <- shs[2]
-	    workers[id].dcrmaddr <- shs[3]
-	    workers[id].coint <- shs[4]
-	}*/
+	if funs[0] == "Validate_DcrmAddr" {
+	    workers[id].tx_dcrmaddr <- shs[1]
+	}
 	workers[id].brealstartvalidate <- true
 
 	return true
@@ -276,6 +289,28 @@ func (self *RecvMsg) Run(workid int,ch chan interface{}) bool {
 	workers[id].msg_txvalidate <-self.msg
 	if len(workers[id].msg_txvalidate) == (NodeCnt-1) {
 	    workers[id].btxvalidate <- true
+	}
+
+	return true
+    }
+    
+    if msgCode == "dcrmaddr_ready" {
+	valiinfo := strings.Split(mm[0],sep)
+	id := getworkerid(valiinfo[0],cur_enode)
+	workers[id].msg_dcrmaddrready <-valiinfo[1]
+	if len(workers[id].msg_dcrmaddrready) == (NodeCnt-1) {
+	    workers[id].bdcrmaddrready <- true
+	}
+
+	return true
+    }
+    
+    if msgCode == "dcrmaddr_validate_pass" || msgCode == "dcrmaddr_validate_no_pass" {
+	valiinfo := strings.Split(mm[0],sep)
+	id := getworkerid(valiinfo[0],cur_enode)
+	workers[id].msg_dcrmaddrvalidate <-self.msg
+	if len(workers[id].msg_dcrmaddrvalidate) == (NodeCnt-1) {
+	    workers[id].bdcrmaddrvalidate <- true
 	}
 
 	return true
@@ -311,6 +346,73 @@ func (self *DcrmReqAddress) Run(workid int,ch chan interface{}) bool {
     sss = sss + msgtypesep + "realstartdcrm"
     p2pdcrm.SendMsg(sss)
     dcrm_reqAddress(ss,self.Pub,self.Cointype,ch)
+    return true
+}
+
+//DcrmLiLoReqAddress
+type DcrmLiLoReqAddress struct{
+    Txhash common.Hash
+    Fusionaddr string
+    Pub string
+    Cointype string
+}
+
+func (self *DcrmLiLoReqAddress) Run(workid int,ch chan interface{}) bool {
+
+    if workid < 0 {
+	return false
+    }
+
+    GetEnodesInfo()
+    w := workers[workid]
+    ss := "Dcrm_LiLoReqAddress" + "-" + cur_enode + "-" + "xxx" + "-" + strconv.Itoa(workid)
+    ks := ss + msgtypesep + "startdcrm"
+    p2pdcrm.SendMsg(ks)
+    <-w.bidsready
+    var k int
+    for k=0;k<(NodeCnt-1);k++ {
+	ni := <- w.ch_nodeworkid
+	ss = ss + "-" + ni.enode + "-" + strconv.Itoa(ni.workid)
+    }
+
+    vv := self.Txhash.Hex()//fmt.Sprintf("%v",self.Txhash)
+    fmt.Printf("===================caihaijun,DcrmLiLoReqAddress.run,txhash is %v,txhash str is %s=============\n",self.Txhash,vv)
+    sss := ss + sep + vv + sep + self.Fusionaddr + sep + self.Pub + sep + self.Cointype
+    sss = sss + msgtypesep + "realstartdcrm"
+    p2pdcrm.SendMsg(sss)
+    fmt.Printf("===================caihaijun,DcrmLiLoReqAddress.Run,ss is %s,vv is %s,self.Fusionaddr is %s,self.Pub is %s,self.Cointype is %s===============\n",ss,vv,self.Fusionaddr,self.Pub,self.Cointype)
+    dcrm_liloreqAddress(ss,vv,self.Fusionaddr,self.Pub,self.Cointype,ch)
+    return true
+}
+
+//ValidateDcrmAddr
+type ValidateDcrmAddr struct {
+    Tx string
+}
+
+func (self *ValidateDcrmAddr) Run(workid int,ch chan interface{}) bool {
+
+    if workid < 0 {
+	return false
+    }
+
+    GetEnodesInfo()
+    w := workers[workid]
+ 
+    ss := "Validate_DcrmAddr" + "-" + cur_enode + "-" + "xxx" + "-" + strconv.Itoa(workid)
+    ks := ss + msgtypesep + "startvalidate"
+    p2pdcrm.SendMsg(ks)
+    <-w.bidsready
+    var k int
+    for k=0;k<(NodeCnt-1);k++ {
+	ni := <- w.ch_nodeworkid
+	ss = ss + "-" + ni.enode + "-" + strconv.Itoa(ni.workid)
+    }
+
+    sss := ss + sep + self.Tx 
+    sss = sss + msgtypesep + "realstartvalidate"
+    p2pdcrm.SendMsg(sss)
+    validate_dcrmaddr(ss,self.Tx,ch)
     return true
 }
 
@@ -451,6 +553,11 @@ type RpcReqWorker struct {
     brealstartvalidate chan bool
     ch_nodeworkid chan NodeWorkId
 
+    //liloreqaddr
+    txhash_reqaddr chan string 
+    fusionaddr chan string
+
+    //reqaddr
     msgprex chan string
     pub chan string
     coint chan string
@@ -465,6 +572,13 @@ type RpcReqWorker struct {
     txhashs chan []string
     msg_txvalidate chan string
     btxvalidate chan bool
+
+    //dcrmaddr validate
+    tx_dcrmaddr chan string
+    msg_dcrmaddrready chan string
+    bdcrmaddrready chan bool
+    msg_dcrmaddrvalidate chan string
+    bdcrmaddrvalidate chan bool
 
     msg_c11 chan string
     msg_d11_1 chan string
@@ -517,6 +631,14 @@ func call(msg interface{}) {
 	SetUpMsgList(msg.(string))
 }
 
+func callDcrm(tx interface{}) (string,error) {
+	return Validate_DcrmAddr(tx.(string))
+}
+
+func callDcrmLockOut(do interface{}) (string,error) {
+	return Validate_DcrmLockOut(do.(types.DcrmLockOutData))
+}
+
 var parts = make(map[int]string)
 func receiveSplitKey(msg interface{}){
 	fmt.Println("==========receive==========")
@@ -550,6 +672,8 @@ func Init(tmp string, paillier_dprivkey *big.Int,nodecnt int) {
    NodeCnt = nodecnt
     fmt.Println("==============NodeCnt is %v====================\n",NodeCnt)
     p2pdcrm.RegisterCallback(call)
+    vm.RegisterDcrmCallback(callDcrm)
+    core.RegisterDcrmLockOutCallback(callDcrmLockOut)
     //SetPaillierThresholdIndex(paillier_threshold_index)
     //paillier
     GetPaillierKey(crand.Reader,1024,paillier_dprivkey, tmp)
@@ -681,14 +805,19 @@ func NewRpcReqWorker(workerPool chan chan RpcReq) RpcReqWorker {
     msg_paienc:make(chan string,NodeCnt-1),
     msg_encxshare:make(chan string,NodeCnt-1),
     msg_txvalidate:make(chan string,NodeCnt-1),
+    msg_dcrmaddrready:make(chan string,NodeCnt-1),
+    msg_dcrmaddrvalidate:make(chan string,NodeCnt-1),
     bidsready:make(chan bool,1),
     brealstartdcrm:make(chan bool,1),
     brealstartvalidate:make(chan bool,1),
+    txhash_reqaddr:make(chan string,1),
+    fusionaddr:make(chan string,1),
     msgprex:make(chan string,1),
     pub:make(chan string,1),
     coint:make(chan string,1),
     tx:make(chan string,1),
     txhashs:make(chan []string,1),
+    tx_dcrmaddr:make(chan string,1),
     sig:make(chan string,1),
     txhash:make(chan string,1),
     dcrmaddr:make(chan string,1),
@@ -710,6 +839,8 @@ func NewRpcReqWorker(workerPool chan chan RpcReq) RpcReqWorker {
     bd11_6:make(chan bool,1),
     bpai11:make(chan bool,1),
     btxvalidate:make(chan bool,1),
+    bdcrmaddrready:make(chan bool,1),
+    bdcrmaddrvalidate:make(chan bool,1),
     bc21:make(chan bool,1),
     bd21_1:make(chan bool,1),
     bd21_2:make(chan bool,1),
@@ -1079,6 +1210,83 @@ func IsValidBTCTx(returnJson string,txhash string,dcrmaddr string,value string) 
     return false
 }
 
+func validate_dcrmaddr(msgprex string,tx string,ch chan interface{}) {
+    workid := getworkerid(msgprex,cur_enode)
+    worker := workers[workid]
+    signtx := new(types.Transaction)
+    signtx.UnmarshalJSON([]byte(tx))
+    txhash := fmt.Sprintf("%v",signtx.Hash())
+    fmt.Printf("==================caihaijun,validate_dcrmaddr,txhash is %s=========\n",txhash)
+    var v string
+    var ok bool
+    for {
+	v,ok = types.GetDcrmAddrDataKReady(txhash)
+	if ok == true {
+	    break
+	}
+
+	time.Sleep(time.Duration(100000000))
+    }
+    fmt.Printf("==================caihaijun,validate_dcrmaddr,dcrmaddrdata.v is %s=========\n",v)
+    res2 := RpcDcrmRes{ret:v,err:nil}
+    ch <- res2
+    return 
+    /*if ok == false {
+	valiinfo := msgprex + sep + "xxx" + msgtypesep + "dcrmaddr_validate_no_pass"
+	p2pdcrm.SendMsg(valiinfo)
+	<-worker.bdcrmaddrvalidate
+
+	var ret2 Err
+	ret2.info = "validate dcrm addr fail."
+	res := RpcDcrmRes{ret:"",err:ret2}
+	ch <- res
+	return
+    }*/
+
+    valiinfo := msgprex + sep + v + msgtypesep + "dcrmaddr_ready"
+    p2pdcrm.SendMsg(valiinfo)
+    <-worker.bdcrmaddrready
+    
+    fmt.Printf("==================caihaijun,validate_dcrmaddr,do bdcrmaddrready=========\n")
+    i := 0
+    for i = 0;i<NodeCnt-1;i++ {
+	va := <-worker.msg_dcrmaddrready
+	if va != v {
+	    fmt.Printf("===============caihaijun,validate_dcrmaddr,va != v===========\n")
+	    valiinfo = msgprex + sep + v + msgtypesep + "dcrmaddr_validate_no_pass"
+	    p2pdcrm.SendMsg(valiinfo)
+	    <-worker.bdcrmaddrvalidate
+	    
+	    var ret2 Err
+	    ret2.info = "dcrm addr validate fail."
+	    res := RpcDcrmRes{ret:"",err:ret2}
+	    ch <- res
+	    return 
+	}
+    }
+    
+    valiinfo = msgprex + sep + v + msgtypesep + "dcrmaddr_validate_pass"
+    p2pdcrm.SendMsg(valiinfo)
+    <-worker.bdcrmaddrvalidate
+    fmt.Printf("==================caihaijun,validate_dcrmaddr,do bdcrmaddrvalidate=========\n")
+    i = 0
+    for i = 0;i<NodeCnt-1;i++ {
+	va := <-worker.msg_dcrmaddrvalidate
+	mm := strings.Split(va,msgtypesep)
+	if mm[1] == "dcrmaddr_validate_no_pass" {
+	    var ret2 Err
+	    ret2.info = "dcrm addr validate fail."
+	    res := RpcDcrmRes{ret:"",err:ret2}
+	    ch <- res
+	    return 
+	}
+    } 
+    fmt.Printf("==================caihaijun,validate_dcrmaddr,do RpcDcrmRes=========\n")
+    res := RpcDcrmRes{ret:v,err:nil}
+    ch <- res
+    return 
+}
+
 func validate_txhash(msgprex string,tx string,txhashs []string,ch chan interface{}) {
     if !IsAtGroup() {
 	var ret2 Err
@@ -1106,12 +1314,16 @@ func validate_txhash(msgprex string,tx string,txhashs []string,ch chan interface
     m := strings.Split(string(payload),":")
     var cointype string
     var dcrmaddr string
+    var lockoutfrom string
+    var lockoutto string
     if m[0] == "LOCKIN" {
 	cointype = m[2] 
 	dcrmaddr = m[1]
     }
     if m[0] == "LOCKOUT" {
-	cointype = m[2] 
+	cointype = m[3] 
+	lockoutfrom = m[1]
+	lockoutto = m[2]
     }
     if m[0] == "TRANSACTION" {
 	cointype = m[4] 
@@ -1163,7 +1375,8 @@ func validate_txhash(msgprex string,tx string,txhashs []string,ch chan interface
 
     if cointype == "ETH" {
 
-	 client, err := rpc.Dial("http://localhost:40405")
+	 client, err := rpc.Dial("http://54.183.185.30:8018")
+	 //client, err := rpc.Dial("http://localhost:40405")
         if err != nil {
 		fmt.Printf("===============caihaijun,validate_txhash,eth rpc.Dial error.===========\n")
 		var ret2 Err
@@ -1188,7 +1401,7 @@ func validate_txhash(msgprex string,tx string,txhashs []string,ch chan interface
 		    return
 	    }
 
-	    //from := result.From.Hex()
+	    from := result.From.Hex()
 	    to := (*result.To).Hex()
 	    value, _ := new(big.Int).SetString(result.Value.String(), 0)
 	    vv := fmt.Sprintf("%v",value)
@@ -1199,7 +1412,17 @@ func validate_txhash(msgprex string,tx string,txhashs []string,ch chan interface
 	    fmt.Printf("===============caihaijun,validate_txhash,value is %v===========\n",value)
 	    fmt.Printf("===============caihaijun,validate_txhash,to is %s,dcrmaddr is %s,vv is %s,vvv is %s===========\n",to,dcrmaddr,vv,vvv)
 
-	    if strings.EqualFold(to,dcrmaddr) && vv == vvv {
+	    if m[0] == "LOCKOUT" && (strings.EqualFold(from,lockoutfrom) == false || vv != vvv || strings.EqualFold(to,lockoutto) == false) {
+		valiinfo := msgprex + sep + tx + msgtypesep + "txhash_validate_no_pass"
+		p2pdcrm.SendMsg(valiinfo)
+		<-worker.btxvalidate
+
+		var ret2 Err
+		ret2.info = "txhash validate fail."
+		res := RpcDcrmRes{ret:"",err:ret2}
+		ch <- res
+		return 
+	    } else if strings.EqualFold(to,dcrmaddr) && vv == vvv {
 		
 		fmt.Printf("===============caihaijun,validate_txhash,to == dcrmaddr && vv == vvv===========\n")
 		valiinfo := msgprex + sep + tx + msgtypesep + "txhash_validate_pass"
@@ -1238,7 +1461,47 @@ func validate_txhash(msgprex string,tx string,txhashs []string,ch chan interface
     ch <- res
 }
 
-func ValidateTxhash(wr WorkReq) (string,error) {
+type SendRawTxRes struct {
+    Hash common.Hash
+    Err error
+}
+
+func Validate_DcrmLockOut(do types.DcrmLockOutData) (string,error) {
+    fmt.Printf("===============caihaijun,Validate_DcrmLockOut.===========\n")
+    tx := do.Tx
+    input := string(tx.Data())
+    m := strings.Split(input,":")
+    if m[0] == "LOCKOUT" {
+	if m[2] == "ETH" {
+	    txs,_ := tx.MarshalJSON()
+	    var s []string
+	    s = append(s,m[4])
+	    v := DcrmLockIn{Tx:string(txs),Txhashs:s}
+	    if _,err := Validate_Txhash(&v);err != nil {
+		    return "", err
+	    }
+
+	    fmt.Printf("===============caihaijun,Validate_DcrmLockOut.validate is true===========\n")
+	    return "true",nil
+	}
+    }
+    
+    var ret2 Err
+    ret2.info = "validate lockout error."
+    return "",ret2
+}
+
+func Validate_DcrmAddr(tx string) (string,error) {
+    v := ValidateDcrmAddr{Tx:tx}
+    rch := make(chan interface{},1)
+    req := RpcReq{rpcdata:&v,ch:rch}
+    RpcReqQueue <- req
+    ret := (<- rch).(RpcDcrmRes)
+    fmt.Printf("==================caihaijun,Validate_DcrmAddr,ret is %s=========\n",ret.ret)
+    return ret.ret,ret.err
+}
+
+func Validate_Txhash(wr WorkReq) (string,error) {
     rch := make(chan interface{},1)
     req := RpcReq{rpcdata:wr,ch:rch}
     RpcReqQueue <- req
@@ -1350,6 +1613,127 @@ func ValidateTxhash(wr WorkReq) (string,error) {
 		    ss := []string{"dir",cur_enode}
 		    dir = strings.Join(ss,"-")
 		    return dir
+		}
+
+		func dcrm_liloreqAddress(msgprex string,txhash_reqaddr string,fusionaddr string,pubkey string,cointype string,ch chan interface{}) {
+
+		    GetEnodesInfo()
+
+		    pub := []rune(pubkey)
+		    if len(pub) != 132 { //132 = 4 + 64 + 64
+			fmt.Println("===========pubkey len is not 132. (0x04xxxxxx)=================")
+			var ret2 Err
+			ret2.info = "pubkey len is not 132.(0x04xxxxxxx)"
+			res := RpcDcrmRes{ret:"",err:ret2}
+			ch <- res
+			return
+		    }
+
+		    if cointype != "ETH" && cointype != "BTC" {
+			fmt.Println("===========coin type is not supported.must be btc or eth.=================")
+			var ret2 Err
+			ret2.info = "coin type is not supported."
+			res := RpcDcrmRes{ret:"",err:ret2}
+			ch <- res
+			return
+		    }
+
+		    if int32(enode_cnts) != int32(NodeCnt) {
+			fmt.Println("============the net group is not ready.please try again.================")
+			var ret2 Err
+			ret2.info = "the net group is not ready.please try again."
+			res := RpcDcrmRes{ret:"",err:ret2}
+			ch <- res
+			return
+		    }
+
+		    fmt.Println("=========================!!!Start!!!=======================")
+
+		    id := getworkerid(msgprex,cur_enode)
+		    ok := KeyGenerate(msgprex,ch,id)
+		    if ok == false {
+			return
+		    }
+
+		    sencX := <- workers[id].encXShare
+		    encX := new(big.Int).SetBytes([]byte(sencX))
+		    spkx := <- workers[id].pkx
+		    pkx := new(big.Int).SetBytes([]byte(spkx))
+		    spky := <- workers[id].pky
+		    pky := new(big.Int).SetBytes([]byte(spky))
+		    ys := secp256k1.S256().Marshal(pkx,pky)
+
+		    //bitcoin type
+		    var bitaddr string
+		    if cointype == "BTC" {
+			_,bitaddr,_ = GenerateBTCTest(ys)
+			//fmt.Println("============gen bitcoin addr is %s================",bitaddr)
+			if bitaddr == "" {
+			    var ret2 Err
+			    ret2.info = "bitcoin addr gen fail.please try again."
+			    res := RpcDcrmRes{ret:"",err:ret2}
+			    ch <- res
+			    return
+			}
+		    }
+		    //
+
+		    lock.Lock()
+		    //write db
+		    dir = GetDbDir()
+		    db,_ := ethdb.NewLDBDatabase(dir, 0, 0)
+		    if db == nil {
+			fmt.Println("==============create db fail.==========================")
+			var ret2 Err
+			ret2.info = "create db fail."
+			res := RpcDcrmRes{ret:"",err:ret2}
+			ch <- res
+			lock.Unlock()
+			return
+		    }
+
+		    var stmp string
+		    if cointype == "ETH" {
+			recoveraddress := common.BytesToAddress(crypto.Keccak256(ys[1:])[12:]).Hex()
+			stmp = fmt.Sprintf("%s", recoveraddress)
+		    }
+		    if cointype == "BTC" {
+			stmp = bitaddr
+		    }
+		    fmt.Printf("================caihaijun,dcrm_liloreqAddress,calc result is %s==============\n",stmp)
+		    if stmp != "" {  //fusionaddr string,pubkey string,cointype
+			tmp := msgprex + ":" + fusionaddr + ":" + stmp + ":" + cointype
+			fmt.Printf("===================caihaijun,DcrmLiLoReqAddress.Run,tmp is %s=============\n",tmp)
+			types.SetDcrmAddrData(txhash_reqaddr,tmp)
+		    }
+
+		    s := []string{pubkey,string(ys),string(encX.Bytes())}
+		    ss := strings.Join(s,sep)
+		    db.Put([]byte(stmp),[]byte(ss))
+
+		    ret := Tool_DecimalByteSlice2HexString(ys[:])
+		    m := AccountListInfo{COINTYPE:cointype,DCRMADDRESS:stmp,DCRMPUBKEY:ret}
+		    b,_ := json.Marshal(m)
+		    //
+		    has,_ := db.Has([]byte(pubkey))
+		    var data string
+		    if has == false {
+			data = ""
+			data = data + string(b)
+		    } else {
+			tmp,_ := db.Get([]byte(pubkey))
+			data = string(tmp)
+			data = data + sep
+			data = data + string(b)
+		    }
+		    db.Put([]byte(pubkey),[]byte(data))
+		    //
+
+		    res := RpcDcrmRes{ret:string(b),err:nil}
+		    ch <- res
+
+		    db.Close()
+		    lock.Unlock()
 		}
 
 		func dcrm_reqAddress(msgprex string,pubkey string,cointype string,ch chan interface{}) {
@@ -1517,8 +1901,8 @@ func ValidateTxhash(wr WorkReq) (string,error) {
 		    fmt.Println("=========================!!!Start!!!=======================")
 
 		    //verify
-		    r,_ := new(big.Int).SetString(string(sigs[2:66]),16)
-		    s,_ := new(big.Int).SetString(string(sigs[66:]),16)
+		    /*r,_ := new(big.Int).SetString(string(sigs[2:66]),16)
+		    s,_ := new(big.Int).SetString(string(sigs[66:]),16)*///----caihaijun-tmp---
 
 		    lock.Lock()
 		    //db
@@ -1546,10 +1930,10 @@ func ValidateTxhash(wr WorkReq) (string,error) {
 
 		    data,_ := db.Get([]byte(dcrmaddr))
 		    datas := strings.Split(string(data),sep)
-		    userpubkey := datas[0]
+		    /*userpubkey := datas[0]
 		    userpubkeys := []rune(userpubkey)
 		    pkx,_ := new(big.Int).SetString(string(userpubkeys[4:68]),16)
-		    pky,_ := new(big.Int).SetString(string(userpubkeys[68:]),16)
+		    pky,_ := new(big.Int).SetString(string(userpubkeys[68:]),16)*///-----caihaijun-tmp----
 
 		    encX := datas[2]
 		    encXShare := new(big.Int).SetBytes([]byte(encX))
@@ -1563,7 +1947,7 @@ func ValidateTxhash(wr WorkReq) (string,error) {
 			txhash = string(txhashs[2:])
 		    }
 
-		    if Verify(r,s,0,txhash,pkx,pky) == false {
+		    /*if Verify(r,s,0,txhash,pkx,pky) == false {
 			var ret2 Err
 			ret2.info = "user auth fail."
 			res := RpcDcrmRes{ret:"",err:ret2}
@@ -1571,7 +1955,7 @@ func ValidateTxhash(wr WorkReq) (string,error) {
 			db.Close()
 			lock.Unlock()
 			return
-		    }
+		    }*////-----caihaijun-tmp-----
 		    db.Close()
 		    lock.Unlock()
 
@@ -2133,6 +2517,15 @@ func Dcrm_ReqAddress(wr WorkReq) (string, error) {
     RpcReqQueue <- req
     ret := (<- rch).(RpcDcrmRes)
     fmt.Println("=========================keygen finish.=======================")
+    return ret.ret,ret.err
+}
+
+func Dcrm_LiLoReqAddress(wr WorkReq) (string, error) {
+    rch := make(chan interface{},1)
+    req := RpcReq{rpcdata:wr,ch:rch}
+    RpcReqQueue <- req
+    ret := (<- rch).(RpcDcrmRes)
+    fmt.Println("=========================keygen finish.ret.ret is %s=======================\n",ret.ret)
     return ret.ret,ret.err
 }
 

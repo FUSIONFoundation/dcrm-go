@@ -304,6 +304,13 @@ func (self *StateDB) GetCommittedStateDcrmAccountData(addr common.Address, hash 
 	return nil 
 }
 
+func (self *StateDB) GetDcrmAddress(a common.Address, b common.Hash,cointype string) string {
+	stateObject := self.getStateObject(a)
+	if stateObject != nil {
+		return stateObject.GetDcrmAddress(self.db, b,cointype)
+	}
+	return "" 
+}
 //++++++++++++++++++++end+++++++++++++++++++++
 
 // StorageTrie returns the storage trie of an account.

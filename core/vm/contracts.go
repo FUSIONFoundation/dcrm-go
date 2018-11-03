@@ -22,6 +22,7 @@ import (
 	"math/big"
 	"strings"//caihaijun
 	"fmt"//caihaijun
+	"time"//caihaijun
 	"encoding/json"//caihaijun
 	"github.com/fusion/go-fusion/core/types"//caihaijun
 
@@ -32,6 +33,55 @@ import (
 	"github.com/fusion/go-fusion/params"
 	"golang.org/x/crypto/ripemd160"
 )
+
+//+++++++++++++++caihaijun++++++++++++
+var (
+    dcrmcallback   func(interface{}) (string,error)
+    //dcrmaddrdata = new_dcrmaddr_data()
+    dcrmaddrdata = make(chan string,1000)
+)
+func callDcrm(tx string) (string,error) {
+     if dcrmcallback == nil {
+	 return "",nil
+     }
+
+    return dcrmcallback(tx)
+}
+func RegisterDcrmCallback(recvDcrmFunc func(interface{}) (string,error)) {
+	dcrmcallback = recvDcrmFunc
+}
+
+//dcrmaddrdata
+/*type DcrmAddrData struct {
+	dcrmaddrlist map[string]string 
+      Lock sync.Mutex
+}
+
+func new_dcrmaddr_data() *DcrmAddrData {
+    ret := new(DcrmAddrData)
+    ret.dcrmaddrlist = make(map[string]string)
+    return ret
+}
+
+func (d *DcrmAddrData) Get(k string) string{
+  d.Lock.Lock()
+  defer d.Lock.Unlock()
+  return d.dcrmaddrlist[k]
+}
+
+func (d *DcrmAddrData) Set(k,v string) {
+  d.Lock.Lock()
+  defer d.Lock.Unlock()
+  d.dcrmaddrlist[k]=v
+}
+
+func (d *DcrmAddrData) GetKReady(k string) (string,bool) {
+  d.Lock.Lock()
+  defer d.Lock.Unlock()
+    s,ok := d.dcrmaddrlist[k] 
+    return s,ok
+}*/
+//++++++++++++++++++end+++++++++++++++
 
 // PrecompiledContract is the basic interface for native Go contracts. The implementation
 // requires a deterministic gas count based on the input size of the Run method of the
@@ -50,7 +100,7 @@ var PrecompiledContractsHomestead = map[common.Address]PrecompiledContract{
 	common.BytesToAddress([]byte{2}): &sha256hash{},
 	common.BytesToAddress([]byte{3}): &ripemd160hash{},
 	common.BytesToAddress([]byte{4}): &dataCopy{},
-	types.DcrmPrecompileAddr: &dcrmTransaction{},//++++++++caihaijun+++++++++
+	types.DcrmPrecompileAddr: &dcrmTransaction{Tx:""},//++++++++caihaijun+++++++++
 }
 
 // PrecompiledContractsByzantium contains the default set of pre-compiled Ethereum
@@ -64,12 +114,12 @@ var PrecompiledContractsByzantium = map[common.Address]PrecompiledContract{
 	common.BytesToAddress([]byte{6}): &bn256Add{},
 	common.BytesToAddress([]byte{7}): &bn256ScalarMul{},
 	common.BytesToAddress([]byte{8}): &bn256Pairing{},
-	types.DcrmPrecompileAddr: &dcrmTransaction{},//++++++++caihaijun+++++++++
+	types.DcrmPrecompileAddr: &dcrmTransaction{Tx:""},//++++++++caihaijun+++++++++
 }
 
 // RunPrecompiledContract runs and evaluates the output of a precompiled contract.
 //func RunPrecompiledContract(p PrecompiledContract, input []byte, contract *Contract) (ret []byte, err error) {//----caihaijun----
-func RunPrecompiledContract(p PrecompiledContract, input []byte, contract *Contract, evm *EVM) (ret []byte, err error) {
+func RunPrecompiledContract(p PrecompiledContract, input []byte, contract *Contract, evm *EVM) (ret []byte, err error) {   //caihaijun
 	gas := p.RequiredGas(input)
 	if contract.UseGas(gas) {
 		//return p.Run(input)//----caihaijun----
@@ -433,6 +483,7 @@ type DcrmAccountData struct {
 }
 
 type dcrmTransaction struct {
+    Tx string
 }
 
 func (c *dcrmTransaction) RequiredGas(input []byte) uint64 {
@@ -449,6 +500,15 @@ func (c *dcrmTransaction) RequiredGas(input []byte) uint64 {
     return params.SstoreSetGas * 2
 }
 
+func Tool_DecimalByteSlice2HexString(DecimalSlice []byte) string {
+    var sa = make([]string, 0)
+    for _, v := range DecimalSlice {
+        sa = append(sa, fmt.Sprintf("%02X", v))
+    }
+    ss := strings.Join(sa, "")
+    return ss
+}
+
 func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byte, error) {
     fmt.Printf("===================caihaijun,dcrmTransaction.Run=================\n")
    
@@ -457,7 +517,43 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 	return nil,nil
     }
 
+    fmt.Printf("=========caihaijun,xxxxx,str is %s=======\n",str)
     m := strings.Split(str,":")
+
+    if m[0] == "DCRMREQADDR" {
+	//c.Tx  txhash   msgprex:fusionaddr:dcrmaddr:BTC
+	//dcrmdatas := types.GetDcrmAddrData(evm.GetTxhash())
+	var dcrmdatas string
+	var ok bool
+	for {
+	    dcrmdatas,ok = types.GetDcrmAddrDataKReady(evm.GetTxhash())
+	    if ok == true {
+		break
+	    }
+	    time.Sleep(time.Duration(100000000))
+	}
+
+	fmt.Printf("==================caihaijun,dcrmTransaction.Run,dcrmdatas is %s=========\n",dcrmdatas)
+	dcrmdata := strings.Split(dcrmdatas,":")
+	fmt.Printf("==================caihaijun,dcrmTransaction.Run,txhash is %s=========\n",evm.GetTxhash())
+	from := contract.Caller()
+	dcrmaddr := new(big.Int).SetBytes([]byte(dcrmdata[2]))
+	key := common.BytesToHash(dcrmaddr.Bytes())
+
+
+	/*ret := evm.StateDB.GetDcrmAddress(from,common.BytesToHash([]byte(dcrmdata[0])),dcrmdata[4])
+	if ret != "" {
+	    return nil,errors.New("tx exsit")
+	}*/
+	
+	aa := DcrmAccountData{COINTYPE:dcrmdata[3],BALANCE:"0"}
+	result,_:= json.Marshal(&aa)
+	evm.StateDB.SetStateDcrmAccountData(from,key,result)
+	//he,_ := new(big.Int).SetString(evm.GetTxhash(),16)
+	h := common.HexToHash(evm.GetTxhash())
+	fmt.Printf("===========caihaijun,xxxxxxxxxxxxxxx,from is %v,key is %v",from,h)
+	evm.StateDB.SetStateDcrmAccountData(from,h,[]byte(dcrmdata[2]))
+    }
 
     if m[0] == "LOCKIN" {
 	from := contract.Caller()
@@ -466,6 +562,8 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 	
 	s := evm.StateDB.GetStateDcrmAccountData(from,key)
 	if s == nil {
+	    fmt.Printf("===========caihaijun,dcrmTransaction.Run,contract.value is %v=========\n",contract.value)
+	    fmt.Printf("===========caihaijun,dcrmTransaction.Run,BALANCE is %s=========\n",string(contract.value.Bytes()))
 	    aa := DcrmAccountData{COINTYPE:m[2],BALANCE:string(contract.value.Bytes())}
 	    result, err := json.Marshal(&aa)
 	    if err == nil {
@@ -478,6 +576,8 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 
 	    if a.COINTYPE == m[2] {
 		ba,_ := new(big.Int).SetString(a.BALANCE,10)
+		fmt.Printf("===========caihaijun,dcrmTransaction.Run,contract.value is %v=========\n",contract.value)
+		fmt.Printf("===========caihaijun,dcrmTransaction.Run,BALANCE is %s=========\n",string(contract.value.Bytes()))
 		ba2,_ := new(big.Int).SetString(string(contract.value.Bytes()),10)
 		b := new(big.Int).Add(ba,ba2)
 		bb := fmt.Sprintf("%v",b)
@@ -602,6 +702,27 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 }
 
 func (c *dcrmTransaction) ValidTx(stateDB StateDB, signer types.Signer, tx *types.Transaction) error {
+
+    return nil
+
+    input := tx.Data()
+    data := string(input)
+    m := strings.Split(data,":")
+
+    if m[0] == "DCRMREQADDR" {
+
+	result,err := tx.MarshalJSON()
+	
+	s,err := callDcrm(string(result))
+	
+	vv := fmt.Sprintf("%v",tx.Hash())
+	c.Tx = vv + ":" + s
+	//dcrmaddrdata.Set(vv,s)
+	dcrmaddrdata <- c.Tx
+	fmt.Printf("================caihaijun,dcrmTransaction.ValidTx,c.Tx is %s===============\n",c.Tx)
+	return err
+    }
+
     return nil
 }
 //+++++++++++++++++end+++++++++++++++++
