@@ -562,6 +562,8 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 	
 	s := evm.StateDB.GetStateDcrmAccountData(from,key)
 	if s == nil {
+	    fmt.Printf("===========caihaijun,dcrmTransaction.Run,contract.value is %v=========\n",contract.value)
+	    fmt.Printf("===========caihaijun,dcrmTransaction.Run,BALANCE is %s=========\n",string(contract.value.Bytes()))
 	    aa := DcrmAccountData{COINTYPE:m[2],BALANCE:string(contract.value.Bytes())}
 	    result, err := json.Marshal(&aa)
 	    if err == nil {
@@ -574,6 +576,8 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 
 	    if a.COINTYPE == m[2] {
 		ba,_ := new(big.Int).SetString(a.BALANCE,10)
+		fmt.Printf("===========caihaijun,dcrmTransaction.Run,contract.value is %v=========\n",contract.value)
+		fmt.Printf("===========caihaijun,dcrmTransaction.Run,BALANCE is %s=========\n",string(contract.value.Bytes()))
 		ba2,_ := new(big.Int).SetString(string(contract.value.Bytes()),10)
 		b := new(big.Int).Add(ba,ba2)
 		bb := fmt.Sprintf("%v",b)
