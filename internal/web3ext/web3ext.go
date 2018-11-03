@@ -31,6 +31,7 @@ var Modules = map[string]string{
 	"shh":        Shh_JS,
 	"swarmfs":    SWARMFS_JS,
 	"txpool":     TxPool_JS,
+	"lilo":       Lilo_JS,
 }
 
 const Chequebook_JS = `
@@ -673,5 +674,27 @@ web3._extend({
 			}
 		}),
 	]
+});
+`
+
+// Fsn LILO
+const Lilo_JS = `
+web3._extend({
+	property: 'lilo',
+	methods: [
+		new web3._extend.Method({
+			name: 'dcrmLockIn',
+			call: 'lilo_dcrmLockIn',
+			params: 5,
+			inputFormatter: [null,null,null,null,null]
+		}),
+		new web3._extend.Method({
+			name: 'getDcrmAccountBalance',
+			call: 'lilo_getDcrmAccountBalance',
+			params: 3,
+			inputFormatter: [null,null,null]
+		}),
+	],
+	properties:[]
 });
 `
