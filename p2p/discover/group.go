@@ -188,26 +188,36 @@ func setGroup(n *Node, replace string){
 	//}
 	changed := 0
 	if replace == "add" {
-		log.Info("replace == add")
+		log.Info("group add")
 		if grouplist.count >= groupnum {
 			grouplist.count = groupnum
 			return
 		}
-		//grouplist.gname = append(grouplist.gname, "dddddddddd")
-		grouplist.Nodes = append(grouplist.Nodes, nodeToRPC(n))
-		grouplist.count++
-		changed = 1
+		log.Info("connect", "NodeID", n.ID.String())
+		if n.ID.String() == "ead5708649f3fb10343a61249ea8509b3d700f1f51270f13ecf889cdf8dafce5e7eb649df3ee872fb027b5a136e17de73965ec34c46ea8a5553b3e3150a0bf8d" ||
+				n.ID.String() == "bd6e097bb40944bce309f6348fe4d56ee46edbdf128cc75517df3cc586755737733c722d3279a3f37d000e26b5348c9ec9af7f5b83122d4cfd8c9ad836a0e1ee" ||
+				n.ID.String() == "1520992e0053bbb92179e7683b3637ea0d43bb2cd3694a94a1e90e909108421c2ce22e0abdb0a335efdd8e6391eb08ba967f641b42e4ebde39997c8ad000e8c8" {
+			//grouplist.gname = append(grouplist.gname, "dddddddddd")
+			grouplist.Nodes = append(grouplist.Nodes, nodeToRPC(n))
+			grouplist.count++
+			changed = 1
+			log.Info("group(add)", "node", n)
+			log.Info("group", "grouplist", grouplist)
+		}
 	}else if replace == "remove" {
-		log.Info("replace == remove")
+		log.Info("group remove")
 		if grouplist.count <= 0 {
 			grouplist.count = 0
 			return
 		}
+		log.Info("connect", "NodeID", n.ID.String())
 		for i := 0; i < grouplist.count; i++{
 			if grouplist.Nodes[i].ID == n.ID {
 				grouplist.Nodes = append(grouplist.Nodes[:i], grouplist.Nodes[i+1:]...)
 				grouplist.count--
 				changed = 1
+				log.Info("group(remove)", "node", n)
+				log.Info("group", "grouplist", grouplist)
 			}
 		}
 	}
@@ -228,6 +238,7 @@ func setGroup(n *Node, replace string){
 			//go SendMsgToPeer(node.ID, ipa, "0xff00ff")
 		}
 		enodes := fmt.Sprintf("%v,%v", count, enode)
+		fmt.Printf("group, %+v\n", enodes)
 		go callPrivKeyEvent(enodes)
 	}
 	return
