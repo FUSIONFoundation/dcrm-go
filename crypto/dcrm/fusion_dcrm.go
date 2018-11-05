@@ -1412,16 +1412,29 @@ func validate_txhash(msgprex string,tx string,txhashs []string,ch chan interface
 	    fmt.Printf("===============caihaijun,validate_txhash,value is %v===========\n",value)
 	    fmt.Printf("===============caihaijun,validate_txhash,to is %s,dcrmaddr is %s,vv is %s,vvv is %s===========\n",to,dcrmaddr,vv,vvv)
 
-	    if m[0] == "LOCKOUT" && (strings.EqualFold(from,lockoutfrom) == false || vv != vvv || strings.EqualFold(to,lockoutto) == false) {
-		valiinfo := msgprex + sep + tx + msgtypesep + "txhash_validate_no_pass"
-		p2pdcrm.SendMsg(valiinfo)
-		<-worker.btxvalidate
+	    if m[0] == "LOCKOUT" {
+		if strings.EqualFold(from,lockoutfrom) == true && vv == vvv && strings.EqualFold(to,lockoutto) == true {
+		    valiinfo := msgprex + sep + tx + msgtypesep + "txhash_validate_pass"
+		    p2pdcrm.SendMsg(valiinfo)
+		    <-worker.btxvalidate
+		    i := 0
+		    for i = 0;i<NodeCnt-1;i++ {
+			va := <-worker.msg_txvalidate
+			mm := strings.Split(va,msgtypesep)
+			if mm[1] == "txhash_validate_no_pass" {
+			    fmt.Printf("===============caihaijun,validate_txhash,mm[1] == txhash_validate_no_pass===========\n")
+			    var ret2 Err
+			    ret2.info = "txhash validate fail."
+			    res := RpcDcrmRes{ret:"",err:ret2}
+			    ch <- res
+			    return 
+			}
+		    }
 
-		var ret2 Err
-		ret2.info = "txhash validate fail."
-		res := RpcDcrmRes{ret:"",err:ret2}
-		ch <- res
-		return 
+		    res := RpcDcrmRes{ret:"true",err:nil}
+		    ch <- res
+		    return
+		}
 	    } else if strings.EqualFold(to,dcrmaddr) && vv == vvv {
 		
 		fmt.Printf("===============caihaijun,validate_txhash,to == dcrmaddr && vv == vvv===========\n")
@@ -1470,9 +1483,12 @@ func Validate_DcrmLockOut(do types.DcrmLockOutData) (string,error) {
     fmt.Printf("===============caihaijun,Validate_DcrmLockOut.===========\n")
     tx := do.Tx
     input := string(tx.Data())
+    fmt.Printf("===============caihaijun,Validate_DcrmLockOut,input is %s===========\n",input)
     m := strings.Split(input,":")
     if m[0] == "LOCKOUT" {
-	if m[2] == "ETH" {
+	fmt.Printf("===============caihaijun,Validate_DcrmLockOut,m[0] == LOCKOUT===========\n")
+	if m[3] == "ETH" {
+	    fmt.Printf("===============caihaijun,Validate_DcrmLockOut,m[3] == ETH===========\n")
 	    txs,_ := tx.MarshalJSON()
 	    var s []string
 	    s = append(s,m[4])

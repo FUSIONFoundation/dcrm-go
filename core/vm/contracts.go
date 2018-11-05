@@ -23,6 +23,7 @@ import (
 	"strings"//caihaijun
 	"fmt"//caihaijun
 	"time"//caihaijun
+	"strconv"//caihaijun
 	"encoding/json"//caihaijun
 	"github.com/fusion/go-fusion/core/types"//caihaijun
 
@@ -562,11 +563,12 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 	
 	s := evm.StateDB.GetStateDcrmAccountData(from,key)
 	if s == nil {
-	    fmt.Printf("===========caihaijun,dcrmTransaction.Run,contract.value is %v=========\n",contract.value)
-	    fmt.Printf("===========caihaijun,dcrmTransaction.Run,BALANCE is %s=========\n",string(contract.value.Bytes()))
+	    fmt.Printf("===========caihaijun,s == nil,dcrmTransaction.Run,contract.value is %v=========\n",contract.value)
+	    fmt.Printf("===========caihaijun,s == nil,dcrmTransaction.Run,BALANCE is %s=========\n",string(contract.value.Bytes()))
 	    aa := DcrmAccountData{COINTYPE:m[2],BALANCE:string(contract.value.Bytes())}
 	    result, err := json.Marshal(&aa)
 	    if err == nil {
+		fmt.Printf("==================caihaijun,dcrmTransaction.Run,from is %v,key is %v,result is %s=========\n",from,key,result)
 		evm.StateDB.SetStateDcrmAccountData(from,key,result)
 	    }
 	} else {
@@ -576,15 +578,30 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 
 	    if a.COINTYPE == m[2] {
 		ba,_ := new(big.Int).SetString(a.BALANCE,10)
-		fmt.Printf("===========caihaijun,dcrmTransaction.Run,contract.value is %v=========\n",contract.value)
-		fmt.Printf("===========caihaijun,dcrmTransaction.Run,BALANCE is %s=========\n",string(contract.value.Bytes()))
-		ba2,_ := new(big.Int).SetString(string(contract.value.Bytes()),10)
-		b := new(big.Int).Add(ba,ba2)
-		bb := fmt.Sprintf("%v",b)
-		aa := DcrmAccountData{COINTYPE:m[2],BALANCE:bb}
-		result, err := json.Marshal(&aa)
-		if err == nil {
-		    evm.StateDB.SetStateDcrmAccountData(from,key,result)
+		fmt.Printf("===========caihaijun,s != nil,dcrmTransaction.Run,contract.value is %v=========\n",contract.value)
+		fmt.Printf("===========caihaijun,s != nil,dcrmTransaction.Run,BALANCE is %s=========\n",string(contract.value.Bytes()))
+		if m[2] == "BTC" {
+		    ba2,_ := strconv.ParseFloat(string(contract.value.Bytes()), 64)
+		    ba3,_ := strconv.ParseFloat(a.BALANCE, 64)
+		    ba4 := ba2 + ba3
+		    bb := strconv.FormatFloat(ba4, 'f', -1, 64)
+		    fmt.Printf("===========caihaijun,s != nil,dcrmTransaction.Run,ba4 is %v,bb is %s=========\n",ba4,bb)
+
+		    //bb := fmt.Sprintf("%v",b)
+		    aa := DcrmAccountData{COINTYPE:m[2],BALANCE:bb}
+		    result, err := json.Marshal(&aa)
+		    if err == nil {
+			evm.StateDB.SetStateDcrmAccountData(from,key,result)
+		    }
+		} else {
+		    ba2,_ := new(big.Int).SetString(string(contract.value.Bytes()),10)
+		    b := new(big.Int).Add(ba,ba2)
+		    bb := fmt.Sprintf("%v",b)
+		    aa := DcrmAccountData{COINTYPE:m[2],BALANCE:bb}
+		    result, err := json.Marshal(&aa)
+		    if err == nil {
+			evm.StateDB.SetStateDcrmAccountData(from,key,result)
+		    }
 		}
 	    }
 	}	
@@ -596,6 +613,7 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 	key := common.BytesToHash(dcrmaddr.Bytes())
 	
 	s := evm.StateDB.GetStateDcrmAccountData(from,key)
+	fmt.Printf("=============caihaijun,dcrmTransaction.Run,s is %s================\n",string(s))
 	if s == nil {
 	    //aa := DcrmAccountData{COINTYPE:m[2],BALANCE:string(contract.value.Bytes())}
 	    //result, err := json.Marshal(&aa)
@@ -607,12 +625,14 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 	    var a DcrmAccountData
 	    json.Unmarshal(s, &a)
 
-	    if a.COINTYPE == m[2] {
+	    if a.COINTYPE == m[3] {
+		fmt.Printf("=============caihaijun,dcrmTransaction.Run,a.COINTYPE == m[3]================\n")
 		ba,_ := new(big.Int).SetString(a.BALANCE,10)
 		ba2,_ := new(big.Int).SetString(string(contract.value.Bytes()),10)
 		b := new(big.Int).Sub(ba,ba2)
 		bb := fmt.Sprintf("%v",b)
-		aa := DcrmAccountData{COINTYPE:m[2],BALANCE:bb}
+		fmt.Printf("=============caihaijun,dcrmTransaction.Run,bb is %s================\n",bb)
+		aa := DcrmAccountData{COINTYPE:m[3],BALANCE:bb}
 		result, err := json.Marshal(&aa)
 		if err == nil {
 		    evm.StateDB.SetStateDcrmAccountData(from,key,result)
