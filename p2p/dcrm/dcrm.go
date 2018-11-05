@@ -315,7 +315,7 @@ func BroatcastToGroup(msg string){
 		if dcrmgroup == nil {
 			return
 		}
-		log.Debug("group: %#v\n", dcrmgroup)
+		fmt.Printf("\nBroatcastToGroup, group: %+v\n", dcrmgroup)
 		log.Debug("peer: %#v\n", emitter)
 		for _, g := range dcrmgroup.group {
 			log.Debug("g: %+v\n", g)
@@ -327,8 +327,9 @@ func BroatcastToGroup(msg string){
 				log.Debug("NodeID: %+v not in peers\n", g.id)
 				continue
 			}
+			fmt.Printf("send to node(group): g=%+v, p.peer=%#v\n", g, p.peer)
 			if err := p2p.SendItems(p.ws, dcrmMsgCode, msg); err != nil {
-				//log.Println("Emitter.loopSendMsg p2p.SendItems err", err, "peer id", p.peer.ID())
+				fmt.Printf("Emitter.loopSendMsg p2p.SendItems err", err, "peer id", p.peer.ID())
 				continue
 			}
 		}
