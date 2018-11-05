@@ -234,7 +234,14 @@ func (self *stateObject) GetDcrmAccountBalance(db Database, key common.Hash,coin
     var a DcrmAccountData
     json.Unmarshal(s, &a)
     if a.COINTYPE == cointype {
-	ba,_ := new(big.Int).SetString(a.BALANCE,10)
+	var ba *big.Int
+	if cointype == "BTC" {
+	    fmt.Printf("==============caihaijun,GetDcrmAccountBalance,a.BALANCE is %s============\n",a.BALANCE)
+	    fmt.Printf("==============caihaijun,GetDcrmAccountBalance,ba is %v============\n",ba)
+	    ba = new(big.Int).SetBytes([]byte(a.BALANCE))
+	} else {
+	    ba,_ = new(big.Int).SetString(a.BALANCE,10)
+	}
 	return ba
     }
 

@@ -38,6 +38,7 @@ func callDcrmLockOut(do types.DcrmLockOutData) (string,error) {
 	 return "",nil
      }
 
+     fmt.Printf("==========caihaijun,callDcrmLockOut,===========\n")
     return dcrmlockoutcallback(do)
 }
 
