@@ -218,6 +218,7 @@ func setGroup(n *Node, replace string){
 				changed = 1
 				log.Info("group(remove)", "node", n)
 				log.Info("group", "grouplist", grouplist)
+				break
 			}
 		}
 	}
