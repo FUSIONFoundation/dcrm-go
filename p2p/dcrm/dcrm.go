@@ -131,15 +131,6 @@ func (e *Emitter) addPeer(p *p2p.Peer, ws p2p.MsgReadWriter) {
 // of the Whisper protocol.
 func (dcrm *Dcrm) Start(server *p2p.Server) error {
 	fmt.Println("==== func (dcrm *Dcrm) Start() ====")
-
-	//sm.mpcDistributor.Self = server.Self()
-	//sm.mpcDistributor.StoreManGroup = make([]discover.NodeID, len(server.StoremanNodes))
-	//sm.storemanPeers = make(map[discover.NodeID]bool)
-	//for i, item := range server.StoremanNodes {
-	//	sm.mpcDistributor.StoreManGroup[i] = item.ID
-	//	sm.storemanPeers[item.ID] = true
-	//}
-	//sm.mpcDistributor.InitStoreManGroup()
 	return nil
 }
 // Stop implements node.Service, stopping the background data propagation thread
@@ -204,7 +195,7 @@ func HandlePeer(peer *p2p.Peer, rw p2p.MsgReadWriter) error {
 	//id := fmt.Sprintf("%x", peer.ID)
 	id := peer.ID()
 	//fmt.Printf("handle, id: %x\n", id)
-	log.Debug("emitter.peers: %#v\n", emitter.peers)
+	log.Debug("emitter", "emitter.peers: %#v\n", emitter.peers)
 	//p2p.SendItems(rw, dcrmMsgCode, "aaaaaaaaaaaaaaaaaaa")
 	for {
 		msg, err := rw.ReadMsg()
@@ -216,13 +207,13 @@ func HandlePeer(peer *p2p.Peer, rw p2p.MsgReadWriter) error {
 		switch msg.Code {
 		case dcrmMsgCode:
 			//fmt.Printf("receive Msgs from peer: %v\n", peer)
-			log.Debug("emitter.peers[id]: %#v\n", emitter.peers[id])
-			log.Debug("emitter.peers[id].RecvMessage: %#v\n", emitter.peers[id].RecvMessage)
+			log.Debug("emitter", "emitter.peers[id]: %#v\n", emitter.peers[id])
+			log.Debug("emitter", "emitter.peers[id].RecvMessage: %#v\n", emitter.peers[id].RecvMessage)
 			//if err := msg.Decode(&emitter.peers[id].RecvMessage); err != nil {
 			if err := msg.Decode(&recv); err != nil {
 				fmt.Println("decode msg err", err)
 			} else {
-				log.Info("read msg:", recv[0])
+				log.Info("msg", "read msg:", recv[0])
 				callEvent(recv[0])
 
 				//fmt.Println("read msg:", emitter.peers[id].RecvMessage[0])
@@ -305,7 +296,7 @@ func SendMsgToPeer(toid discover.NodeID, toaddr *net.UDPAddr, msg string) error 
 
 func BroatcastToGroup(msg string){
 	fmt.Printf("==== BroatcastToGroup() ====\n")
-	if msg == "" {
+	if msg == "" || emitter == nil{
 		return
 	}
 	//fmt.Printf("sendMsg: %s\n", msg)
@@ -316,9 +307,9 @@ func BroatcastToGroup(msg string){
 			return
 		}
 		fmt.Printf("\nBroatcastToGroup, group: %+v\n", dcrmgroup)
-		log.Debug("peer: %#v\n", emitter)
+		log.Debug("emitter", "peer: %#v\n", emitter)
 		for _, g := range dcrmgroup.group {
-			log.Debug("g: %+v\n", g)
+			log.Debug("group", "g: %+v\n", g)
 			if selfid == g.id {
 				continue
 			}
@@ -328,6 +319,26 @@ func BroatcastToGroup(msg string){
 				continue
 			}
 			fmt.Printf("send to node(group): g=%+v, p.peer=%#v\n", g, p.peer)
+			if err := p2p.SendItems(p.ws, dcrmMsgCode, msg); err != nil {
+				fmt.Printf("Emitter.loopSendMsg p2p.SendItems err", err, "peer id", p.peer.ID())
+				continue
+			}
+		}
+	}()
+}
+
+func Broatcast(msg string){
+	fmt.Printf("==== Broatcast() ====\n")
+	if msg == "" || emitter == nil{
+		return
+	}
+	//fmt.Printf("sendMsg: %s\n", msg)
+	emitter.Lock()
+	defer emitter.Unlock()
+	func() {
+		log.Debug("peer: ", "%#v\n", emitter)
+		for _, p := range emitter.peers {
+			log.Debug("Broastcast to ", "p: %+v\n", p, ", msg: %+v\n", msg)
 			if err := p2p.SendItems(p.ws, dcrmMsgCode, msg); err != nil {
 				fmt.Printf("Emitter.loopSendMsg p2p.SendItems err", err, "peer id", p.peer.ID())
 				continue
