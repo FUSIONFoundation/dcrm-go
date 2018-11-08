@@ -22,7 +22,7 @@ import (
 	"math/big"
 	"sort"
 	"strings" //caihaijun
-	"fmt" //caihaijun
+	//"fmt" //caihaijun
 	"github.com/fusion/go-fusion/common"
 	"github.com/fusion/go-fusion/core/types"
 	"github.com/fusion/go-fusion/log"
@@ -38,7 +38,6 @@ func callDcrmLockOut(do types.DcrmLockOutData) (string,error) {
 	 return "",nil
      }
 
-     fmt.Printf("==========caihaijun,callDcrmLockOut,===========\n")
     return dcrmlockoutcallback(do)
 }
 
@@ -216,7 +215,6 @@ func (m *txSortedMap) Ready(pool *TxPool,start uint64) types.Transactions {  //+
 	//++++++++++++++caihaijun+++++++++++++++++
 	for next := (*m.index)[0]; m.index.Len() > 0 && (*m.index)[0] == next; next++ {
 
-	    fmt.Printf("=========caihaijun,Ready======\n")
 	    tx := m.items[next]
 	    from, err := types.Sender(pool.signer,tx)
 	    if err != nil {
@@ -228,11 +226,9 @@ func (m *txSortedMap) Ready(pool *TxPool,start uint64) types.Transactions {  //+
 	    mm := strings.Split(data,":")
 
 	    if mm[0] == "LOCKOUT" {
-		fmt.Printf("=========caihaijun,Ready111111======\n")
 		dcrmdata := types.DcrmLockOutData{From:from,Tx:*tx}
 		_,err = callDcrmLockOut(dcrmdata)
 		if err == nil {
-		    fmt.Printf("=========caihaijun,Ready22222======\n")
 		    ready = append(ready, m.items[next])
 		    m.Remove(next)
 		}
