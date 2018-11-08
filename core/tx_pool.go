@@ -567,7 +567,6 @@ func (pool *TxPool) local() map[common.Address]types.Transactions {
 // validateTx checks whether a transaction is valid according to the consensus
 // rules and adheres to some heuristic limits of the local node (price and size).
 func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
-	fmt.Printf("===================caihaijun,validateTx,excute p.ValidTx=================\n")//caihaijun
 	// Heuristic limit, reject transactions over 32KB to prevent DOS attacks
 	if tx.Size() > 32*1024 {
 		fmt.Printf("===================caihaijun,validateTx,excute p.ValidTx11111=================\n")//caihaijun
@@ -630,14 +629,12 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 		}
 		
 		if p := precompiles[*tx.To()]; p != nil {
-		    //fmt.Printf("===================caihaijun,validateTx,excute p.ValidTx=================\n")//caihaijun
 		    if err = p.ValidTx(pool.currentState, pool.signer, tx); err != nil {
 			    return err
 		    }
 		}
  	}
 	//+++++++++++++++++++++end++++++++++++++++++++
-		fmt.Printf("===================caihaijun,validateTx,excute p.ValidTx7777=================\n")//caihaijun
 	return nil
 }
 

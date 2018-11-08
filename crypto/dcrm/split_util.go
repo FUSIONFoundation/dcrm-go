@@ -167,16 +167,18 @@ func DispenseSplitPrivKey (enode interface{}) {
 			lock.Lock()
 			if len(cDPrivKey) > 800 {
 				rs := []rune(cDPrivKey)
-				p1 := "1/2:" + strconv.Itoa(tmp) + "#" +  string(rs[0:800])
+				p1 := "1gaozhengxin2:" + strconv.Itoa(tmp) + "#" +  string(rs[0:800])
 				tmp++
-				p2 := "2/2:" + string(rs[800:])
+				p2 := "2gaozhengxin2:" + string(rs[800:])
 				fmt.Println("p1", p1)
 				fmt.Println("p2", p2)
+				
 				dcrmsend.SendToPeer(enode, p1)
 				dcrmsend.SendToPeer(enode, p2)
 			} else {
-				cDPrivKey = "1/1:" + strconv.Itoa(tmp) + "#" + cDPrivKey
+				cDPrivKey = "1gaozhengxin1:" + strconv.Itoa(tmp) + "#" + cDPrivKey
 				tmp++
+
 				dcrmsend.SendToPeer(enode, cDPrivKey)
 				fmt.Printf("\ni= %v\n", i)
 			}

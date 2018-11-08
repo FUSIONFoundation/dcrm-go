@@ -510,6 +510,28 @@ func Tool_DecimalByteSlice2HexString(DecimalSlice []byte) string {
     return ss
 }
 
+func (c *dcrmTransaction) GetDcrmAddrDataKReady(contract *Contract,evm *EVM,cointype string) (string,bool) {
+	from := contract.Caller()
+    for {
+	data,ok := types.GetDcrmAddrDataKReady(evm.GetTxhash()) 
+	fmt.Printf("==================caihaijun,c.GetDcrmAddrDataKReady,data is %s=========\n",data)
+	if ok == true {
+	    dcrmdata := strings.Split(data,":")
+	    return dcrmdata[2], true
+	}
+
+	ret := evm.StateDB.GetDcrmAddress(from,common.HexToHash(evm.GetTxhash()),cointype)
+	fmt.Printf("==================caihaijun,c.GetDcrmAddrDataKReady,ret is %s,cointype is %s=========\n",ret,cointype)
+	if ret != "" {
+	    return ret,true
+	}
+	
+	time.Sleep(time.Duration(100000000))
+    }
+
+    return "",false
+}
+
 func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byte, error) {
     fmt.Printf("===================caihaijun,dcrmTransaction.Run=================\n")
    
@@ -522,38 +544,51 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
     m := strings.Split(str,":")
 
     if m[0] == "DCRMREQADDR" {
-	//c.Tx  txhash   msgprex:fusionaddr:dcrmaddr:BTC
-	//dcrmdatas := types.GetDcrmAddrData(evm.GetTxhash())
+	if evm.GetTxhash() == "" {
+	    return nil,nil
+	}
+	
+	from := contract.Caller()
+
 	var dcrmdatas string
 	var ok bool
 	for {
 	    dcrmdatas,ok = types.GetDcrmAddrDataKReady(evm.GetTxhash())
+	    fmt.Printf("==================caihaijun,dcrmTransaction.Run11111111111,dcrmdatas is %s=========\n",dcrmdatas)
 	    if ok == true {
 		break
 	    }
-	    time.Sleep(time.Duration(100000000))
+
+	    time.Sleep(time.Duration(2)*time.Second)
 	}
 
-	fmt.Printf("==================caihaijun,dcrmTransaction.Run,dcrmdatas is %s=========\n",dcrmdatas)
-	dcrmdata := strings.Split(dcrmdatas,":")
-	fmt.Printf("==================caihaijun,dcrmTransaction.Run,txhash is %s=========\n",evm.GetTxhash())
-	from := contract.Caller()
-	dcrmaddr := new(big.Int).SetBytes([]byte(dcrmdata[2]))
-	key := common.BytesToHash(dcrmaddr.Bytes())
+	if ok == true {
+	    fmt.Printf("==================caihaijun,dcrmTransaction.Run,dcrmdatas is %s=========\n",dcrmdatas)
+	    dcrmdata := strings.Split(dcrmdatas,":")
+	    fmt.Printf("==================caihaijun,dcrmTransaction.Run,txhash is %s=========\n",evm.GetTxhash())
+	    dcrmaddr := new(big.Int).SetBytes([]byte(dcrmdata[2]))
+	    key := common.BytesToHash(dcrmaddr.Bytes())
 
+	    aa := DcrmAccountData{COINTYPE:m[2],BALANCE:"0"}
+	    result,_:= json.Marshal(&aa)
+	    evm.StateDB.SetStateDcrmAccountData(from,key,result)
+	    //he,_ := new(big.Int).SetString(evm.GetTxhash(),16)
+	    h := common.HexToHash(evm.GetTxhash())
+	    fmt.Printf("===========caihaijun,xxxxxxxxxxxxxxx,from is %v,key is %v",from,h)
+	    evm.StateDB.SetStateDcrmAccountData(from,h,[]byte(dcrmdata[2]))
+	} /*else {
+	    dcrmdatas,ok := c.GetDcrmAddrDataKReady(contract,evm,m[2])
+	    if ok == true {
+		dcrmaddr := new(big.Int).SetBytes([]byte(dcrmdatas))
+		key := common.BytesToHash(dcrmaddr.Bytes())
 
-	/*ret := evm.StateDB.GetDcrmAddress(from,common.BytesToHash([]byte(dcrmdata[0])),dcrmdata[4])
-	if ret != "" {
-	    return nil,errors.New("tx exsit")
+		aa := DcrmAccountData{COINTYPE:m[2],BALANCE:"0"}
+		result,_:= json.Marshal(&aa)
+		evm.StateDB.SetStateDcrmAccountData(from,key,result)
+		h := common.HexToHash(evm.GetTxhash())
+		evm.StateDB.SetStateDcrmAccountData(from,h,[]byte(dcrmdatas))
+	    }  
 	}*/
-	
-	aa := DcrmAccountData{COINTYPE:dcrmdata[3],BALANCE:"0"}
-	result,_:= json.Marshal(&aa)
-	evm.StateDB.SetStateDcrmAccountData(from,key,result)
-	//he,_ := new(big.Int).SetString(evm.GetTxhash(),16)
-	h := common.HexToHash(evm.GetTxhash())
-	fmt.Printf("===========caihaijun,xxxxxxxxxxxxxxx,from is %v,key is %v",from,h)
-	evm.StateDB.SetStateDcrmAccountData(from,h,[]byte(dcrmdata[2]))
     }
 
     if m[0] == "LOCKIN" {
@@ -725,7 +760,7 @@ func (c *dcrmTransaction) ValidTx(stateDB StateDB, signer types.Signer, tx *type
 
     return nil
 
-    input := tx.Data()
+    /*input := tx.Data()
     data := string(input)
     m := strings.Split(data,":")
 
@@ -743,7 +778,7 @@ func (c *dcrmTransaction) ValidTx(stateDB StateDB, signer types.Signer, tx *type
 	return err
     }
 
-    return nil
+    return nil*/
 }
 //+++++++++++++++++end+++++++++++++++++
 
