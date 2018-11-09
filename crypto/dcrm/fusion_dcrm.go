@@ -129,6 +129,8 @@ var (
 
     //dcrmaddrdata = new_dcrmaddr_data()
 
+    datadir string
+
 )
 
 //++++++++caihaijun-ethapi-callback+++++++++++++++++
@@ -1554,9 +1556,18 @@ func Validate_Txhash(wr WorkReq) (string,error) {
 		}
 
 		func GetDbDir() string {
+		    if datadir != "" {
+		    	return datadir+"/dcrmdb"
+		    }
+
 		    ss := []string{"dir",cur_enode}
 		    dir = strings.Join(ss,"-")
 		    return dir
+		}
+
+		func SetDatadir (data string) {
+			datadir = data
+			fmt.Printf("======================================= gaozhengxin fusion_dcrm.go : datadir is %s \n=======================================\n", datadir)
 		}
 
 		func dcrm_liloreqAddress(msgprex string,txhash_reqaddr string,fusionaddr string,pubkey string,cointype string,ch chan interface{}) {
