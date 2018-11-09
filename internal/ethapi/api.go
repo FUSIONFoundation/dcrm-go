@@ -585,6 +585,7 @@ func (s *PublicFsnAPI) DcrmGetAccountList(ctx context.Context,pubkey string) (st
     return accountlist,err
 }
 
+//==========================================
 type dcrmtxdata struct {
     NONCE string
     PRICE string
@@ -596,6 +597,64 @@ type dcrmtxdata struct {
     S string
     V string
 }
+/*nonce := signed.data.AccountNonce
+	bignonce := new(big.Int).SetUint64(nonce)
+	snonce := fmt.Sprintf("%v",bignonce)
+
+	price := signed.data.Price
+	sprice := fmt.Sprintf("%v",price)
+
+	gaslimit := signed.data.GasLimit
+	biggaslimit := new(big.Int).SetUint64(gaslimit)
+	sgaslimit := fmt.Sprintf("%v",biggaslimit)
+
+	recipient := signed.data.Recipient
+	bigrecipient := (*recipient).Bytes()
+	srecipient := string(bigrecipient)//fmt.Sprintf("%v",bigrecipient)
+
+	amount := signed.data.Amount
+	samount := fmt.Sprintf("%v",amount)
+
+	payload := signed.data.Payload
+
+	r := signed.data.R
+	sr := fmt.Sprintf("%v",r)
+
+	s := signed.data.S
+	ss := fmt.Sprintf("%v",ss)
+
+	v := signed.data.V
+	sv := fmt.Sprintf("%v",sv)
+
+	aa := dcrmtxdata{NONCE:snonce,PRICE:sprice,GASLIMIT:sgaslimit,RECIPIENT:srecipient,AMOUNT:samount,PAYLOAD:string(payload),R:sr,S:ss,V:sv}
+result, err := json.Marshal(&aa)*/
+/*var a dcrmtxdata
+	json.Unmarshal(result, &a)
+
+	snonce = a.NONCE
+	bignonce,_ = new(big.Int).SetString(snonce,10)
+	nonce = bignonce.Uint64()
+
+	sprice = a.PRICE
+	price,_ = new(big.Int).SetString(sprice,10)
+
+	sgaslimit = a.GASLIMIT
+	biggaslimit,_ = new(big.Int).SetString(sgaslimit,10)
+	gaslimit = biggaslimit.Uint64()
+
+	srecipient = a.RECIPIENT
+	recipient = new(common.Address)
+	*recipient = common.BytesToAddress([]byte(srecipient))
+
+	samount = a.AMOUNT
+	amount,_ = new(big.Int).SetString(smount,10)
+
+	payload = []byte(a.PAYLOAD)
+
+	r,_ = new(big.Int).SetString(a.R,10)
+	s,_ = new(big.Int).SetString(a.S,10)
+v,_ = new(big.Int).SetString(a.V,10)*/
+//=========================================
 
 func (s *PublicFsnAPI) DcrmSendTransaction(ctx context.Context,txargs string) (common.Hash, error) {
     fmt.Printf("=============caihaijun,DcrmSendTransaction,txargs is %s================\n",txargs)
@@ -664,138 +723,12 @@ func (s *PublicFsnAPI) DcrmLockIn(ctx context.Context,fusionaddr string,dcrmaddr
 	result,err := signed.MarshalJSON()
 	//##########################################
 
-	//dcrm.Register_Ethapi_Callback(callethapi) //caihaijun-ethapi-callback
-
 	v := dcrm.DcrmLockIn{Tx:string(result),Txhashs:txhashs}
 	if _,err = dcrm.Validate_Txhash(&v);err != nil {
 		return common.Hash{}, err
 	}
 	
 	return s.DcrmSendTransaction(ctx,string(result))
-}
-
-func (s *PublicFsnAPI) DcrmLockIn2(ctx context.Context,fusionaddr string,dcrmaddr string,value string,cointype string,txhashs []string) (common.Hash, error) {
-
-	fusions := []rune(fusionaddr)
-	if len(fusions) != 42 { //42 = 2 + 20*2 =====>0x + addr
-	    return common.Hash{},nil 
-	}
-	
-	dcrmaddrs := []rune(dcrmaddr)
-	if cointype == "ETH" && len(dcrmaddrs) != 42 { //42 = 2 + 20*2 =====>0x + addr
-	    return common.Hash{},nil 
-	}
-	
-	if cointype == "BTC" && dcrm.ValidateAddress(1,string(dcrmaddrs[:])) == false {
-	    return common.Hash{},nil 
-	}
-
-	//###############################
-	//if IsAtGroup(enode) {
-	  //  blockheight := 6
-	    //dcrmaddr,amount := gettransaction(txhash)
-	//}
-	//###############################
-
-	fromaddr,_ := new(big.Int).SetString(fusionaddr,0)
-	txfrom := common.BytesToAddress(fromaddr.Bytes())
-	toaddr := new(common.Address)
-	*toaddr = types.DcrmPrecompileAddr
-	args := SendTxArgs{From: txfrom,To:toaddr}
-	str := "LOCKIN" + ":" + dcrmaddr + ":" + cointype
-	args.Data = new(hexutil.Bytes) 
-	args.Input = new(hexutil.Bytes) 
-	*args.Data = []byte(str)
-	*args.Input = []byte(str)
-	args.Value = (*hexutil.Big)(new(big.Int).SetBytes([]byte(value)))
-
-        // Look up the wallet containing the requested signer
-	account := accounts.Account{Address: args.From}
-
-	wallet, err := s.b.AccountManager().Find(account)
-	if err != nil {
-		return common.Hash{}, err
-	}
-
-	// Set some sanity defaults and terminate on failure
-	if err := args.setDefaults(ctx, s.b); err != nil {
-		return common.Hash{}, err
-	}
-	// Assemble the transaction and sign with the wallet
-	tx := args.toTransaction()
-
-	var chainID *big.Int
-	if config := s.b.ChainConfig(); config.IsEIP155(s.b.CurrentBlock().Number()) {
-		chainID = config.ChainID
-	}
-	signed, err := wallet.SignTx(account, tx, chainID)
-	if err != nil {
-		return common.Hash{}, err
-	}
-	//============================================================
-	/*nonce := signed.data.AccountNonce
-	bignonce := new(big.Int).SetUint64(nonce)
-	snonce := fmt.Sprintf("%v",bignonce)
-
-	price := signed.data.Price
-	sprice := fmt.Sprintf("%v",price)
-
-	gaslimit := signed.data.GasLimit
-	biggaslimit := new(big.Int).SetUint64(gaslimit)
-	sgaslimit := fmt.Sprintf("%v",biggaslimit)
-
-	recipient := signed.data.Recipient
-	bigrecipient := (*recipient).Bytes()
-	srecipient := string(bigrecipient)//fmt.Sprintf("%v",bigrecipient)
-
-	amount := signed.data.Amount
-	samount := fmt.Sprintf("%v",amount)
-
-	payload := signed.data.Payload
-
-	r := signed.data.R
-	sr := fmt.Sprintf("%v",r)
-
-	s := signed.data.S
-	ss := fmt.Sprintf("%v",ss)
-
-	v := signed.data.V
-	sv := fmt.Sprintf("%v",sv)
-
-	aa := dcrmtxdata{NONCE:snonce,PRICE:sprice,GASLIMIT:sgaslimit,RECIPIENT:srecipient,AMOUNT:samount,PAYLOAD:string(payload),R:sr,S:ss,V:sv}
-	result, err := json.Marshal(&aa)*/
-	result,err := signed.MarshalJSON()
-	//================================================
-	/*var a dcrmtxdata
-	json.Unmarshal(result, &a)
-
-	snonce = a.NONCE
-	bignonce,_ = new(big.Int).SetString(snonce,10)
-	nonce = bignonce.Uint64()
-
-	sprice = a.PRICE
-	price,_ = new(big.Int).SetString(sprice,10)
-
-	sgaslimit = a.GASLIMIT
-	biggaslimit,_ = new(big.Int).SetString(sgaslimit,10)
-	gaslimit = biggaslimit.Uint64()
-
-	srecipient = a.RECIPIENT
-	recipient = new(common.Address)
-	*recipient = common.BytesToAddress([]byte(srecipient))
-
-	samount = a.AMOUNT
-	amount,_ = new(big.Int).SetString(smount,10)
-
-	payload = []byte(a.PAYLOAD)
-
-	r,_ = new(big.Int).SetString(a.R,10)
-	s,_ = new(big.Int).SetString(a.S,10)
-	v,_ = new(big.Int).SetString(a.V,10)*/
-
-	//##################
-	return s.DcrmSendTransaction(ctx,string(result))
-	//================================================
 }
 
 const (
