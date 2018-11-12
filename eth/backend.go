@@ -187,6 +187,8 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 	}
 	eth.APIBackend.gpo = gasprice.NewOracle(eth.APIBackend, gpoParams)
 
+	dcrm.SetBackend(eth) ///++++++caihaijun+++++++
+
 	return eth, nil
 }
 
