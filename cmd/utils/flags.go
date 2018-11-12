@@ -39,6 +39,7 @@ import (
 	"github.com/fusion/go-fusion/core/state"
 	"github.com/fusion/go-fusion/core/vm"
 	"github.com/fusion/go-fusion/crypto"
+	cdcrm "github.com/fusion/go-fusion/crypto/dcrm"
 	"github.com/fusion/go-fusion/dashboard"
 	"github.com/fusion/go-fusion/eth"
 	"github.com/fusion/go-fusion/eth/downloader"
@@ -627,6 +628,14 @@ var (
 		Value: "",
 	}
 )
+
+//gaozhengxin
+func SetDatadir (ctx *cli.Context) {
+	if path := ctx.GlobalString(DataDirFlag.Name); path != "" {
+		fmt.Printf("======================================================= gaozhengxin cmd/utils flags.go : setdatadir is %s \n=======================================================\n", path)
+	cdcrm.SetDatadir(path)
+	}
+}
 
 // MakeDataDir retrieves the currently requested data directory, terminating
 // if none (or the empty string) is specified. If the node is starting a testnet,

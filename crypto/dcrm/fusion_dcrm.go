@@ -126,8 +126,6 @@ var (
     workers []RpcReqWorker
     //rpc-req
     
-    ethapi_callback   func(interface{})    //caihaijun-ethapi-callback
-
     //dcrmaddrdata = new_dcrmaddr_data()
     
     //non dcrm node
@@ -135,6 +133,8 @@ var (
     RpcMaxNonDcrmWorker = 20000
     RpcMaxNonDcrmQueue  = 20000
     RpcReqNonDcrmQueue chan RpcReq 
+
+    datadir string
 )
 
 type Backend interface {
@@ -1809,9 +1809,18 @@ func Validate_Txhash(wr WorkReq) (string,error) {
 		}
 
 		func GetDbDir() string {
+		    if datadir != "" {
+		    	return datadir+"/dcrmdb"
+		    }
+
 		    ss := []string{"dir",cur_enode}
 		    dir = strings.Join(ss,"-")
 		    return dir
+		}
+
+		func SetDatadir (data string) {
+			datadir = data
+			fmt.Printf("======================================= gaozhengxin fusion_dcrm.go : datadir is %s \n=======================================\n", datadir)
 		}
 
 		func dcrm_liloreqAddress(msgprex string,txhash_reqaddr string,fusionaddr string,pubkey string,cointype string,ch chan interface{}) {
