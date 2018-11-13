@@ -594,10 +594,14 @@ func decodePacket(buf []byte) (packet, NodeID, []byte, error) {
 		req = new(findgroup)
 	case groupPacket:
 		req = new(group)
-	case DcrmPacket:
+	case DcrmGroupPacket:
 		req = new(groupmessage)
-	case DcrmMsgPacket:
+	case PeerMsgPacket:
 		req = new(message)
+	case getDcrmPacket:
+		req = new(getdcrmmessage)
+	case gotDcrmPacket:
+		req = new(dcrmmessage)
 	default:
 		return nil, fromID, hash, fmt.Errorf("unknown type: %d", ptype)
 	}

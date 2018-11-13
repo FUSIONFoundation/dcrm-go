@@ -4,14 +4,10 @@ import (
 	"fmt"
 	//get args
 	"flag"
+	"github.com/fusion/go-fusion/log"
+	"math/big"
 	"os"
 	"time"
-	//"strings"
-	//p2p
-	//"github.com/fusion/go-fusion/p2p/dcrm"
-	"github.com/fusion/go-fusion/log"
-	//test dcrm bitInt
-	"math/big"
 )
 
 //call define
@@ -19,10 +15,18 @@ func call(msg interface{}) {
 	fmt.Printf("\n\ncall: msg=%v\n", msg)
 }
 
+func dcrmcall(msg interface{}) <-chan interface{} {
+	ch := make(chan interface{}, 1)
+	fmt.Printf("\ndcrmcall: msg=%v\n", msg)
+	ch <- "jklaafd"
+	return ch
+}
+
 func StartTest() {
 	fmt.Printf("\nDCRM P2P test ...\n\n")
 	//callback
 	RegisterCallback(call)
+	RegisterDcrmCallback(dcrmcall)
 
 	verbosity := flag.Int("verbosity", int(log.LvlInfo), "log verbosity (0-9)")
 	glogger := log.NewGlogHandler(log.StreamHandler(os.Stderr, log.TerminalFormat(false)))
@@ -52,10 +56,14 @@ func StartTest() {
 		//group: 4, peers: enode://74ec982620b1a9929b19e1373e74347289d43b8f6cd96dd03af8b72799a75139d601338dbb48e0786a304b28f35325407a0535625e1f8ead6f9292aeda0b4fd5@10.192.32.92:1236dcrmmsgenode://c25d9eb7e5100fc533a6507b0a2a1e1df027caa861d0c3b6ea1e6ade0fd17f3e932d1198dac2d13d02fdd894601b403d2ebe1a040d90eb409b7b68aad8c02e90@10.192.32.92:1237dcrmmsgenode://4538612f7d2b63aeea0adc96d550d3fa346c9abcdbde27e623dfb7a5c2977fdee0116047a826c89f20ef1d4fc44c6bba077e0039aa05b26608f081128a2780e6@10.192.32.92:1234dcrmmsgenode://3b2fd28db22477b9d3c5d51b12c36dc8f6af1e5b287e0de7353033ac6f3bd3ee3ae3d10256cc9af9d7af169749dfa09feaad03b398ba6c4c2a7ee559c11f8b13@10.192.32.92:1235
 		//dcrm.SendMsg("test.........................")
 
-		fmt.Printf("\nBroast ...\n")
-		BroatcastToGroup("ggggggggggg, 20181001")
-		time.Sleep(time.Duration(2) * time.Second)
-		Broatcast("hhhhhhwwwwwwjjjj, 20181108")
+		//fmt.Printf("\nBroast ...\n")
+		//BroatcastToGroup("ggggggggggg, 20181001")
+		//time.Sleep(time.Duration(2) * time.Second)
+		//Broatcast("hhhhhhwwwwwwjjjj, 20181108")
+
+		fmt.Printf("\nSendToGroup ...\n")
+		ret := SendToDcrmGroup("hhhhhhhhhhhhh")
+		fmt.Printf("SendToDcrmGroup, get = %+v\n", ret)
 	}
 	select {}
 

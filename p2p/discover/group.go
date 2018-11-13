@@ -45,8 +45,10 @@ const (
 
 	findgroupPacket = iota + 10 + neighborsPacket //14
 	groupPacket
-	DcrmPacket
-	DcrmMsgPacket
+	DcrmGroupPacket
+	PeerMsgPacket
+	getDcrmPacket
+	gotDcrmPacket
 )
 
 type (
@@ -81,6 +83,20 @@ type (
 
 	message struct {
 		//sync.Mutex
+		Msg        string
+		Expiration uint64
+	}
+
+	getdcrmmessage struct {
+		//sync.Mutex
+		Target     NodeID // doesn't need to be an actual public key
+		Msg        interface{}
+		Expiration uint64
+	}
+
+	dcrmmessage struct {
+		//sync.Mutex
+		Target     NodeID // doesn't need to be an actual public key
 		Msg        string
 		Expiration uint64
 	}
@@ -138,17 +154,6 @@ func (req *findgroup) handle(t *udp, from *net.UDPAddr, fromID NodeID, mac []byt
 	return nil
 }
 
-func getGroupInfo() *group {
-	if setgroup == 1 && grouplist.count == groupnum {
-		grouplist.Lock()
-		defer grouplist.Unlock()
-		p := grouplist
-		p.Expiration = uint64(time.Now().Add(expiration).Unix())
-		return p
-	}
-	return nil
-}
-
 func (req *group) handle(t *udp, from *net.UDPAddr, fromID NodeID, mac []byte) error {
 	log.Info("====  (req *group) handle()  ====")
 	fmt.Printf("group handle: %+v\n", req)
@@ -161,11 +166,100 @@ func (req *group) handle(t *udp, from *net.UDPAddr, fromID NodeID, mac []byte) e
 	return nil
 }
 
+func (req *getdcrmmessage) name() string { return "GETDCRMMSG/v4" }
+func (req *dcrmmessage) name() string    { return "DCRMMSG/v4" }
+
+// sendgroup sends to group dcrm and waits until
+// the node has reply.
+func (t *udp) sendToGroupDCRM(toid NodeID, toaddr *net.UDPAddr, msg interface{}) (interface{}, error) {
+	log.Debug("====  (t *udp) sendToGroupDCRM()  ====")
+	retmsg := ""
+	errc := t.pending(toid, gotDcrmPacket, func(r interface{}) bool {
+		log.Info("sendToGroupDCRM", "gotDcrmPacket: %+v\n", r)
+		retmsg = r.(*dcrmmessage).Msg
+		return true
+	})
+	t.send(toaddr, getDcrmPacket, &getdcrmmessage{
+		Msg:        msg,
+		Expiration: uint64(time.Now().Add(expiration).Unix()),
+	})
+	err := <-errc
+	return retmsg, err
+}
+
+func (req *getdcrmmessage) handle(t *udp, from *net.UDPAddr, fromID NodeID, mac []byte) error {
+	log.Debug("====  (req *getdcrmmessage) handle()  ====")
+	if expired(req.Expiration) {
+		return errExpired
+	}
+	if !t.db.hasBond(fromID) {
+		// No bond exists, we don't process the packet. This prevents
+		// an attack vector where the discovery protocol could be used
+		// to amplify traffic in a DDOS attack. A malicious actor
+		// would send a findnode request with the IP address and UDP
+		// port of the target as the source address. The recipient of
+		// the findnode packet would then send a neighbors packet
+		// (which is a much bigger packet than findnode) to the victim.
+		return errUnknownNode
+	}
+	log.Info("getdcrmmessage", "msg = %+v\n", req.Msg)
+	msgc := calldcrmEvent(req.Msg)
+	msg := <-msgc
+	log.Info("getdcrmmessage", "retmsg = %+v\n", msg)
+	t.send(from, gotDcrmPacket, &getdcrmmessage{
+		Msg:        msg,
+		Expiration: uint64(time.Now().Add(expiration).Unix()),
+	})
+	return nil
+}
+
+func (req *dcrmmessage) handle(t *udp, from *net.UDPAddr, fromID NodeID, mac []byte) error {
+	log.Info("====  (req *group) handle()  ====")
+	log.Info("dcrmmessage", "group handle: %+v\n", req)
+	//if expired(req.Expiration) {
+	//        return errExpired
+	//}
+	if !t.handleReply(fromID, gotDcrmPacket, req) {
+		return errUnsolicitedReply
+	}
+	return nil
+}
+
+func getGroupInfo() *group {
+	if setgroup == 1 && grouplist.count == groupnum {
+		grouplist.Lock()
+		defer grouplist.Unlock()
+		p := grouplist
+		p.Expiration = uint64(time.Now().Add(expiration).Unix())
+		return p
+	}
+	return nil
+}
+
 func InitGroup() error {
 	log.Info("==== InitGroup() ====")
 	setgroup = 1
 	grouplist = &group{msg: "fsn", count: 0, Expiration: ^uint64(0)}
 	return nil
+}
+
+func SendToDcrmGroup(msg interface{}) interface{} {
+	log.Info("==== SendToGroup() ====")
+	bn := Table4group.nursery[0]
+	if bn == nil {
+		return ""
+	}
+	ipa := &net.UDPAddr{IP: bn.IP, Port: int(bn.UDP)}
+	g := GetGroup(bn.ID, ipa, bn.ID)
+	if g == nil {
+		return ""
+	}
+	for _, n := range g {
+		ipa = &net.UDPAddr{IP: n.IP, Port: int(n.UDP)}
+		ret, _ := Table4group.net.sendToGroupDCRM(n.ID, ipa, msg)
+		return ret
+	}
+	return ""
 }
 
 func GetGroup(id NodeID, addr *net.UDPAddr, target NodeID) []*Node {
@@ -262,10 +356,10 @@ func (t *udp) sendToPeer(toid NodeID, toaddr *net.UDPAddr, msg string) error {
 	if req == nil {
 		return nil
 	}
-	errc := t.pending(toid, DcrmPacket, func(r interface{}) bool {
+	errc := t.pending(toid, DcrmGroupPacket, func(r interface{}) bool {
 		return true
 	})
-	t.send(toaddr, DcrmPacket, req)
+	t.send(toaddr, DcrmGroupPacket, req)
 	err := <-errc
 	return err
 }
@@ -295,10 +389,10 @@ func (req *groupmessage) handle(t *udp, from *net.UDPAddr, fromID NodeID, mac []
 func (t *udp) sendMsgToPeer(toid NodeID, toaddr *net.UDPAddr, msg string) error {
 	log.Debug("====  (t *udp) sendMsgToPeer()  ====")
 	//TODO
-	errc := t.pending(toid, DcrmMsgPacket, func(r interface{}) bool {
+	errc := t.pending(toid, PeerMsgPacket, func(r interface{}) bool {
 		return true
 	})
-	t.send(toaddr, DcrmMsgPacket, &message{
+	t.send(toaddr, PeerMsgPacket, &message{
 		Msg:        msg,
 		Expiration: uint64(time.Now().Add(expiration).Unix()),
 	})
@@ -307,7 +401,6 @@ func (t *udp) sendMsgToPeer(toid NodeID, toaddr *net.UDPAddr, msg string) error 
 }
 func (req *message) name() string { return "MESSAGE/v4" }
 
-////////////////////
 func (req *message) handle(t *udp, from *net.UDPAddr, fromID NodeID, mac []byte) error {
 	log.Info("\n\n====  (req *message) handle()  ====")
 	log.Info("req: %#v\n", req)
@@ -338,6 +431,18 @@ func callMsgEvent(n string) {
 	msgcallback(n)
 }
 
+//peer(of DCRM group) receive other peer msg to run dcrm
+var dcrmcallback func(interface{}) <-chan interface{}
+
+func RegisterDcrmCallback(callbackfunc func(interface{}) <-chan interface{}) {
+	dcrmcallback = callbackfunc
+}
+
+func calldcrmEvent(e interface{}) <-chan interface{} {
+	return dcrmcallback(e)
+}
+
+//get private Key
 var privatecallback func(interface{})
 
 func RegisterSendCallback(callbackfunc func(interface{})) {

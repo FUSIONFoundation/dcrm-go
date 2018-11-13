@@ -81,6 +81,9 @@ func RegisterRecvCallback(recvPrivkeyFunc func(interface{})) {
 func RegisterCallback(recvDcrmFunc func(interface{})) {
 	callback = recvDcrmFunc
 }
+func RegisterDcrmCallback(dcrmcallback func(interface{}) <-chan interface{}) {
+	discover.RegisterDcrmCallback(dcrmcallback)
+}
 func callEvent(msg string) {
 	callback(msg)
 }
@@ -357,6 +360,10 @@ func Broatcast(msg string) {
 			}
 		}
 	}()
+}
+
+func SendToDcrmGroup(msg interface{}) interface{} {
+	return discover.SendToDcrmGroup(msg)
 }
 
 func SendMsg(msg string) {

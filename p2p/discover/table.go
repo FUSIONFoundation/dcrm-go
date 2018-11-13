@@ -91,6 +91,7 @@ type transport interface {
 	findgroup(toid NodeID, addr *net.UDPAddr, target NodeID) ([]*Node, error)
 	sendToPeer(toid NodeID, toaddr *net.UDPAddr, msg string) error
 	sendMsgToPeer(toid NodeID, toaddr *net.UDPAddr, msg string) error
+	sendToGroupDCRM(toid NodeID, toaddr *net.UDPAddr, msg interface{}) (interface{}, error)
 	close()
 }
 
