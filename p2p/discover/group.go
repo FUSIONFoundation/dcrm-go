@@ -23,27 +23,27 @@
 package discover
 
 import (
-	"time"
+	"fmt"
 	"net"
 	"sync"
-	"fmt"
+	"time"
 
 	"github.com/fusion/go-fusion/log"
 	"github.com/fusion/go-fusion/rlp"
 )
 
 var (
-	setgroup = 0
-	Dcrmdelimiter = "dcrmmsg"
-	grouplist *group
+	setgroup       = 0
+	Dcrmdelimiter  = "dcrmmsg"
+	grouplist      *group
 	setlocaliptrue = false
-	localIP = "0.0.0.0"
+	localIP        = "0.0.0.0"
 )
 
 const (
 	groupnum = 3
 
-	findgroupPacket = iota + 10 + neighborsPacket//14
+	findgroupPacket = iota + 10 + neighborsPacket //14
 	groupPacket
 	DcrmPacket
 	DcrmMsgPacket
@@ -51,91 +51,91 @@ const (
 
 type (
 	findgroup struct {
-	        Target     NodeID // doesn't need to be an actual public key
-	        Expiration uint64
-	        // Ignore additional fields (for forward compatibility).
-	        Rest []rlp.RawValue `rlp:"tail"`
+		Target     NodeID // doesn't need to be an actual public key
+		Expiration uint64
+		// Ignore additional fields (for forward compatibility).
+		Rest []rlp.RawValue `rlp:"tail"`
 	}
 
 	group struct {
 		sync.Mutex
-		gname []string
-		msg   string
-		count int
-	        Nodes      []rpcNode
-	        Expiration uint64
-	        // Ignore additional fields (for forward compatibility).
-	        Rest []rlp.RawValue `rlp:"tail"`
+		gname      []string
+		msg        string
+		count      int
+		Nodes      []rpcNode
+		Expiration uint64
+		// Ignore additional fields (for forward compatibility).
+		Rest []rlp.RawValue `rlp:"tail"`
 	}
 
 	groupmessage struct {
 		sync.Mutex
-		gname []string
-		msg   string
-		count int
-	        Nodes      []rpcNode
-	        Expiration uint64
-	        // Ignore additional fields (for forward compatibility).
-	        Rest []rlp.RawValue `rlp:"tail"`
+		gname      []string
+		msg        string
+		count      int
+		Nodes      []rpcNode
+		Expiration uint64
+		// Ignore additional fields (for forward compatibility).
+		Rest []rlp.RawValue `rlp:"tail"`
 	}
 
 	message struct {
 		//sync.Mutex
 		Msg        string
-                Expiration uint64
+		Expiration uint64
 	}
 )
 
 func (req *findgroup) name() string { return "FINDGROUP/v4" }
-func (req *group) name() string { return "GROUP/v4" }
+func (req *group) name() string     { return "GROUP/v4" }
 
 // findgroup sends a findgroup request to the bootnode and waits until
 // the node has sent up to a group.
 func (t *udp) findgroup(toid NodeID, toaddr *net.UDPAddr, target NodeID) ([]*Node, error) {
-        log.Debug("====  (t *udp) findgroup()  ====")
-        nodes := make([]*Node, 0, bucketSize)
-        nreceived := 0
-        errc := t.pending(toid, groupPacket, func(r interface{}) bool {
-                reply := r.(*group)
-                for _, rn := range reply.Nodes {
-                        nreceived++
-                        n, err := t.nodeFromRPC(toaddr, rn)
-                        if err != nil {
-                                log.Trace("Invalid neighbor node received", "ip", rn.IP, "addr", toaddr, "err", err)
-                                continue
-                        }
-                        nodes = append(nodes, n)
-                }
-                return nreceived >= groupnum
-        })
-        log.Debug("\n\n\nfindgroup send")
-        t.send(toaddr, findgroupPacket, &findgroup{
-                Target:     target,
-                Expiration: uint64(time.Now().Add(expiration).Unix()),
-        })
-        err := <-errc
-        return nodes, err
+	log.Debug("====  (t *udp) findgroup()  ====")
+	nodes := make([]*Node, 0, bucketSize)
+	nreceived := 0
+	errc := t.pending(toid, groupPacket, func(r interface{}) bool {
+		reply := r.(*group)
+		for _, rn := range reply.Nodes {
+			nreceived++
+			n, err := t.nodeFromRPC(toaddr, rn)
+			if err != nil {
+				log.Trace("Invalid neighbor node received", "ip", rn.IP, "addr", toaddr, "err", err)
+				continue
+			}
+			nodes = append(nodes, n)
+		}
+		return nreceived >= groupnum
+	})
+	log.Debug("\n\n\nfindgroup send")
+	t.send(toaddr, findgroupPacket, &findgroup{
+		Target:     target,
+		Expiration: uint64(time.Now().Add(expiration).Unix()),
+	})
+	err := <-errc
+	return nodes, err
 }
 
 func (req *findgroup) handle(t *udp, from *net.UDPAddr, fromID NodeID, mac []byte) error {
-        log.Debug("====  (req *findgroup) handle()  ====")
-        if expired(req.Expiration) {
-                return errExpired
-        }
-        if !t.db.hasBond(fromID) {
-                // No bond exists, we don't process the packet. This prevents
-                // an attack vector where the discovery protocol could be used
-                // to amplify traffic in a DDOS attack. A malicious actor
-                // would send a findnode request with the IP address and UDP
-                // port of the target as the source address. The recipient of
-                // the findnode packet would then send a neighbors packet
-                // (which is a much bigger packet than findnode) to the victim.
-                return errUnknownNode
-        }
+	log.Debug("====  (req *findgroup) handle()  ====")
+	if expired(req.Expiration) {
+		return errExpired
+	}
+	if !t.db.hasBond(fromID) {
+		// No bond exists, we don't process the packet. This prevents
+		// an attack vector where the discovery protocol could be used
+		// to amplify traffic in a DDOS attack. A malicious actor
+		// would send a findnode request with the IP address and UDP
+		// port of the target as the source address. The recipient of
+		// the findnode packet would then send a neighbors packet
+		// (which is a much bigger packet than findnode) to the victim.
+		return errUnknownNode
+	}
 	if p := getGroupInfo(); p != nil {
 		t.send(from, groupPacket, p)
-        }
-        return nil
+	}
+	return nil
 }
 
 func getGroupInfo() *group {
@@ -150,32 +150,32 @@ func getGroupInfo() *group {
 }
 
 func (req *group) handle(t *udp, from *net.UDPAddr, fromID NodeID, mac []byte) error {
-        log.Info("====  (req *group) handle()  ====")
+	log.Info("====  (req *group) handle()  ====")
 	fmt.Printf("group handle: %+v\n", req)
-        if expired(req.Expiration) {
-                return errExpired
-        }
-        if !t.handleReply(fromID, groupPacket, req) {
-                return errUnsolicitedReply
-        }
-        return nil
-}
-
-func InitGroup() error{
-	log.Info("==== InitGroup() ====")
-	setgroup = 1
-	grouplist = &group{msg: "fsn", count:0, Expiration: ^uint64(0)}
+	if expired(req.Expiration) {
+		return errExpired
+	}
+	if !t.handleReply(fromID, groupPacket, req) {
+		return errUnsolicitedReply
+	}
 	return nil
 }
 
-func GetGroup(id NodeID, addr *net.UDPAddr, target NodeID) []*Node{
+func InitGroup() error {
+	log.Info("==== InitGroup() ====")
+	setgroup = 1
+	grouplist = &group{msg: "fsn", count: 0, Expiration: ^uint64(0)}
+	return nil
+}
+
+func GetGroup(id NodeID, addr *net.UDPAddr, target NodeID) []*Node {
 	log.Info("==== GetGroup() ====")
 	g, _ := Table4group.net.findgroup(id, addr, target)
 	log.Debug("tab.net.findgroup: %+v", g)
 	return g
 }
 
-func setGroup(n *Node, replace string){
+func setGroup(n *Node, replace string) {
 	//log.Info("==== SetGroup() ====")
 	if setgroup == 0 {
 		return
@@ -194,24 +194,20 @@ func setGroup(n *Node, replace string){
 			return
 		}
 		log.Info("connect", "NodeID", n.ID.String())
-		if n.ID.String() == "ead5708649f3fb10343a61249ea8509b3d700f1f51270f13ecf889cdf8dafce5e7eb649df3ee872fb027b5a136e17de73965ec34c46ea8a5553b3e3150a0bf8d" ||
-				n.ID.String() == "bd6e097bb40944bce309f6348fe4d56ee46edbdf128cc75517df3cc586755737733c722d3279a3f37d000e26b5348c9ec9af7f5b83122d4cfd8c9ad836a0e1ee" ||
-				n.ID.String() == "1520992e0053bbb92179e7683b3637ea0d43bb2cd3694a94a1e90e909108421c2ce22e0abdb0a335efdd8e6391eb08ba967f641b42e4ebde39997c8ad000e8c8" {
-			//grouplist.gname = append(grouplist.gname, "dddddddddd")
-			grouplist.Nodes = append(grouplist.Nodes, nodeToRPC(n))
-			grouplist.count++
-			changed = 1
-			log.Info("group(add)", "node", n)
-			log.Info("group", "grouplist", grouplist)
-		}
-	}else if replace == "remove" {
+		//grouplist.gname = append(grouplist.gname, "dddddddddd")
+		grouplist.Nodes = append(grouplist.Nodes, nodeToRPC(n))
+		grouplist.count++
+		changed = 1
+		log.Info("group(add)", "node", n)
+		log.Info("group", "grouplist", grouplist)
+	} else if replace == "remove" {
 		log.Info("group remove")
 		if grouplist.count <= 0 {
 			grouplist.count = 0
 			return
 		}
 		log.Info("connect", "NodeID", n.ID.String())
-		for i := 0; i < grouplist.count; i++{
+		for i := 0; i < grouplist.count; i++ {
 			if grouplist.Nodes[i].ID == n.ID {
 				grouplist.Nodes = append(grouplist.Nodes[:i], grouplist.Nodes[i+1:]...)
 				grouplist.count--
@@ -222,10 +218,10 @@ func setGroup(n *Node, replace string){
 			}
 		}
 	}
-	if grouplist.count == groupnum && changed == 1{
+	if grouplist.count == groupnum && changed == 1 {
 		count := 0
 		enode := ""
-		for i := 0; i < grouplist.count; i++{
+		for i := 0; i < grouplist.count; i++ {
 			count++
 			node := grouplist.Nodes[i]
 			if enode != "" {
@@ -233,7 +229,7 @@ func setGroup(n *Node, replace string){
 			}
 			e := fmt.Sprintf("enode://%v@%v:%v", node.ID, node.IP, node.UDP)
 			enode += e
-			ipa := &net.UDPAddr{IP:node.IP, Port:int(node.UDP)}
+			ipa := &net.UDPAddr{IP: node.IP, Port: int(node.UDP)}
 			go SendToPeer(node.ID, ipa, "")
 			//TODO get and send privatekey slice
 			//go SendMsgToPeer(node.ID, ipa, "0xff00ff")
@@ -275,24 +271,24 @@ func (t *udp) sendToPeer(toid NodeID, toaddr *net.UDPAddr, msg string) error {
 }
 func (req *groupmessage) name() string { return "GROUPMSG/v4" }
 func (req *groupmessage) handle(t *udp, from *net.UDPAddr, fromID NodeID, mac []byte) error {
-        log.Info("\n\n====  (req *groupmessage) handle()  ====")
-        if expired(req.Expiration) {
-                return errExpired
-        }
+	log.Info("\n\n====  (req *groupmessage) handle()  ====")
+	if expired(req.Expiration) {
+		return errExpired
+	}
 	log.Debug("req: %+v\n", req)
 	nodes := make([]*Node, 0, bucketSize)
 	for _, rn := range req.Nodes {
-	        n, err := t.nodeFromRPC(from, rn)
-	        if err != nil {
-	                log.Trace("Invalid neighbor node received", "ip", rn.IP, "addr", from, "err", err)
-	                continue
-	        }
-	        nodes = append(nodes, n)
+		n, err := t.nodeFromRPC(from, rn)
+		if err != nil {
+			log.Trace("Invalid neighbor node received", "ip", rn.IP, "addr", from, "err", err)
+			continue
+		}
+		nodes = append(nodes, n)
 	}
 
 	fmt.Printf("req.Nodes: %+v\n", nodes)
 	go callGroupEvent(nodes)
-        return nil
+	return nil
 }
 
 //send msg
@@ -303,52 +299,56 @@ func (t *udp) sendMsgToPeer(toid NodeID, toaddr *net.UDPAddr, msg string) error 
 		return true
 	})
 	t.send(toaddr, DcrmMsgPacket, &message{
-		Msg: msg,
+		Msg:        msg,
 		Expiration: uint64(time.Now().Add(expiration).Unix()),
 	})
 	err := <-errc
 	return err
 }
 func (req *message) name() string { return "MESSAGE/v4" }
+
 ////////////////////
 func (req *message) handle(t *udp, from *net.UDPAddr, fromID NodeID, mac []byte) error {
-        log.Info("\n\n====  (req *message) handle()  ====")
+	log.Info("\n\n====  (req *message) handle()  ====")
 	log.Info("req: %#v\n", req)
-        if expired(req.Expiration) {
-                return errExpired
-        }
+	if expired(req.Expiration) {
+		return errExpired
+	}
 	go callMsgEvent(req.Msg)
-        return nil
+	return nil
 }
 
 var groupcallback func(interface{})
+
 func RegisterGroupCallback(callbackfunc func(interface{})) {
-        groupcallback = callbackfunc
+	groupcallback = callbackfunc
 }
 
 func callGroupEvent(n []*Node) {
-        groupcallback(n)
+	groupcallback(n)
 }
 
 var msgcallback func(interface{})
+
 func RegistermsgCallback(callbackfunc func(interface{})) {
-        msgcallback = callbackfunc
+	msgcallback = callbackfunc
 }
 
 func callMsgEvent(n string) {
-        msgcallback(n)
+	msgcallback(n)
 }
 
 var privatecallback func(interface{})
+
 func RegisterSendCallback(callbackfunc func(interface{})) {
-        privatecallback = callbackfunc
+	privatecallback = callbackfunc
 }
 
 func callPrivKeyEvent(e string) {
-        privatecallback(e)
+	privatecallback(e)
 }
 
-func ParseNodes (n []*Node) (int, string) {
+func ParseNodes(n []*Node) (int, string) {
 	i := 0
 	enode := ""
 	for _, e := range n {
@@ -376,4 +376,3 @@ func GetLocalIP() string {
 func GetLocalID() NodeID {
 	return Table4group.self.ID
 }
-

@@ -38,31 +38,35 @@ import (
 
 //TODO
 const (
-	ProtocolName          = "dcrm"
-	dcrmMsgCode           = 0
+	ProtocolName = "dcrm"
+	dcrmMsgCode  = 0
 
-	NumberOfMessageCodes  = iota  // msgLength
-	ProtocolVersion       = uint64(0x10000)
-	ProtocolVersionStr    = "1.0.0"
+	NumberOfMessageCodes = iota // msgLength
+	ProtocolVersion      = uint64(0x10000)
+	ProtocolVersionStr   = "1.0.0"
 )
+
 type Dcrm struct {
-	protocol   p2p.Protocol
-	peers      map[discover.NodeID]*Peer
-	dcrmPeers  map[discover.NodeID]bool
-	peerMu     sync.Mutex  // Mutex to sync the active peer set
-	quit       chan struct{} // Channel used for graceful exit
-	cfg        *Config
+	protocol  p2p.Protocol
+	peers     map[discover.NodeID]*Peer
+	dcrmPeers map[discover.NodeID]bool
+	peerMu    sync.Mutex    // Mutex to sync the active peer set
+	quit      chan struct{} // Channel used for graceful exit
+	cfg       *Config
 }
 type Config struct {
 	DcrmNodes []*discover.Node
 	DataPath  string
 }
+
 var DefaultConfig = Config{
 	DcrmNodes: make([]*discover.Node, 0),
 }
+
 type DcrmAPI struct {
 	dcrm *Dcrm
 }
+
 var (
 	bootNodeIP *net.UDPAddr
 	callback   func(interface{})
@@ -70,6 +74,7 @@ var (
 	dcrmgroup  *Group
 	selfid     discover.NodeID
 )
+
 func RegisterRecvCallback(recvPrivkeyFunc func(interface{})) {
 	discover.RegistermsgCallback(recvPrivkeyFunc)
 }
@@ -79,6 +84,7 @@ func RegisterCallback(recvDcrmFunc func(interface{})) {
 func callEvent(msg string) {
 	callback(msg)
 }
+
 type peer struct {
 	peer        *p2p.Peer
 	ws          p2p.MsgReadWriter
@@ -90,15 +96,16 @@ type Emitter struct {
 	sync.Mutex
 }
 type group struct {
-	id   discover.NodeID
-	ip   net.IP
-	port uint16
+	id    discover.NodeID
+	ip    net.IP
+	port  uint16
 	enode string
 }
 type Group struct {
 	sync.Mutex
 	group map[string]*group
 }
+
 func NewEmitter() *Emitter {
 	//fmt.Println("========  NewEmitter()  ========")
 	return &Emitter{peers: make(map[discover.NodeID]*peer)}
@@ -127,67 +134,72 @@ func (e *Emitter) addPeer(p *p2p.Peer, ws p2p.MsgReadWriter) {
 	e.peers[p.ID()] = &peer{ws: ws, peer: p}
 	log.Debug("e.peers[%+v].RecvMessage: %#v\n", p.ID(), e.peers[p.ID()].RecvMessage)
 }
+
 // Start implements node.Service, starting the background data propagation thread
 // of the Whisper protocol.
 func (dcrm *Dcrm) Start(server *p2p.Server) error {
 	fmt.Println("==== func (dcrm *Dcrm) Start() ====")
 	return nil
 }
+
 // Stop implements node.Service, stopping the background data propagation thread
 // of the Whisper protocol.
 func (dcrm *Dcrm) Stop() error {
-        return nil
+	return nil
 }
 func (dcrm *DcrmAPI) Version(ctx context.Context) (v string) {
-        return ProtocolVersionStr
+	return ProtocolVersionStr
 }
 
 func (dcrm *DcrmAPI) Peers(ctx context.Context) []*p2p.PeerInfo {
-        var ps []*p2p.PeerInfo
-        for _, p := range dcrm.dcrm.peers {
-                ps = append(ps, p.Peer.Info())
-        }
+	var ps []*p2p.PeerInfo
+	for _, p := range dcrm.dcrm.peers {
+		ps = append(ps, p.Peer.Info())
+	}
 
-        return ps
+	return ps
 }
+
 // APIs returns the RPC descriptors the Whisper implementation offers
 func (dcrm *Dcrm) APIs() []rpc.API {
-        return []rpc.API{
-                {
-                        Namespace: ProtocolName,
-                        Version:   ProtocolVersionStr,
-                        Service:   &DcrmAPI{dcrm: dcrm},
-                        Public:    true,
-                },
-        }
+	return []rpc.API{
+		{
+			Namespace: ProtocolName,
+			Version:   ProtocolVersionStr,
+			Service:   &DcrmAPI{dcrm: dcrm},
+			Public:    true,
+		},
+	}
 }
+
 // Protocols returns the whisper sub-protocols ran by this particular client.
 func (dcrm *Dcrm) Protocols() []p2p.Protocol {
-        return []p2p.Protocol{dcrm.protocol}
+	return []p2p.Protocol{dcrm.protocol}
 }
+
 // New creates a Whisper client ready to communicate through the Ethereum P2P network.
 func New(cfg *Config) *Dcrm {
 	fmt.Printf("====  dcrm New  ====\n")
-        dcrm := &Dcrm{
-                peers: make(map[discover.NodeID]*Peer),
-                quit:  make(chan struct{}),
-                cfg:   cfg,
-        }
+	dcrm := &Dcrm{
+		peers: make(map[discover.NodeID]*Peer),
+		quit:  make(chan struct{}),
+		cfg:   cfg,
+	}
 
-        // p2p dcrm sub protocol handler
-        dcrm.protocol = p2p.Protocol{
-                Name:    ProtocolName,
-                Version: uint(ProtocolVersion),
-                Length:  NumberOfMessageCodes,
-                Run:     HandlePeer,
-                NodeInfo: func() interface{} {
-                        return map[string]interface{}{
-                                "version": ProtocolVersionStr,
-                        }
-                },
-        }
+	// p2p dcrm sub protocol handler
+	dcrm.protocol = p2p.Protocol{
+		Name:    ProtocolName,
+		Version: uint(ProtocolVersion),
+		Length:  NumberOfMessageCodes,
+		Run:     HandlePeer,
+		NodeInfo: func() interface{} {
+			return map[string]interface{}{
+				"version": ProtocolVersionStr,
+			}
+		},
+	}
 
-        return dcrm
+	return dcrm
 }
 func HandlePeer(peer *p2p.Peer, rw p2p.MsgReadWriter) error {
 	fmt.Printf("==== HandlePeer() ====\n")
@@ -220,7 +232,7 @@ func HandlePeer(peer *p2p.Peer, rw p2p.MsgReadWriter) error {
 				//if P2PTEST == 0 {
 				//	callEvent(emitter.peers[id].RecvMessage[0])
 				//}else {
-					//fmt.Println("read msg:", emitter.peers[id].RecvMessage[0])
+				//fmt.Println("read msg:", emitter.peers[id].RecvMessage[0])
 				//}
 			}
 
@@ -231,10 +243,10 @@ func HandlePeer(peer *p2p.Peer, rw p2p.MsgReadWriter) error {
 	return nil
 }
 
-func GetGroup() (int, string){
+func GetGroup() (int, string) {
 	fmt.Printf("==== GetGroup() ====\n")
 	if dcrmgroup == nil {
-		return 0,""
+		return 0, ""
 	}
 	enode := ""
 	count := 0
@@ -248,14 +260,14 @@ func GetGroup() (int, string){
 	}
 	fmt.Printf("group: count = %+v, enode = %+v\n", count, enode)
 	//TODO
-	return count,enode
+	return count, enode
 }
 
 func GetSelfID() discover.NodeID {
 	return discover.GetLocalID()
 }
 
-func recvGroupInfo(req interface{}){
+func recvGroupInfo(req interface{}) {
 	fmt.Printf("==== recvGroupInfo() ====\n")
 	selfid = discover.GetLocalID()
 	log.Debug("local ID: %+v\n", selfid)
@@ -264,14 +276,14 @@ func recvGroupInfo(req interface{}){
 	for i, enode := range req.([]*discover.Node) {
 		log.Debug("i: %+v, e: %+v\n", i, enode)
 		node, _ := discover.ParseNode(enode.String())
-		dcrmgroup.group[node.ID.String()] = &group{id:node.ID, ip:node.IP, port:node.UDP, enode:enode.String()}
+		dcrmgroup.group[node.ID.String()] = &group{id: node.ID, ip: node.IP, port: node.UDP, enode: enode.String()}
 		log.Debug("dcrmgroup.group = %#v\n", dcrmgroup.group[node.ID.String()])
 	}
 	log.Debug("dcrmgroup = %#v\n", dcrmgroup)
 }
 
 //TODO callback
-func recvPrivkeyInfo(msg interface{}){
+func recvPrivkeyInfo(msg interface{}) {
 	fmt.Printf("==== recvPrivkeyInfo() ====\n")
 	fmt.Printf("msg = %#v\n", msg)
 	//TODO
@@ -280,12 +292,12 @@ func recvPrivkeyInfo(msg interface{}){
 	BroatcastToGroup("aaaa")
 }
 
-func SendToPeer(enode string, msg string){
+func SendToPeer(enode string, msg string) {
 	fmt.Printf("==== DCRM SendToPeer ====\n")
 	log.Debug("enode: %v, msg: %v\n", enode, msg)
 	node, _ := discover.ParseNode(enode)
 	log.Debug("node.id: %+v, node.IP: %+v, node.UDP: %+v\n", node.ID, node.IP, node.UDP)
-	ipa := &net.UDPAddr{IP:node.IP, Port:int(node.UDP)}
+	ipa := &net.UDPAddr{IP: node.IP, Port: int(node.UDP)}
 	discover.SendMsgToPeer(node.ID, ipa, msg)
 }
 
@@ -294,9 +306,9 @@ func SendMsgToPeer(toid discover.NodeID, toaddr *net.UDPAddr, msg string) error 
 	return discover.SendMsgToPeer(toid, toaddr, msg)
 }
 
-func BroatcastToGroup(msg string){
+func BroatcastToGroup(msg string) {
 	fmt.Printf("==== BroatcastToGroup() ====\n")
-	if msg == "" || emitter == nil{
+	if msg == "" || emitter == nil {
 		return
 	}
 	//fmt.Printf("sendMsg: %s\n", msg)
@@ -327,9 +339,9 @@ func BroatcastToGroup(msg string){
 	}()
 }
 
-func Broatcast(msg string){
+func Broatcast(msg string) {
 	fmt.Printf("==== Broatcast() ====\n")
-	if msg == "" || emitter == nil{
+	if msg == "" || emitter == nil {
 		return
 	}
 	//fmt.Printf("sendMsg: %s\n", msg)
@@ -353,4 +365,3 @@ func SendMsg(msg string) {
 func GetEnodes() (int, string) {
 	return GetGroup()
 }
-

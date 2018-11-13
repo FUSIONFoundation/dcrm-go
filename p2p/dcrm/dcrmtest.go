@@ -4,8 +4,8 @@ import (
 	"fmt"
 	//get args
 	"flag"
-	"time"
 	"os"
+	"time"
 	//"strings"
 	//p2p
 	//"github.com/fusion/go-fusion/p2p/dcrm"
@@ -24,7 +24,7 @@ func StartTest() {
 	//callback
 	RegisterCallback(call)
 
-	verbosity   := flag.Int("verbosity", int(log.LvlInfo), "log verbosity (0-9)")
+	verbosity := flag.Int("verbosity", int(log.LvlInfo), "log verbosity (0-9)")
 	glogger := log.NewGlogHandler(log.StreamHandler(os.Stderr, log.TerminalFormat(false)))
 	glogger.Verbosity(log.Lvl(*verbosity))
 	log.Root().SetHandler(glogger)
