@@ -51,6 +51,8 @@ import (
 
 const (
 	defaultGasPrice = params.GWei
+	sep8 = "dcrmsep8" //valatetx //caihaijun
+	sep9 = "dcrmsep9" //caihaijun
 )
 
 // PublicEthereumAPI provides an API to access Ethereum related information.
@@ -545,27 +547,40 @@ func (s *PublicFsnAPI) DcrmLiLoReqAddress(ctx context.Context,fusionaddr string,
     result,err := signed.MarshalJSON()
     
     if !dcrm.IsInGroup() {
-	msg := signed.Hash().Hex() + ":" + string(result) + ":" + fusionaddr + ":" + pubkey + ":" + cointype 
+	msg := signed.Hash().Hex() + sep9 + string(result) + sep9 + fusionaddr + sep9 + pubkey + sep9 + cointype 
 	addr,err := dcrm.SendReqToGroup(msg,"rpc_req_dcrmaddr")
 	if addr == "" || err != nil {
 		return "", err
 	}
 	
-	rethash,err2 := s.DcrmSendTransaction(ctx,string(result))
+	/*rethash,err2 := s.DcrmSendTransaction(ctx,string(result))
 	fmt.Printf("===================caihaijun,DcrmLiLoReqAddress,ret tx hash is %s================\n",rethash.Hex())
-	return rethash.Hex(),err2
+	return rethash.Hex(),err2*/
+	signtx := new(types.Transaction)
+	err2 := signtx.UnmarshalJSON([]byte(result))
+	if err2 == nil {
+	    return signtx.Hash().Hex(),nil
+	}
 
+	return "",err2
     }
 
-    v := dcrm.DcrmLiLoReqAddress{Txhash:signed.Hash(),Fusionaddr:fusionaddr,Pub:pubkey,Cointype:cointype}
+    v := dcrm.DcrmLiLoReqAddress{Txhash:signed.Hash(),Fusionaddr:fusionaddr,Pub:pubkey,Cointype:cointype,Tx:string(result)}
     addr,err := dcrm.Dcrm_LiLoReqAddress(&v)
     if addr == "" || err != nil {
 	    return "", err
     }
 
-    rethash,err2 := s.DcrmSendTransaction(ctx,string(result))
+    /*rethash,err2 := s.DcrmSendTransaction(ctx,string(result))
     fmt.Printf("===================caihaijun,DcrmLiLoReqAddress,ret tx hash is %s================\n",rethash.Hex())
-    return rethash.Hex(),err2
+    return rethash.Hex(),err2*/
+    signtx := new(types.Transaction)
+    err2 := signtx.UnmarshalJSON([]byte(result))
+    if err2 == nil {
+	return signtx.Hash().Hex(),nil
+    }
+
+    return "",err2
 }
 
 func (s *PublicFsnAPI) DcrmReqAddress(ctx context.Context,pubkey string,cointype string) (string, error) {
@@ -579,19 +594,6 @@ func (s *PublicFsnAPI) DcrmReqAddress(ctx context.Context,pubkey string,cointype
 
 func (s *PublicFsnAPI) DcrmSign(ctx context.Context,sig string,txhash string,dcrmaddr string,cointype string) (string, error) {
     //sign,err := dcrm.Dcrm_Sign(sig,txhash,dcrmaddr,cointype)
-
-    /////caihaijun////
-    if !dcrm.IsInGroup() {
-	msg := sig + ":" + txhash + ":" + dcrmaddr + ":" + cointype
-	sign,err := dcrm.SendReqToGroup(msg,"rpc_lockout")
-	if err != nil {
-	    return "", err
-	}
-	
-	return sign,nil 
-    }
-    /////caihaijun////
-
     v := dcrm.DcrmSign{Sig:sig,Txhash:txhash,DcrmAddr:dcrmaddr,Cointype:cointype}
     sign,err := dcrm.Dcrm_Sign(&v)
     fmt.Println("================caihaijun DcrmSign ret is %+v================",sign)
@@ -749,7 +751,7 @@ func (s *PublicFsnAPI) DcrmLockIn(ctx context.Context,fusionaddr string,dcrmaddr
 	//##########################################
 
 	if !dcrm.IsInGroup() {
-	    msg := signed.Hash().Hex() + ":" + string(result) + ":" + fusionaddr + ":" + cointype + ":"
+	    msg := signed.Hash().Hex() + sep9 + string(result) + sep9 + fusionaddr + sep9 + cointype + sep9
 	    for k,txs := range txhashs {
 		msg += txs
 		if k != len(txhashs) -1 {
@@ -761,15 +763,27 @@ func (s *PublicFsnAPI) DcrmLockIn(ctx context.Context,fusionaddr string,dcrmaddr
 		return common.Hash{}, err
 	    }
 	    
-	    return s.DcrmSendTransaction(ctx,string(result))
+	    signtx := new(types.Transaction)
+	    err2 := signtx.UnmarshalJSON([]byte(result))
+	    if err2 == nil {
+		return signtx.Hash(),nil
+	    }
+
+	    return common.Hash{},err2
 	}
 
 	v := dcrm.DcrmLockIn{Tx:string(result),Txhashs:txhashs}
 	if _,err = dcrm.Validate_Txhash(&v);err != nil {
 		return common.Hash{}, err
 	}
-	
-	return s.DcrmSendTransaction(ctx,string(result))
+
+	signtx := new(types.Transaction)
+	err2 := signtx.UnmarshalJSON([]byte(result))
+	if err2 == nil {
+	    return signtx.Hash(),nil
+	}
+
+	return common.Hash{},err2
 }
 
 const (
@@ -885,10 +899,10 @@ func (s *PublicFsnAPI) DcrmLockOut(ctx context.Context,sig string,txhash string,
 	    return "",nil
 	}
 
-	sighash,txerr := SendTxForLockout(s,ctx,sig,value,cointype,dcrmaddr)
+	/*sighash,txerr := SendTxForLockout(s,ctx,sig,value,cointype,dcrmaddr)
 	if txerr != nil {
 	    return "",nil
-	}
+	}*/
 
 	fromaddr,_ := new(big.Int).SetString(fusionaddr,0)
 	txfrom := common.BytesToAddress(fromaddr.Bytes())
@@ -896,7 +910,7 @@ func (s *PublicFsnAPI) DcrmLockOut(ctx context.Context,sig string,txhash string,
 	toaddr := new(common.Address)
 	*toaddr = types.DcrmPrecompileAddr
 	args := SendTxArgs{From: txfrom,To:toaddr}
-	str := "LOCKOUT" + ":" + dcrmaddr + ":" + lockoutto + ":" + cointype + ":" + sighash
+	str := "LOCKOUT" + ":" + dcrmaddr + ":" + lockoutto + ":" + cointype
 	args.Data = new(hexutil.Bytes) 
 	args.Input = new(hexutil.Bytes) 
 	*args.Data = []byte(str)
@@ -928,8 +942,42 @@ func (s *PublicFsnAPI) DcrmLockOut(ctx context.Context,sig string,txhash string,
 	}
 	
 	result,_ := signed.MarshalJSON()
-	ret,err2 := s.DcrmSendTransaction(ctx,string(result))
-	return ret.Hex(),err2
+	////////////////////////
+
+	if !dcrm.IsInGroup() {
+	    msg := signed.Hash().Hex() + sep9 + string(result) + sep9 + sig + sep9 + txhash + sep9 + lockoutto + sep9 + fusionaddr + sep9 + dcrmaddr + sep9 + value + sep9 + cointype
+	    addr,err := dcrm.SendReqToGroup(msg,"rpc_lockout")
+	    if addr == "" || err != nil {
+		    return "", err
+	    }
+	    
+	    /*rethash,err2 := s.DcrmSendTransaction(ctx,string(result))
+	    fmt.Printf("===================caihaijun,DcrmLiLoReqAddress,ret tx hash is %s================\n",rethash.Hex())
+	    return rethash.Hex(),err2*/
+	    signtx := new(types.Transaction)
+	    err2 := signtx.UnmarshalJSON([]byte(result))
+	    if err2 == nil {
+		return signtx.Hash().Hex(),nil
+	    }
+
+	    return "",err2
+	}
+
+	/*ret,err2 := s.DcrmSendTransaction(ctx,string(result))
+	return ret.Hex(),err2*/
+
+	v := dcrm.DcrmLockOut{Txhash:signed.Hash().Hex(),Tx:string(result),Sig:sig,Fusionhash:txhash,Lockto:lockoutto,FusionAddr:fusionaddr,DcrmAddr:dcrmaddr,Value:value,Cointype:cointype}
+	if _,err = dcrm.Validate_Lockout(&v);err != nil {
+		return "", err
+	}
+
+	signtx := new(types.Transaction)
+	err2 := signtx.UnmarshalJSON([]byte(result))
+	if err2 == nil {
+	    return signtx.Hash().Hex(),nil
+	}
+
+	return "",err2
 }
 
 func (s *PublicFsnAPI) DcrmTransaction(ctx context.Context,fusionaddr1 string,dcrmaddr1 string,fusionaddr2 string,dcrmaddr2 string,value string,cointype string) (common.Hash, error) {
@@ -1797,13 +1845,6 @@ func (args *SendTxArgs) toTransaction() *types.Transaction {
 	fmt.Printf("===========caihaijun,toTransaction,args.Nonce is %v,args.To is %v",*args.Nonce,*args.To)//caihaijun
 	return types.NewTransaction(uint64(*args.Nonce), *args.To, (*big.Int)(args.Value), uint64(*args.Gas), (*big.Int)(args.GasPrice), input)
 }
-
-//++++++++++++++++caihaijun-ethapi-callback++++++++++++++++
-func callethapi(tx interface{}) {
-    //tx.(.....)
-    //submitTransaction(....)
-}
-//+++++++++++++++++++++++++end+++++++++++++++++++++++++++++
 
 // submitTransaction is a helper function that submits tx to txPool and logs a message.
 func submitTransaction(ctx context.Context, b Backend, tx *types.Transaction) (common.Hash, error) {

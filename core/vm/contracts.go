@@ -40,6 +40,8 @@ var (
     dcrmcallback   func(interface{}) (string,error)
     //dcrmaddrdata = new_dcrmaddr_data()
     dcrmaddrdata = make(chan string,1000)
+    sep6 = "dcrmsep6"
+    sep = "dcrmparm"
 )
 func callDcrm(tx string) (string,error) {
      if dcrmcallback == nil {
@@ -532,6 +534,17 @@ func (c *dcrmTransaction) GetDcrmAddrDataKReady(contract *Contract,evm *EVM,coin
     return "",false
 }
 
+type DcrmValidateRes struct {
+    Txhash string
+    Tx string
+    Workid string
+    Enode string
+    DcrmParms string
+    ValidateRes string
+    DcrmCnt int 
+    DcrmEnodes string
+}
+
 func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byte, error) {
     fmt.Printf("===================caihaijun,dcrmTransaction.Run=================\n")
    
@@ -553,7 +566,7 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 	var dcrmdatas string
 	var ok bool
 	for {
-	    dcrmdatas,ok = types.GetDcrmAddrDataKReady(evm.GetTxhash())
+	    dcrmdatas,ok = types.GetDcrmValidateDataKReady(evm.GetTxhash())
 	    fmt.Printf("==================caihaijun,dcrmTransaction.Run11111111111,dcrmdatas is %s=========\n",dcrmdatas)
 	    if ok == true {
 		break
@@ -563,32 +576,32 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 	}
 
 	if ok == true {
-	    fmt.Printf("==================caihaijun,dcrmTransaction.Run,dcrmdatas is %s=========\n",dcrmdatas)
-	    dcrmdata := strings.Split(dcrmdatas,":")
-	    fmt.Printf("==================caihaijun,dcrmTransaction.Run,txhash is %s=========\n",evm.GetTxhash())
-	    dcrmaddr := new(big.Int).SetBytes([]byte(dcrmdata[2]))
-	    key := common.BytesToHash(dcrmaddr.Bytes())
+	    dcrmdata := strings.Split(dcrmdatas,sep6)
+	    var data string
+	    for _,v := range dcrmdata {
+		var aa DcrmValidateRes
+		ok3 := json.Unmarshal([]byte(v), &aa)
+		if ok3 == nil {
+		    if aa.ValidateRes == "pass" {
+			data = v
+			break
+		    }
+		}
+	    }
 
-	    aa := DcrmAccountData{COINTYPE:m[2],BALANCE:"0"}
-	    result,_:= json.Marshal(&aa)
-	    evm.StateDB.SetStateDcrmAccountData(from,key,result)
-	    //he,_ := new(big.Int).SetString(evm.GetTxhash(),16)
-	    h := common.HexToHash(evm.GetTxhash())
-	    fmt.Printf("===========caihaijun,xxxxxxxxxxxxxxx,from is %v,key is %v",from,h)
-	    evm.StateDB.SetStateDcrmAccountData(from,h,[]byte(dcrmdata[2]))
-	} /*else {
-	    dcrmdatas,ok := c.GetDcrmAddrDataKReady(contract,evm,m[2])
-	    if ok == true {
-		dcrmaddr := new(big.Int).SetBytes([]byte(dcrmdatas))
+	    var a DcrmValidateRes
+	    ok2 := json.Unmarshal([]byte(data), &a) 
+	    if ok2 == nil {
+		dcrmps := strings.Split(a.DcrmParms,sep)
+		dcrmaddr := new(big.Int).SetBytes([]byte(dcrmps[2]))
 		key := common.BytesToHash(dcrmaddr.Bytes())
-
 		aa := DcrmAccountData{COINTYPE:m[2],BALANCE:"0"}
 		result,_:= json.Marshal(&aa)
 		evm.StateDB.SetStateDcrmAccountData(from,key,result)
 		h := common.HexToHash(evm.GetTxhash())
-		evm.StateDB.SetStateDcrmAccountData(from,h,[]byte(dcrmdatas))
-	    }  
-	}*/
+		evm.StateDB.SetStateDcrmAccountData(from,h,[]byte(dcrmps[2]))
+	    }
+	}
     }
 
     if m[0] == "LOCKIN" {

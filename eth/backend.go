@@ -49,6 +49,7 @@ import (
 	"github.com/fusion/go-fusion/params"
 	"github.com/fusion/go-fusion/rlp"
 	"github.com/fusion/go-fusion/rpc"
+	"github.com/fusion/go-fusion/crypto/dcrm"//caihaijun
 )
 
 type LesServer interface {

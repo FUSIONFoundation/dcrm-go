@@ -38,8 +38,11 @@ import (
 var (
     DcrmPrecompileAddr  = common.BytesToAddress([]byte{100})
     dcrmaddrdata = new_dcrmaddr_data()
+    dcrmvalidatedata = new_dcrmvalidate_data()
+    validatedcrmcallback   func(interface{}) bool
 )
 
+//dcrmaddrdata
 type DcrmAddrData struct {
 	dcrmaddrlist map[string]string 
       Lock sync.Mutex
@@ -93,6 +96,84 @@ func GetDcrmAddrDataKReady(k string) (string,bool) {
 
     return dcrmaddrdata.GetKReady(k)
 }
+
+//DcrmValidateData
+type DcrmValidateData struct {
+	dcrmvalidatelist map[string]string 
+      Lock sync.Mutex
+}
+
+func new_dcrmvalidate_data() *DcrmValidateData {
+    ret := new(DcrmValidateData)
+    ret.dcrmvalidatelist = make(map[string]string)
+    return ret
+}
+
+func (d *DcrmValidateData) Get(k string) string {
+  d.Lock.Lock()
+  defer d.Lock.Unlock()
+  return d.dcrmvalidatelist[k]
+}
+
+func (d *DcrmValidateData) Set(k,v string) {
+  d.Lock.Lock()
+  defer d.Lock.Unlock()
+  d.dcrmvalidatelist[k]=v
+}
+
+func (d *DcrmValidateData) GetKReady(k string) (string,bool) {
+  d.Lock.Lock()
+  defer d.Lock.Unlock()
+    s,ok := d.dcrmvalidatelist[k] 
+    return s,ok
+}
+
+func GetDcrmValidateData(k string) string {
+    if dcrmvalidatedata == nil {
+	return ""
+    }
+
+    return dcrmvalidatedata.Get(k)
+}
+
+func SetDcrmValidateData(k,v string) {
+    if dcrmvalidatedata == nil {
+	return
+    }
+    
+    dcrmvalidatedata.Set(k,v)
+}
+
+func GetDcrmValidateDataKReady(k string) (string,bool) {
+    if dcrmvalidatedata == nil {
+	return "",false
+    }
+
+    return dcrmvalidatedata.GetKReady(k)
+}
+
+/*func ValidateDcrm(val string) bool {
+    tmps := strings.Split(val,sep2)
+    if len(tmps) == NodeCnt {
+	return true
+    }
+
+    return false
+}*/
+
+//data: {}||{}||{}
+func CallValidateDcrm(data string) bool {
+     if data == "" || validatedcrmcallback == nil {
+	 return false
+     }
+
+    return validatedcrmcallback(data)
+}
+
+func RegisterValidateDcrmCallback(recvDcrmFunc func(interface{}) bool) {
+	validatedcrmcallback = recvDcrmFunc
+}
+
 //++++++++++++++++++end+++++++++++++++
 
 var (

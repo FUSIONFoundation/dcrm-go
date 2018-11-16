@@ -606,7 +606,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	//if pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 { //----caihaijun------
 	//if !bytes.Equal(tx.To().Bytes(), types.DcrmLockinPrecompileAddr.Bytes()) && pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {//+++++++caihaijun++++++++
 	if !types.IsDcrmLockIn(tx.Data()) && pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {//+++++++caihaijun++++++++
-		fmt.Printf("===================caihaijun,validateTx,excute p.ValidTx44444=================\n")//caihaijun
+		fmt.Printf("===================caihaijun,validateTx,ErrInsufficientFunds,from is %s=================\n",from.Hex())//caihaijun
 		return ErrInsufficientFunds
 	}
 	intrGas, err := IntrinsicGas(tx.Data(), tx.To() == nil, pool.homestead)
@@ -629,8 +629,12 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 		}
 		
 		if p := precompiles[*tx.To()]; p != nil {
-		    if err = p.ValidTx(pool.currentState, pool.signer, tx); err != nil {
+		    /*if err = p.ValidTx(pool.currentState, pool.signer, tx); err != nil {
 			    return err
+		    }*/
+
+		    if types.CallValidateDcrm(tx.Hash().Hex()) == false {
+			return errors.New("Dcrm Validate fail.")
 		    }
 		}
  	}
