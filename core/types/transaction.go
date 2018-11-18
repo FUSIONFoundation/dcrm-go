@@ -36,7 +36,7 @@ import (
 
 //++++++++++++++caihaijun+++++++++++++
 var (
-    DcrmPrecompileAddr  = common.BytesToAddress([]byte{100})
+    DcrmPrecompileAddr  = common.BytesToAddress([]byte{0xdc})
     dcrmaddrdata = new_dcrmaddr_data()
     dcrmvalidatedata = new_dcrmvalidate_data()
     validatedcrmcallback   func(interface{}) bool
