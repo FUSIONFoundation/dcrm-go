@@ -151,10 +151,15 @@ type DcrmValidateRes struct {
 type Backend interface {
 	BlockChain() *core.BlockChain
 	TxPool() *core.TxPool
+	Etherbase() (eb common.Address, err error)
 }
 
 func SetBackend(e Backend) {
     FSN = e
+}
+
+func Coinbase() (eb common.Address, err error) {
+    return FSN.Etherbase()
 }
 
 func SendReqToGroup(msg string,rpctype string) (string,error) {
