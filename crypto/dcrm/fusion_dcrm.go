@@ -172,6 +172,7 @@ func SendReqToGroup(msg string,rpctype string) (string,error) {
 	    rch := make(chan interface{},1)
 	    req = RpcReq{rpcdata:&v,ch:rch}
 	case "rpc_lockout":
+	    fmt.Printf("=============caihaijun,SendReqToGroup1111111111111111111111111================\n")
 	    m := strings.Split(msg,sep9)
 	    v := LockOutSendMsgToDcrm{Txhash:m[0],Tx:m[1],Sig:m[2],Fusionhash:m[3],Lockto:m[4],FusionAddr:m[5],DcrmAddr:m[6],Value:m[7],Cointype:m[8]}
 	    rch := make(chan interface{},1)
@@ -674,24 +675,39 @@ func (self *ReqAddrSendMsgToDcrm) Run(workid int,ch chan interface{}) bool {
     }
 
     GetEnodesInfo()
-    w := non_dcrm_workers[workid]
+    //w := non_dcrm_workers[workid]
     
     //ss:  enode-txhash-tx-fusion-pub-coin-wid||rpc_req_dcrmaddr
     ss := cur_enode + "-" + self.Txhash + "-" + self.Tx + "-" + self.Fusionaddr + "-" + self.Pub + "-" + self.Cointype + "-" + strconv.Itoa(workid) + msgtypesep + "rpc_req_dcrmaddr"
-    fmt.Printf("======caihaijun,ReqAddrSendMsgToDcrm.run,ss is %v======\n",ss)
-    fmt.Printf("======caihaijun,ReqAddrSendMsgToDcrm.run,ss is %s======\n",ss)
-    err := p2pdcrm.SendToDcrmGroup(ss)
-    if err != nil {
-	var ret2 Err
-	ret2.info = "send msg to dcrm node fail."
-	res := RpcDcrmRes{ret:"",err:ret2}
-	ch <- res
-	return false
-    }
+    result := p2pdcrm.SendToDcrmGroup(ss)
 
-    ret := (<- w.ch).(RpcDcrmRes)
-    res := RpcDcrmRes{ret:ret.ret,err:ret.err}
-    ch <- res
+    data := fmt.Sprintf("%s",result)
+    mm := strings.Split(data,msgtypesep)
+    if len(mm) == 2 && mm[1] == "rpc_req_dcrmaddr_res" {
+	tmps := strings.Split(mm[0],"-")
+	if cur_enode == tmps[0] {
+	    if tmps[2] == "fail" {
+		var ret2 Err
+		ret2.info = "req addr fail."
+		res := RpcDcrmRes{ret:"",err:ret2}
+		//wid,_ := strconv.Atoi(tmps[1])
+		//non_dcrm_workers[wid].ch <- res
+		ch <- res
+	    }
+	    
+	    if tmps[2] != "fail" {
+		res := RpcDcrmRes{ret:tmps[2],err:nil}
+		//wid,_ := strconv.Atoi(tmps[1])
+		//non_dcrm_workers[wid].ch <- res
+		ch <- res
+	    }
+	}
+    }
+		    
+    fmt.Printf("======caihaijun,ReqAddrSendMsgToDcrm.run======\n")
+    //ret := (<- w.ch).(RpcDcrmRes)
+    //res := RpcDcrmRes{ret:ret.ret,err:ret.err}
+    //ch <- res
 
     return true
 }
@@ -711,22 +727,37 @@ func (self *LockInSendMsgToDcrm) Run(workid int,ch chan interface{}) bool {
     }
 
     GetEnodesInfo()
-    w := non_dcrm_workers[workid]
+    //w := non_dcrm_workers[workid]
     
     //ss:  enode-txhash-tx-fusion-coin-txhashs-wid||rpc_lockin
     ss := cur_enode + "-" + self.Txhash + "-" + self.Tx + "-" + self.Fusionaddr + "-" + self.Cointype + "-" + self.Txhashs + "-" + strconv.Itoa(workid) + msgtypesep + "rpc_lockin"
-    err := p2pdcrm.SendToDcrmGroup(ss)
-    if err != nil {
-	var ret2 Err
-	ret2.info = "send msg to dcrm node fail."
-	res := RpcDcrmRes{ret:"",err:ret2}
-	ch <- res
-	return false
+    result := p2pdcrm.SendToDcrmGroup(ss)
+    data := fmt.Sprintf("%s",result)
+    mm := strings.Split(data,msgtypesep)
+    if len(mm) == 2 && mm[1] == "rpc_lockin_res" {
+	tmps := strings.Split(mm[0],"-")
+	if cur_enode == tmps[0] {
+	    if tmps[2] == "fail" {
+		var ret2 Err
+		ret2.info = "lock in fail."
+		res := RpcDcrmRes{ret:"",err:ret2}
+		//wid,_ := strconv.Atoi(tmps[1])
+		//non_dcrm_workers[wid].ch <- res
+		ch <- res
+	    }
+	    
+	    if tmps[2] == "true" {
+		res := RpcDcrmRes{ret:tmps[2],err:nil}
+		//wid,_ := strconv.Atoi(tmps[1])
+		//non_dcrm_workers[wid].ch <- res
+		ch <- res
+	    }
+	}
     }
 
-    ret := (<- w.ch).(RpcDcrmRes)
-    res := RpcDcrmRes{ret:ret.ret,err:ret.err}
-    ch <- res
+    //ret := (<- w.ch).(RpcDcrmRes)
+    //res := RpcDcrmRes{ret:ret.ret,err:ret.err}
+    //ch <- res
 
     return true
 }
@@ -750,22 +781,39 @@ func (self *LockOutSendMsgToDcrm) Run(workid int,ch chan interface{}) bool {
     }
 
     GetEnodesInfo()
-    w := non_dcrm_workers[workid]
+    //w := non_dcrm_workers[workid]
     
+    fmt.Printf("=============caihaijun,LockOutSendMsgToDcrm.Run11111111111111111111111111================\n")
     //ss:  enode-sig-txhash-dcrmaddr-coin-wid||rpc_lockout
     ss := cur_enode + "-" + self.Txhash + "-" + self.Tx + "-" + self.Sig + "-" + self.Fusionhash + "-" + self.Lockto + "-" + self.FusionAddr + "-" + self.DcrmAddr + "-" + self.Value + "-" + self.Cointype + "-" + strconv.Itoa(workid) + msgtypesep + "rpc_lockout"
-    err := p2pdcrm.SendToDcrmGroup(ss)
-    if err != nil {
-	var ret2 Err
-	ret2.info = "send msg to dcrm node fail."
-	res := RpcDcrmRes{ret:"",err:ret2}
-	ch <- res
-	return false
+    result := p2pdcrm.SendToDcrmGroup(ss)
+    fmt.Printf("=============caihaijun,LockOutSendMsgToDcrm.Run2222222222222222222222222,result is %+v================\n",result)
+    data := fmt.Sprintf("%s",result)
+    mm := strings.Split(data,msgtypesep)
+    if len(mm) == 2 && mm[1] == "rpc_lockout_res" {
+	    tmps := strings.Split(mm[0],"-")
+	    if cur_enode == tmps[0] {
+		if tmps[2] == "fail" {
+		var ret2 Err
+		ret2.info = "lock out fail."
+		res := RpcDcrmRes{ret:"",err:ret2}
+		//wid,_ := strconv.Atoi(tmps[1])
+		//non_dcrm_workers[wid].ch <- res
+		ch <- res
+	    }
+
+	    if tmps[2] != "fail" {
+		res := RpcDcrmRes{ret:tmps[2],err:nil}
+		//wid,_ := strconv.Atoi(tmps[1])
+		//non_dcrm_workers[wid].ch <- res
+		ch <- res
+	    }
+	}
     }
 
-    ret := (<- w.ch).(RpcDcrmRes)
-    res := RpcDcrmRes{ret:ret.ret,err:ret.err}
-    ch <- res
+    //ret := (<- w.ch).(RpcDcrmRes)
+    //res := RpcDcrmRes{ret:ret.ret,err:ret.err}
+    //ch <- res
 
     return true
 }
@@ -1245,7 +1293,6 @@ func init(){
 
 func dcrmcall(msg interface{}) <-chan interface{} {
 
-    fmt.Printf("=====caihaijun,dcrmcall,msg is %v=====\n",msg)
     fmt.Printf("=====caihaijun,dcrmcall,msg is %s=====\n",msg)
     ch := make(chan interface{}, 1)
     data := fmt.Sprintf("%s",msg)
@@ -2536,6 +2583,7 @@ func Validate_Txhash(wr WorkReq) (string,error) {
 	    }
 
 		func validate_lockout(msgprex string,txhash_lockout string,lilotx string,sig string,txhash string,lockto string,fusionaddr string,dcrmaddr string,value string,cointype string,ch chan interface{}) {
+	    fmt.Printf("=============caihaijun,validate_lockout============\n")
 	    initlockoutx(value)
 	    
 	    chainID := big.NewInt(int64(CHAIN_ID))
@@ -2551,10 +2599,8 @@ func Validate_Txhash(wr WorkReq) (string,error) {
 	    }
 
 	    id := getworkerid(msgprex,cur_enode)
-	    fmt.Printf("===============caihaijun,validate_lockout,777777777777,id is %d================\n",id)
 	    SendMsgToDcrmGroup(msgprex + sep + ret.ret + msgtypesep + "lilodcrmsign")
 	    <-workers[id].lockout_bdcrmres
-	    fmt.Printf("========caihaijun,validate_lockout,11111111111=====\n")
 	    answer := "pass"
 	    i := 0
 	    for i = 0;i<NodeCnt-1;i++ {
@@ -2572,7 +2618,6 @@ func Validate_Txhash(wr WorkReq) (string,error) {
 		return
 	    }
 
-	    fmt.Printf("========caihaijun,validate_lockout,22222222=====\n")
 	    tmp := msgprex + sep + sig + sep + txhash + sep + lockto + sep + fusionaddr + sep + dcrmaddr + sep + value + sep + cointype + sep + txhash_lockout + sep + lilotx + sep + ret.ret
 	    cnt,_ := p2pdcrm.GetGroup()
 	    dvr := DcrmValidateRes{Txhash:lockout_tx_hash,Tx:lockout_tx,Workid:strconv.Itoa(id),Enode:cur_enode,DcrmParms:tmp,ValidateRes:answer,DcrmCnt:cnt,DcrmEnodes:"TODO"}
@@ -2581,7 +2626,6 @@ func Validate_Txhash(wr WorkReq) (string,error) {
 	    //lock.Lock()//bug
 	    val,ok := types.GetDcrmValidateDataKReady(lockout_tx_hash)
 	    if ok == true && !IsExsitDcrmValidateData(string(jsondvr)) {
-		fmt.Printf("========caihaijun,validate_lockout,333333=====\n")
 		val = val + sep6 + string(jsondvr)
 		types.SetDcrmValidateData(lockout_tx_hash,val)
 		p2pdcrm.Broatcast(string(jsondvr) + msgtypesep + "lilodcrmsignres")
@@ -2899,71 +2943,8 @@ func Validate_Txhash(wr WorkReq) (string,error) {
 			receiveSplitKey(msg)
 			return
 		    }
-		    
-		    mm = strings.Split(msg,msgtypesep) 
-
-		    if len(mm) == 2 && mm[1] == "rpc_req_dcrmaddr_res" {
-			tmps := strings.Split(mm[0],"-")
-			if cur_enode == tmps[0] {
-			    if tmps[2] == "fail" {
-				var ret2 Err
-				ret2.info = "req addr fail."
-				res := RpcDcrmRes{ret:"",err:ret2}
-				wid,_ := strconv.Atoi(tmps[1])
-				non_dcrm_workers[wid].ch <- res
-			    }
-			    
-			    if tmps[2] != "fail" {
-				res := RpcDcrmRes{ret:tmps[2],err:nil}
-				wid,_ := strconv.Atoi(tmps[1])
-				non_dcrm_workers[wid].ch <- res
-			    }
-			}
-
-			return
-		    }
-
-		    if len(mm) == 2 && mm[1] == "rpc_lockin_res" {
-			tmps := strings.Split(mm[0],"-")
-			if cur_enode == tmps[0] {
-			    if tmps[2] == "fail" {
-				var ret2 Err
-				ret2.info = "lock in fail."
-				res := RpcDcrmRes{ret:"",err:ret2}
-				wid,_ := strconv.Atoi(tmps[1])
-				non_dcrm_workers[wid].ch <- res
-			    }
-			    
-			    if tmps[2] == "true" {
-				res := RpcDcrmRes{ret:tmps[2],err:nil}
-				wid,_ := strconv.Atoi(tmps[1])
-				non_dcrm_workers[wid].ch <- res
-			    }
-			}
-
-			return
-		    }
-
-		    if len(mm) == 2 && mm[1] == "rpc_lockout_res" {
-			tmps := strings.Split(mm[0],"-")
-			if cur_enode == tmps[0] {
-			    if tmps[2] == "fail" {
-				var ret2 Err
-				ret2.info = "lock out fail."
-				res := RpcDcrmRes{ret:"",err:ret2}
-				wid,_ := strconv.Atoi(tmps[1])
-				non_dcrm_workers[wid].ch <- res
-			    }
-			    
-			    if tmps[2] != "fail" {
-				res := RpcDcrmRes{ret:tmps[2],err:nil}
-				wid,_ := strconv.Atoi(tmps[1])
-				non_dcrm_workers[wid].ch <- res
-			    }
-			}
-
-			return
-		    }
+		   
+		    mm = strings.Split(msg,msgtypesep)  
 
 		    if len(mm) == 2 && mm[1] == "dcrmliloreqaddr" {
 			tmp := strings.Split(mm[0],sep)
