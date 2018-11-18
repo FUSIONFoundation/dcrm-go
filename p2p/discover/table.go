@@ -91,6 +91,7 @@ type transport interface {
 	findgroup(toid NodeID, addr *net.UDPAddr, target NodeID) ([]*Node, error)
 	sendToPeer(toid NodeID, toaddr *net.UDPAddr, msg string) error
 	sendMsgToPeer(toid NodeID, toaddr *net.UDPAddr, msg string) error
+	sendToGroupDCRM(toid NodeID, toaddr *net.UDPAddr, msg interface{}) (interface{}, error)
 	close()
 }
 
@@ -445,8 +446,8 @@ func (tab *Table) doRefresh(done chan struct{}) {
 
 func (tab *Table) loadSeedNodes() {
 	seeds := make([]*Node, 0)
-	seeds = append(seeds, tab.nursery...)//bootstrap first
-	seeds = append(seeds, tab.db.querySeeds(seedCount, seedMaxAge)...)//db last
+	seeds = append(seeds, tab.nursery...)                              //bootstrap first
+	seeds = append(seeds, tab.db.querySeeds(seedCount, seedMaxAge)...) //db last
 	//seeds := tab.db.querySeeds(seedCount, seedMaxAge)
 	//seeds = append(seeds, tab.nursery...)
 	for i := range seeds {
