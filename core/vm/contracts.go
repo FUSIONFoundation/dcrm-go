@@ -598,7 +598,7 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 		aa := DcrmAccountData{COINTYPE:m[2],BALANCE:"0"}
 		result,_:= json.Marshal(&aa)
 		evm.StateDB.SetStateDcrmAccountData(from,key,result)
-		h := common.HexToHash(evm.GetTxhash())
+		h := common.HexToHash(m[2])
 		evm.StateDB.SetStateDcrmAccountData(from,h,[]byte(dcrmps[2]))
 	    }
 	}

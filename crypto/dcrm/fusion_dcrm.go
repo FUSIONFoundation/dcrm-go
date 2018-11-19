@@ -1677,7 +1677,6 @@ func validate_dcrmaddr(msgprex string,tx string,ch chan interface{}) {
 func validate_txhash(msgprex string,tx string,txhashs []string,ch chan interface{}) {
     fmt.Printf("===============caihaijun,validate_txhash===========\n")
     workid := getworkerid(msgprex,cur_enode)
-    //worker := workers[workid]
 
     signtx := new(types.Transaction)
     err := signtx.UnmarshalJSON([]byte(tx))
@@ -1732,26 +1731,6 @@ func validate_txhash(msgprex string,tx string,txhashs []string,ch chan interface
 	    if IsValidBTCTx(returnJson,txhash,dcrmaddr,string(signtx.Value().Bytes())) {
 		answer = "pass"
 		break
-		
-		/*valiinfo := msgprex + sep + tx + msgtypesep + "txhash_validate_pass"
-		SendMsgToDcrmGroup(valiinfo)
-		<-worker.btxvalidate
-		i := 0
-		for i = 0;i<NodeCnt-1;i++ {
-		    va := <-worker.msg_txvalidate
-		    mm := strings.Split(va,msgtypesep)
-		    if mm[1] == "txhash_validate_no_pass" {
-			var ret2 Err
-			ret2.info = "txhash validate fail."
-			res := RpcDcrmRes{ret:"",err:ret2}
-			ch <- res
-			return 
-		    }
-		}
-
-		res := RpcDcrmRes{ret:"true",err:nil}
-		ch <- res
-		return*/
 	    }
 	}
     }
@@ -1799,52 +1778,10 @@ func validate_txhash(msgprex string,tx string,txhashs []string,ch chan interface
 		if strings.EqualFold(from,lockoutfrom) == true && vv == vvv && strings.EqualFold(to,lockoutto) == true {
 		    answer = "pass"
 		    break
-		    /*valiinfo := msgprex + sep + tx + msgtypesep + "txhash_validate_pass"
-		    SendMsgToDcrmGroup(valiinfo)
-		    <-worker.btxvalidate
-		    i := 0
-		    for i = 0;i<NodeCnt-1;i++ {
-			va := <-worker.msg_txvalidate
-			mm := strings.Split(va,msgtypesep)
-			if mm[1] == "txhash_validate_no_pass" {
-			    fmt.Printf("===============caihaijun,validate_txhash,mm[1] == txhash_validate_no_pass===========\n")
-			    var ret2 Err
-			    ret2.info = "txhash validate fail."
-			    res := RpcDcrmRes{ret:"",err:ret2}
-			    ch <- res
-			    return 
-			}
-		    }
-
-		    res := RpcDcrmRes{ret:"true",err:nil}
-		    ch <- res
-		    return*/
 		}
 	    } else if strings.EqualFold(to,dcrmaddr) && vv == vvv {
 		answer = "pass"
 		break
-		
-		/*fmt.Printf("===============caihaijun,validate_txhash,to == dcrmaddr && vv == vvv===========\n")
-		valiinfo := msgprex + sep + tx + msgtypesep + "txhash_validate_pass"
-		SendMsgToDcrmGroup(valiinfo)
-		<-worker.btxvalidate
-		i := 0
-		for i = 0;i<NodeCnt-1;i++ {
-		    va := <-worker.msg_txvalidate
-		    mm := strings.Split(va,msgtypesep)
-		    if mm[1] == "txhash_validate_no_pass" {
-			fmt.Printf("===============caihaijun,validate_txhash,mm[1] == txhash_validate_no_pass===========\n")
-			var ret2 Err
-			ret2.info = "txhash validate fail."
-			res := RpcDcrmRes{ret:"",err:ret2}
-			ch <- res
-			return 
-		    }
-		}
-
-		res := RpcDcrmRes{ret:"true",err:nil}
-		ch <- res
-		return*/
 	    }
 	}
     }
@@ -1879,15 +1816,6 @@ func validate_txhash(msgprex string,tx string,txhashs []string,ch chan interface
     
     res := RpcDcrmRes{ret:"true",err:nil}
     ch <- res
-
-    /*valiinfo := msgprex + sep + tx + msgtypesep + "txhash_validate_no_pass"
-    SendMsgToDcrmGroup(valiinfo)
-    <-worker.btxvalidate
-
-    var ret2 Err
-    ret2.info = "txhash validate fail."
-    res := RpcDcrmRes{ret:"",err:ret2}
-    ch <- res*/
 }
 
 type SendRawTxRes struct {
@@ -2212,7 +2140,7 @@ func Validate_Txhash(wr WorkReq) (string,error) {
 
 		    GetEnodesInfo()
 
-		    pub := []rune(pubkey)
+		    /*pub := []rune(pubkey)
 		    if len(pub) != 132 { //132 = 4 + 64 + 64
 			fmt.Println("===========pubkey len is not 132. (0x04xxxxxx)=================")
 			var ret2 Err
@@ -2220,7 +2148,7 @@ func Validate_Txhash(wr WorkReq) (string,error) {
 			res := RpcDcrmRes{ret:"",err:ret2}
 			ch <- res
 			return
-		    }
+		    }*/
 
 		    if cointype != "ETH" && cointype != "BTC" {
 			fmt.Println("===========coin type is not supported.must be btc or eth.=================")
@@ -2348,7 +2276,7 @@ func Validate_Txhash(wr WorkReq) (string,error) {
 		    m := AccountListInfo{COINTYPE:cointype,DCRMADDRESS:stmp,DCRMPUBKEY:ret}
 		    b,_ := json.Marshal(m)
 		    //
-		    has,_ := db.Has([]byte(pubkey))
+		    /*has,_ := db.Has([]byte(pubkey))
 		    var data string
 		    if has == false {
 			data = ""
@@ -2359,7 +2287,7 @@ func Validate_Txhash(wr WorkReq) (string,error) {
 			data = data + sep
 			data = data + string(b)
 		    }
-		    db.Put([]byte(pubkey),[]byte(data))
+		    db.Put([]byte(pubkey),[]byte(data))*/
 		    //
 
 		    res := RpcDcrmRes{ret:string(b),err:nil}
@@ -2663,47 +2591,19 @@ func Validate_Txhash(wr WorkReq) (string,error) {
 	    }
 	    //lock.Unlock()//bug
 
-	    /*message, merr := hex.DecodeString(ret.ret)
-	    if merr != nil {
-		res := RpcDcrmRes{ret:"",err:merr}
-		ch <- res
-		return
-	    }
-	    
-	    sigTx, signErr := tx.WithSignature(signer, message)
-	    if signErr != nil {
-		res := RpcDcrmRes{ret:"",err:signErr}
-		ch <- res
-		return
-	    }
-	    
-	    client, err := ethclient.Dial("http://54.183.185.30:8018")
-	    if err != nil {
-		res := RpcDcrmRes{ret:"",err:err}
-		ch <- res
-		return
-	    }
-	    ctx := context.Background()
-	    txErr := client.SendTransaction(ctx, sigTx)
-	    if txErr != nil {
-		res := RpcDcrmRes{ret:"",err:txErr}
-		ch <- res
-		return
-	    }*/
-	    
 	    res := RpcDcrmRes{ret:ret.ret,err:nil}
 	    ch <- res
 	}
 
 		func dcrm_sign(msgprex string,sig string,txhash string,dcrmaddr string,cointype string,ch chan interface{}) {
-		    sigs := []rune(sig)
+		    /*sigs := []rune(sig)
 		    if len(sigs) != 130 {
 			var ret2 Err
 			ret2.info = "sig len is not right,must be 130,and first with 0x."
 			res := RpcDcrmRes{ret:"",err:ret2}
 			ch <- res
 			return
-		    }
+		    }*/
 
 		    dcrmaddrs := []rune(dcrmaddr)
 		    if cointype == "ETH" && len(dcrmaddrs) != 42 { //42 = 2 + 20*2 =====>0x + addr
