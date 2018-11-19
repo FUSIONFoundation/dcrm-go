@@ -1719,14 +1719,25 @@ func validate_txhash(msgprex string,tx string,txhashs []string,ch chan interface
 		    return
 	    }
 	    reqJson := "{\"method\":\"getrawtransaction\",\"params\":[\"" + string(txhash) + "\"" + "," + "true" + "],\"id\":1}";
-	    returnJson, err2 := rpcClient.Send(reqJson)
-	    if err2 != nil {
-		    var ret2 Err
-		    ret2.info = "send rpc fail."
-		    res := RpcDcrmRes{ret:"",err:ret2}
-		    ch <- res
-		    return
+
+	    var returnJson string
+	    for {
+		returnJson, err2 := rpcClient.Send(reqJson)
+		if err2 != nil {
+			var ret2 Err
+			ret2.info = "send rpc fail."
+			res := RpcDcrmRes{ret:"",err:ret2}
+			ch <- res
+			return
+		}
+
+		if returnJson != "" {
+		    break
+		}
+
+		time.Sleep(time.Duration(20)*time.Second)
 	    }
+
 	    log.Println("returnJson:", returnJson)
 	    if IsValidBTCTx(returnJson,txhash,dcrmaddr,string(signtx.Value().Bytes())) {
 		answer = "pass"
@@ -1752,15 +1763,25 @@ func validate_txhash(msgprex string,tx string,txhashs []string,ch chan interface
         defer cancel()
 
 	for _,txhash := range txhashs {
+
 	    var result RPCTransaction
-	    err = client.CallContext(ctx, &result, "eth_getTransactionByHash",txhash)
-	    if err != nil {
-		    fmt.Printf("===============caihaijun,validate_txhash,client call error.===========\n")
-		    var ret2 Err
-		    ret2.info = "client call error."
-		    res := RpcDcrmRes{ret:"",err:ret2}
-		    ch <- res
-		    return
+	    
+	    for {
+		err = client.CallContext(ctx, &result, "eth_getTransactionByHash",txhash)
+		if err != nil {
+			fmt.Printf("===============caihaijun,validate_txhash,client call error.===========\n")
+			var ret2 Err
+			ret2.info = "client call error."
+			res := RpcDcrmRes{ret:"",err:ret2}
+			ch <- res
+			return
+		}
+
+		if result.From.Hex() != "" {
+		    break
+		}
+		    
+		time.Sleep(time.Duration(15)*time.Second)
 	    }
 
 	    from := result.From.Hex()
