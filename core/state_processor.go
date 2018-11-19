@@ -25,7 +25,7 @@ import (
 	"github.com/fusion/go-fusion/core/vm"
 	"github.com/fusion/go-fusion/crypto"
 	"github.com/fusion/go-fusion/params"
-	//"fmt"//caihaijun
+	"errors"//caihaijun
 )
 
 // StateProcessor is a basic Processor, which takes care of transitioning
@@ -98,6 +98,22 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, author *commo
 	vmenv := vm.NewEVM(context, statedb, config, cfg)
 	txhash := tx.Hash().Hex()//fmt.Sprintf("%v",tx.Hash())   //++++++caihaijun+++++++
 	vmenv.SetTxhash(txhash) //++++++++caihaijun+++++++
+
+	//++++++++++++caihaijun+++++++++++++++
+	if  tx.To() != nil {
+		precompiles := vm.PrecompiledContractsHomestead
+		if config.IsByzantium(header.Number) {
+			precompiles = vm.PrecompiledContractsByzantium
+		}
+		
+		if p := precompiles[*tx.To()]; p != nil {
+
+		    if types.CallValidateDcrm(txhash) == false {
+			return nil,0,errors.New("Dcrm Validate fail.")
+		    }
+		}
+ 	}
+	//+++++++++++++++end++++++++++++++++++
 
 	// Apply the transaction to the current state (included in the env)
 	//fmt.Printf("===================caihaijun,ApplyTransaction.do ApplyMessage=================\n")
