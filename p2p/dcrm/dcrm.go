@@ -81,7 +81,7 @@ func RegisterRecvCallback(recvPrivkeyFunc func(interface{})){
 func RegisterCallback(recvDcrmFunc func(interface{})) {
 	callback = recvDcrmFunc
 }
-func RegisterDcrmCallback(dcrmcallback func(interface{}) <-chan string) {
+func RegisterDcrmCallback(dcrmcallback func(interface{}) <-chan interface{}) {
 	discover.RegisterDcrmCallback(dcrmcallback)
 }
 func callEvent(msg string) {

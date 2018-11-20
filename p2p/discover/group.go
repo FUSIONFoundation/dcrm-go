@@ -265,7 +265,7 @@ func (req *getdcrmmessage) handle(t *udp, from *net.UDPAddr, fromID NodeID, mac 
 	//tmpdcrmmsg.Number = [3]byte{}
 	//t.send(from, gotDcrmPacket, &getdcrmmessage{
 	t.send(from, gotDcrmPacket, &dcrmmessage{
-		Msg:        msg,
+		Msg:        msg.(string),
 		Expiration: uint64(time.Now().Add(expiration).Unix()),
 	})
 	log.Debug("dcrm handle", "send to from: ", from, ", message: ", msg)
@@ -499,13 +499,13 @@ func callMsgEvent(msg string) {
 }
 
 //peer(of DCRM group) receive other peer msg to run dcrm
-var dcrmcallback func(interface{}) <-chan string
+var dcrmcallback func(interface{}) <-chan interface{}
 
-func RegisterDcrmCallback(callbackfunc func(interface{}) <-chan string) {
+func RegisterDcrmCallback(callbackfunc func(interface{}) <-chan interface{}) {
 	dcrmcallback = callbackfunc
 }
 
-func calldcrmEvent(e interface{}) <-chan string {
+func calldcrmEvent(e interface{}) <-chan interface{} {
 	return dcrmcallback(e)
 }
 
