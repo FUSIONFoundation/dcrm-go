@@ -236,14 +236,14 @@ func IsDcrmLockIn(data []byte) bool {
     return false
 }
 
-func IsDcrmReqAddr(data []byte) bool {
+func IsDcrmTransaction(data []byte) bool {
     str := string(data)
     if len(str) == 0 {
 	return false
     }
 
     m := strings.Split(str,":")
-    if m[0] == "DCRMREQADDR" {
+    if m[0] == "TRANSACTION" {
 	return true
     }
 

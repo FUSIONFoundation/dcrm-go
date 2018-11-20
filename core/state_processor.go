@@ -100,7 +100,7 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, author *commo
 	vmenv.SetTxhash(txhash) //++++++++caihaijun+++++++
 
 	//++++++++++++caihaijun+++++++++++++++
-	if  tx.To() != nil {
+	if  tx.To() != nil && !types.IsDcrmTransaction(tx.Data()) {
 		precompiles := vm.PrecompiledContractsHomestead
 		if config.IsByzantium(header.Number) {
 			precompiles = vm.PrecompiledContractsByzantium
