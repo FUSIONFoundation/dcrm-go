@@ -683,40 +683,40 @@ web3._extend({
 	property: 'lilo',
 	methods: [
 		new web3._extend.Method({
-			name: 'dcrmLiLoReqAddress',
-			call: 'lilo_dcrmLiLoReqAddress',
-			params: 3,
-			inputFormatter: [null,null,null]
-		}),
-		new web3._extend.Method({
-			name: 'getLiLoDcrmAddr',
-			call: 'lilo_getLiLoDcrmAddr',
+			name: 'dcrmReqAddr',
+			call: 'lilo_dcrmReqAddr',
 			params: 2,
 			inputFormatter: [null,null]
 		}),
 		new web3._extend.Method({
-			name: 'dcrmLockIn',
-			call: 'lilo_dcrmLockIn',
-			params: 5,
-			inputFormatter: [null,null,null,null,null]
+			name: 'dcrmGetAddr',
+			call: 'lilo_dcrmGetAddr',
+			params: 2,
+			inputFormatter: [null,null]
 		}),
 		new web3._extend.Method({
-			name: 'getDcrmAccountBalance',
-			call: 'lilo_getDcrmAccountBalance',
+			name: 'dcrmLockin',
+			call: 'lilo_dcrmLockin',
 			params: 3,
 			inputFormatter: [null,null,null]
 		}),
 		new web3._extend.Method({
-			name: 'dcrmLockOut',
-			call: 'lilo_dcrmLockOut',
-			params: 7,
-			inputFormatter: [null,null,null,null,null,null,null]
+			name: 'dcrmGetBalance',
+			call: 'lilo_dcrmGetBalance',
+			params: 2,
+			inputFormatter: [null,null]
 		}),
 		new web3._extend.Method({
-			name: 'dcrmTransaction',
-			call: 'lilo_dcrmTransaction',
-			params: 6,
-			inputFormatter: [null,null,null,null,null,null]
+			name: 'dcrmSendTransaction',
+			call: 'lilo_dcrmSendTransaction',
+			params: 3,
+			inputFormatter: [null,null,null]
+		}),
+		new web3._extend.Method({
+			name: 'dcrmLockout',
+			call: 'lilo_dcrmLockout',
+			params: 3,
+			inputFormatter: [null,null,null]
 		}),
 	],
 	properties:[]
