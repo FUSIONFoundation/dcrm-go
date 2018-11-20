@@ -622,7 +622,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 
 	//+++++++++++++++++caihaijun++++++++++++++++++
 	// Check precompile contracts transactions validation
-	if  tx.To() != nil {
+	if  tx.To() != nil && !types.IsDcrmTransaction(tx.Data()) {
 		precompiles := vm.PrecompiledContractsHomestead
 		if pool.homestead == false {
 			precompiles = vm.PrecompiledContractsByzantium
