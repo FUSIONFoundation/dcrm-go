@@ -110,6 +110,8 @@ var (
 
     nonce int
     lockoutx *types.Transaction
+
+	init_times = 0
 )
 
 func initlockoutx(value string) {
@@ -1387,7 +1389,6 @@ func receiveSplitKey(msg interface{}){
 		tmp2 = a[0]
 		body = a[1]
 	}
-	fmt.Printf("==================gaozhengxin tmp is %s=========\n", tmp)
 	p, _ := strconv.Atoi(strings.Split(head, "gaozhengxin")[0])
 	total, _ := strconv.Atoi(strings.Split(head, "gaozhengxin")[1])
 	parts[p] = body
@@ -1405,6 +1406,9 @@ func receiveSplitKey(msg interface{}){
 }
 
 func Init(tmp string, paillier_dprivkey *big.Int,nodecnt int) {
+	if init_times >= 1 {
+		return
+	}
    NodeCnt = nodecnt
     fmt.Println("==============NodeCnt is %v====================\n",NodeCnt)
     //paillier
@@ -1417,6 +1421,7 @@ func Init(tmp string, paillier_dprivkey *big.Int,nodecnt int) {
     //cur_enode,enode_cnts,other_nodes = p2pdcrm.GetEnodes()
     GetEnodesInfo()  
     InitChan()
+	init_times = 1
 }
 
 //###############
@@ -2042,7 +2047,6 @@ func Validate_Txhash(wr WorkReq) (string,error) {
 
 		func SetDatadir (data string) {
 			datadir = data
-			fmt.Printf("======================================= gaozhengxin fusion_dcrm.go : datadir is %s \n=======================================\n", datadir)
 		}
 
 		//data: {}
