@@ -75,13 +75,13 @@ var (
 	selfid     discover.NodeID
 )
 
-func RegisterRecvCallback(recvPrivkeyFunc func(interface{})) {
+func RegisterRecvCallback(recvPrivkeyFunc func(interface{})){
 	discover.RegistermsgCallback(recvPrivkeyFunc)
 }
 func RegisterCallback(recvDcrmFunc func(interface{})) {
 	callback = recvDcrmFunc
 }
-func RegisterDcrmCallback(dcrmcallback func(interface{}) <-chan interface{}) {
+func RegisterDcrmCallback(dcrmcallback func(interface{}) <-chan string) {
 	discover.RegisterDcrmCallback(dcrmcallback)
 }
 func callEvent(msg string) {
@@ -182,7 +182,7 @@ func (dcrm *Dcrm) Protocols() []p2p.Protocol {
 
 // New creates a Whisper client ready to communicate through the Ethereum P2P network.
 func New(cfg *Config) *Dcrm {
-	fmt.Printf("====  dcrm New  ====\n")
+	log.Debug("====  dcrm New  ====\n")
 	dcrm := &Dcrm{
 		peers: make(map[discover.NodeID]*Peer),
 		quit:  make(chan struct{}),
@@ -205,7 +205,7 @@ func New(cfg *Config) *Dcrm {
 	return dcrm
 }
 func HandlePeer(peer *p2p.Peer, rw p2p.MsgReadWriter) error {
-	fmt.Printf("==== HandlePeer() ====\n")
+	log.Debug("==== HandlePeer() ====\n")
 	emitter.addPeer(peer, rw)
 	//id := fmt.Sprintf("%x", peer.ID)
 	id := peer.ID()
@@ -228,7 +228,7 @@ func HandlePeer(peer *p2p.Peer, rw p2p.MsgReadWriter) error {
 			if err := msg.Decode(&recv); err != nil {
 				fmt.Println("decode msg err", err)
 			} else {
-				log.Info("msg", "read msg:", recv[0])
+				log.Debug("msg", "read msg:", recv[0])
 				callEvent(recv[0])
 
 				//fmt.Println("read msg:", emitter.peers[id].RecvMessage[0])
@@ -247,7 +247,7 @@ func HandlePeer(peer *p2p.Peer, rw p2p.MsgReadWriter) error {
 }
 
 func GetGroup() (int, string) {
-	fmt.Printf("==== GetGroup() ====\n")
+	log.Debug("==== GetGroup() ====\n")
 	if dcrmgroup == nil {
 		return 0, ""
 	}
@@ -261,7 +261,7 @@ func GetGroup() (int, string) {
 		enode += e.enode
 		count++
 	}
-	fmt.Printf("group: count = %+v, enode = %+v\n", count, enode)
+	log.Debug("group", "count = ", count, "enode = ", enode)
 	//TODO
 	return count, enode
 }
@@ -271,7 +271,7 @@ func GetSelfID() discover.NodeID {
 }
 
 func recvGroupInfo(req interface{}) {
-	fmt.Printf("==== recvGroupInfo() ====\n")
+	log.Debug("==== recvGroupInfo() ====\n")
 	selfid = discover.GetLocalID()
 	log.Debug("local ID: %+v\n", selfid)
 	log.Debug("req = %#v\n", req)
@@ -287,8 +287,8 @@ func recvGroupInfo(req interface{}) {
 
 //TODO callback
 func recvPrivkeyInfo(msg interface{}) {
-	fmt.Printf("==== recvPrivkeyInfo() ====\n")
-	fmt.Printf("msg = %#v\n", msg)
+	log.Debug("==== recvPrivkeyInfo() ====\n")
+	log.Debug("recvprikey", "msg = ", msg)
 	//TODO
 	//store privatekey slice
 	time.Sleep(time.Duration(10) * time.Second)
@@ -296,7 +296,7 @@ func recvPrivkeyInfo(msg interface{}) {
 }
 
 func SendToPeer(enode string, msg string) {
-	fmt.Printf("==== DCRM SendToPeer ====\n")
+	log.Debug("==== DCRM SendToPeer ====\n")
 	log.Debug("enode: %v, msg: %v\n", enode, msg)
 	node, _ := discover.ParseNode(enode)
 	log.Debug("node.id: %+v, node.IP: %+v, node.UDP: %+v\n", node.ID, node.IP, node.UDP)
@@ -305,12 +305,12 @@ func SendToPeer(enode string, msg string) {
 }
 
 func SendMsgToPeer(toid discover.NodeID, toaddr *net.UDPAddr, msg string) error {
-	fmt.Printf("==== SendMsgToPeer() ====\n")
+	log.Debug("==== SendMsgToPeer() ====\n")
 	return discover.SendMsgToPeer(toid, toaddr, msg)
 }
 
 func BroatcastToGroup(msg string) {
-	fmt.Printf("==== BroatcastToGroup() ====\n")
+	log.Debug("==== BroatcastToGroup() ====\n")
 	if msg == "" || emitter == nil {
 		return
 	}
@@ -321,7 +321,7 @@ func BroatcastToGroup(msg string) {
 		if dcrmgroup == nil {
 			return
 		}
-		fmt.Printf("\nBroatcastToGroup, group: %+v\n", dcrmgroup)
+		log.Debug("BroatcastToGroup", "group: ", dcrmgroup)
 		log.Debug("emitter", "peer: %#v\n", emitter)
 		for _, g := range dcrmgroup.group {
 			log.Debug("group", "g: %+v\n", g)
@@ -333,7 +333,7 @@ func BroatcastToGroup(msg string) {
 				log.Debug("NodeID: %+v not in peers\n", g.id)
 				continue
 			}
-			fmt.Printf("send to node(group): g=%+v, p.peer=%#v\n", g, p.peer)
+			log.Debug("send to node(group)", "g = ", g, "p.peer = ", p.peer)
 			if err := p2p.SendItems(p.ws, dcrmMsgCode, msg); err != nil {
 				fmt.Printf("Emitter.loopSendMsg p2p.SendItems err", err, "peer id", p.peer.ID())
 				continue
@@ -343,7 +343,7 @@ func BroatcastToGroup(msg string) {
 }
 
 func Broatcast(msg string) {
-	fmt.Printf("==== Broatcast() ====\n")
+	log.Debug("==== Broatcast() ====\n")
 	if msg == "" || emitter == nil {
 		return
 	}
@@ -362,7 +362,7 @@ func Broatcast(msg string) {
 	}()
 }
 
-func SendToDcrmGroup(msg interface{}) interface{} {
+func SendToDcrmGroup(msg string) string {
 	return discover.SendToDcrmGroup(msg)
 }
 
