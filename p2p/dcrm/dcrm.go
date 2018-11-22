@@ -41,9 +41,9 @@ const (
 	ProtocolName = "dcrm"
 	dcrmMsgCode  = 0
 
-	NumberOfMessageCodes = iota // msgLength
-	ProtocolVersion      = uint64(0x10000)
-	ProtocolVersionStr   = "1.0.0"
+	ProtocolVersion      = 1
+	ProtocolVersionStr   = "1"
+	NumberOfMessageCodes = 8 + iota // msgLength
 )
 
 type Dcrm struct {
@@ -75,7 +75,7 @@ var (
 	selfid     discover.NodeID
 )
 
-func RegisterRecvCallback(recvPrivkeyFunc func(interface{})){
+func RegisterRecvCallback(recvPrivkeyFunc func(interface{})) {
 	discover.RegistermsgCallback(recvPrivkeyFunc)
 }
 func RegisterCallback(recvDcrmFunc func(interface{})) {
@@ -88,10 +88,16 @@ func callEvent(msg string) {
 	callback(msg)
 }
 
+type peerInfo struct {
+	Version int `json:"version"`
+	//Head     string   `json:"head"`
+}
+
 type peer struct {
 	peer        *p2p.Peer
 	ws          p2p.MsgReadWriter
 	RecvMessage []string
+	peerInfo    *peerInfo
 }
 
 type Emitter struct {
@@ -134,7 +140,7 @@ func (e *Emitter) addPeer(p *p2p.Peer, ws p2p.MsgReadWriter) {
 	defer e.Unlock()
 	//id := fmt.Sprintf("%x", p.ID)
 	//fmt.Printf("addpeer, id: %x\n", id)
-	e.peers[p.ID()] = &peer{ws: ws, peer: p}
+	e.peers[p.ID()] = &peer{ws: ws, peer: p, peerInfo: &peerInfo{int(ProtocolVersion)}}
 	log.Debug("e.peers[%+v].RecvMessage: %#v\n", p.ID(), e.peers[p.ID()].RecvMessage)
 }
 
@@ -192,13 +198,19 @@ func New(cfg *Config) *Dcrm {
 	// p2p dcrm sub protocol handler
 	dcrm.protocol = p2p.Protocol{
 		Name:    ProtocolName,
-		Version: uint(ProtocolVersion),
+		Version: ProtocolVersion,
 		Length:  NumberOfMessageCodes,
 		Run:     HandlePeer,
 		NodeInfo: func() interface{} {
 			return map[string]interface{}{
 				"version": ProtocolVersionStr,
 			}
+		},
+		PeerInfo: func(id discover.NodeID) interface{} {
+			if p := emitter.peers[id]; p != nil {
+				return p.peerInfo
+			}
+			return nil
 		},
 	}
 
