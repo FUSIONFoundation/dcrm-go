@@ -154,6 +154,7 @@ type Backend interface {
 	BlockChain() *core.BlockChain
 	TxPool() *core.TxPool
 	Etherbase() (eb common.Address, err error)
+	ChainDb() ethdb.Database
 }
 
 func SetBackend(e Backend) {
@@ -167,7 +168,13 @@ func Coinbase() (eb common.Address, err error) {
 func SendReqToGroup(msg string,rpctype string) (string,error) {
     var req RpcReq
     switch rpctype {
+	case "rpc_confirm_dcrmaddr":
+	    m := strings.Split(msg,sep9)
+	    v := ConfirmAddrSendMsgToDcrm{Txhash:m[0],Tx:m[1],FusionAddr:m[2],DcrmAddr:m[3],Hashkey:m[4],Cointype:m[5]}
+	    rch := make(chan interface{},1)
+	    req = RpcReq{rpcdata:&v,ch:rch}
 	case "rpc_req_dcrmaddr":
+	    fmt.Printf("SendReqToGroup,rpc_req_dcrmaddr\n")
 	    m := strings.Split(msg,sep9)
 	    v := ReqAddrSendMsgToDcrm{Txhash:m[0],Tx:m[1],Fusionaddr:m[2],Pub:m[3],Cointype:m[4]}
 	    rch := make(chan interface{},1)
@@ -179,7 +186,6 @@ func SendReqToGroup(msg string,rpctype string) (string,error) {
 	    rch := make(chan interface{},1)
 	    req = RpcReq{rpcdata:&v,ch:rch}
 	case "rpc_lockout":
-	    fmt.Printf("=============caihaijun,SendReqToGroup1111111111111111111111111================\n")
 	    m := strings.Split(msg,sep9)
 	    v := LockOutSendMsgToDcrm{Txhash:m[0],Tx:m[1],Sig:m[2],Fusionhash:m[3],Lockto:m[4],FusionAddr:m[5],DcrmAddr:m[6],Value:m[7],Cointype:m[8]}
 	    rch := make(chan interface{},1)
@@ -190,6 +196,7 @@ func SendReqToGroup(msg string,rpctype string) (string,error) {
 
     RpcReqNonDcrmQueue <- req
     ret := (<- req.ch).(RpcDcrmRes)
+    fmt.Printf("SendReqToGroup,ret is %s\n",ret.ret)
     return ret.ret,ret.err
 }
 
@@ -263,14 +270,23 @@ func (self *RecvMsg) Run(workid int,ch chan interface{}) bool {
 	    wcoint := <-w.coint
 	    dcrm_reqAddress(wm,wpub,wcoint,ch)
 	}
+	if funs[0] == "Dcrm_ConfirmAddr" {
+	    wtxhash_conaddr := <-w.txhash_conaddr
+	    wlilotx := <-w.lilotx
+	    wfusionaddr := <-w.fusionaddr
+	    wdcrmaddr := <-w.dcrmaddr
+	    whashkey := <-w.hashkey
+	    wcoint := <-w.coint
+	    dcrm_confirmaddr(wm,wtxhash_conaddr,wlilotx,wfusionaddr,wdcrmaddr,whashkey,wcoint,ch)
+	}
 	if funs[0] == "Dcrm_LiLoReqAddress" {
+	    fmt.Println("\n RecvMsg.Run,Dcrm_LiLoReqAddress\n")
 	    wtxhash_reqaddr := <-w.txhash_reqaddr
 	    //wtxhash_reqaddr := fmt.Sprintf("%v",hashtmp)
 	    wfusionaddr := <-w.fusionaddr
 	    wpub := <-w.pub
 	    wcoint := <-w.coint
 	    wlilotx := <-w.lilotx
-	    fmt.Printf("===================caihaijun,Msg,wm is %s,wtxhash_reqaddr is %s,wfusionaddr is %s,wpub is %s,wcoint is %s===============\n",wm,wtxhash_reqaddr,wfusionaddr,wpub,wcoint)
 	    dcrm_liloreqAddress(wm,wtxhash_reqaddr,wfusionaddr,wpub,wcoint,wlilotx,ch)
 	}
 	if funs[0] == "Dcrm_Sign" {
@@ -324,9 +340,18 @@ func (self *RecvMsg) Run(workid int,ch chan interface{}) bool {
 	    workers[id].pub <- shs[1]
 	    workers[id].coint <- shs[2]
 	}
-	if funs[0] == "Dcrm_LiLoReqAddress" {
+	if funs[0] == "Dcrm_ConfirmAddr" {
 	    vv := shs[1]
-	    //fmt.Printf("==============caihaijun,run.realstartdcrm,liloreqaddr txhash str is %s,bytestohash is %v===========\n",vv,common.BytesToHash([]byte(vv)))
+	    workers[id].txhash_conaddr <- vv
+	    workers[id].lilotx <- shs[2]
+	    workers[id].fusionaddr <- shs[3]
+	    workers[id].dcrmaddr <- shs[4]
+	    workers[id].hashkey <- shs[5]
+	    workers[id].coint <- shs[6]
+	}
+	if funs[0] == "Dcrm_LiLoReqAddress" {
+	    fmt.Printf("\nRecvMsg.Run,Dcrm_LiLoReqAddress,real start req addr.\n")
+	    vv := shs[1]
 	    workers[id].txhash_reqaddr <- vv //common.BytesToHash([]byte(vv))
 	    workers[id].fusionaddr <- shs[2]
 	    workers[id].pub <- shs[3]
@@ -489,6 +514,41 @@ func (self *DcrmReqAddress) Run(workid int,ch chan interface{}) bool {
     return true
 }
 
+//DcrmConfirmAddr
+type DcrmConfirmAddr struct {
+    Txhash string
+    Tx string
+    FusionAddr string
+    DcrmAddr string
+    Hashkey string
+    Cointype string
+}
+
+func (self *DcrmConfirmAddr) Run(workid int,ch chan interface{}) bool {
+
+    if workid < 0 {
+	return false
+    }
+
+    GetEnodesInfo()
+    w := workers[workid]
+    ss := "Dcrm_ConfirmAddr" + "-" + cur_enode + "-" + "xxx" + "-" + strconv.Itoa(workid)
+    ks := ss + msgtypesep + "startdcrm"
+    SendMsgToDcrmGroup(ks)
+    <-w.bidsready
+    var k int
+    for k=0;k<(NodeCnt-1);k++ {
+	ni := <- w.ch_nodeworkid
+	ss = ss + "-" + ni.enode + "-" + strconv.Itoa(ni.workid)
+    }
+
+    sss := ss + sep + self.Txhash + sep + self.Tx + sep + self.FusionAddr + sep + self.DcrmAddr + sep + self.Hashkey + sep + self.Cointype
+    sss = sss + msgtypesep + "realstartdcrm"
+    SendMsgToDcrmGroup(sss)
+    dcrm_confirmaddr(ss,self.Txhash,self.Tx,self.FusionAddr,self.DcrmAddr,self.Hashkey,self.Cointype,ch)
+    return true
+}
+
 //DcrmLiLoReqAddress
 type DcrmLiLoReqAddress struct{
     Txhash common.Hash
@@ -510,7 +570,7 @@ func (self *DcrmLiLoReqAddress) Run(workid int,ch chan interface{}) bool {
     ks := ss + msgtypesep + "startdcrm"
     SendMsgToDcrmGroup(ks)
     <-w.bidsready
-    fmt.Printf("===================caihaijun,DcrmLiLoReqAddress.run,bidsready pass=============\n")
+    fmt.Printf("\nDcrmLiLoReqAddress.Run,id is ready.\n")
     var k int
     for k=0;k<(NodeCnt-1);k++ {
 	ni := <- w.ch_nodeworkid
@@ -518,11 +578,10 @@ func (self *DcrmLiLoReqAddress) Run(workid int,ch chan interface{}) bool {
     }
 
     vv := self.Txhash.Hex()//fmt.Sprintf("%v",self.Txhash)
-    fmt.Printf("===================caihaijun,DcrmLiLoReqAddress.run,txhash is %v,txhash str is %s=============\n",self.Txhash,vv)
     sss := ss + sep + vv + sep + self.Fusionaddr + sep + self.Pub + sep + self.Cointype + sep + self.Tx
     sss = sss + msgtypesep + "realstartdcrm"
     SendMsgToDcrmGroup(sss)
-    fmt.Printf("===================caihaijun,DcrmLiLoReqAddress.Run,ss is %s,vv is %s,self.Fusionaddr is %s,self.Pub is %s,self.Cointype is %s===============\n",ss,vv,self.Fusionaddr,self.Pub,self.Cointype)
+    fmt.Printf("\nDcrmLiLoReqAddress.Run,ss is %s,vv is %s,self.Fusionaddr is %s,self.Pub is %s,self.Cointype is %s\n",ss,vv,self.Fusionaddr,self.Pub,self.Cointype)
     dcrm_liloreqAddress(ss,vv,self.Fusionaddr,self.Pub,self.Cointype,self.Tx,ch)
     return true
 }
@@ -668,6 +727,47 @@ func (self *DcrmLockOut) Run(workid int,ch chan interface{}) bool {
 }
 
 //non dcrm,
+type ConfirmAddrSendMsgToDcrm struct {
+    Txhash string
+    Tx string
+    FusionAddr string
+    DcrmAddr string
+    Hashkey string
+    Cointype string
+}
+
+func (self *ConfirmAddrSendMsgToDcrm) Run(workid int,ch chan interface{}) bool {
+    if workid < 0 {
+	return false
+    }
+
+    GetEnodesInfo()
+    
+    ss := cur_enode + "-" + self.Txhash + "-" + self.Tx + "-" + self.FusionAddr + "-" + self.DcrmAddr + "-" + self.Hashkey + "-" + self.Cointype + "-" + strconv.Itoa(workid) + msgtypesep + "rpc_confirm_dcrmaddr"
+    result := p2pdcrm.SendToDcrmGroup(ss)
+
+    data := fmt.Sprintf("%s",result)
+    mm := strings.Split(data,msgtypesep)
+    if len(mm) == 2 && mm[1] == "rpc_confirm_dcrmaddr_res" {
+	tmps := strings.Split(mm[0],"-")
+	if cur_enode == tmps[0] {
+	    if tmps[1] == "fail" {
+		var ret2 Err
+		ret2.info = "confirm addr fail."
+		res := RpcDcrmRes{ret:"",err:ret2}
+		ch <- res
+	    }
+	    
+	    if tmps[1] != "fail" {
+		res := RpcDcrmRes{ret:"true",err:nil}
+		ch <- res
+	    }
+	}
+    }
+		    
+    return true
+}
+
 type ReqAddrSendMsgToDcrm struct {
     Txhash string
     Tx string
@@ -686,14 +786,20 @@ func (self *ReqAddrSendMsgToDcrm) Run(workid int,ch chan interface{}) bool {
     
     //ss:  enode-txhash-tx-fusion-pub-coin-wid||rpc_req_dcrmaddr
     ss := cur_enode + "-" + self.Txhash + "-" + self.Tx + "-" + self.Fusionaddr + "-" + self.Pub + "-" + self.Cointype + "-" + strconv.Itoa(workid) + msgtypesep + "rpc_req_dcrmaddr"
+    
+    fmt.Printf("\nReqAddrSendMsgToDcrm.Run,send data is %s\n",ss)
     result := p2pdcrm.SendToDcrmGroup(ss)
+    fmt.Printf("\nReqAddrSendMsgToDcrm.Run,receive the result,result is %s.\n",fmt.Sprintf("%s",result))
 
     data := fmt.Sprintf("%s",result)
     mm := strings.Split(data,msgtypesep)
     if len(mm) == 2 && mm[1] == "rpc_req_dcrmaddr_res" {
+	fmt.Printf("\nReqAddrSendMsgToDcrm.Run,rpc_req_dcrmaddr_res\n")
 	tmps := strings.Split(mm[0],"-")
 	if cur_enode == tmps[0] {
+	    fmt.Printf("\nReqAddrSendMsgToDcrm.Run,it is self.\n")
 	    if tmps[2] == "fail" {
+		fmt.Printf("\nReqAddrSendMsgToDcrm.Run,req addr fail\n")
 		var ret2 Err
 		ret2.info = "req addr fail."
 		res := RpcDcrmRes{ret:"",err:ret2}
@@ -703,19 +809,20 @@ func (self *ReqAddrSendMsgToDcrm) Run(workid int,ch chan interface{}) bool {
 	    }
 	    
 	    if tmps[2] != "fail" {
+		fmt.Printf("\nReqAddrSendMsgToDcrm.Run,req addr success,addr is %s\n",tmps[2])
 		res := RpcDcrmRes{ret:tmps[2],err:nil}
 		//wid,_ := strconv.Atoi(tmps[1])
 		//non_dcrm_workers[wid].ch <- res
 		ch <- res
 	    }
+	} else {
+		fmt.Printf("\nReqAddrSendMsgToDcrm.Run,it is not self.\n")
+		res := RpcDcrmRes{ret:"",err:errors.New("req addr fail,it is not self.")}
+		ch <- res
 	}
     }
 		    
-    fmt.Printf("======caihaijun,ReqAddrSendMsgToDcrm.run======\n")
-    //ret := (<- w.ch).(RpcDcrmRes)
-    //res := RpcDcrmRes{ret:ret.ret,err:ret.err}
-    //ch <- res
-
+    fmt.Printf("\nReqAddrSendMsgToDcrm.Run finish.\n")
     return true
 }
 
@@ -1007,6 +1114,9 @@ type RpcReqWorker struct {
     brealstartvalidate chan bool
     ch_nodeworkid chan NodeWorkId
 
+    //confirmaddr
+    txhash_conaddr chan string 
+    hashkey chan string
     //liloreqaddr
     txhash_reqaddr chan string 
     fusionaddr chan string
@@ -1210,6 +1320,8 @@ func NewRpcReqWorker(workerPool chan chan RpcReq) RpcReqWorker {
     bidsready:make(chan bool,1),
     brealstartdcrm:make(chan bool,1),
     brealstartvalidate:make(chan bool,1),
+    txhash_conaddr:make(chan string,1),
+    hashkey:make(chan string,1),
     txhash_reqaddr:make(chan string,1),
     lilotx:make(chan string,1),
     txhash_lockout:make(chan string,1),
@@ -1304,18 +1416,38 @@ func dcrmcall(msg interface{}) <-chan interface{} {
     ch := make(chan interface{}, 1)
     data := fmt.Sprintf("%s",msg)
     mm := strings.Split(data,msgtypesep)
-    if len(mm) == 2 && mm[1] == "rpc_req_dcrmaddr" {
+    if len(mm) == 2 && mm[1] == "rpc_confirm_dcrmaddr" {
 	tmps := strings.Split(mm[0],"-")
-	v := DcrmLiLoReqAddress{Txhash:common.HexToHash(tmps[1]),Fusionaddr:tmps[3],Pub:tmps[4],Cointype:tmps[5],Tx:tmps[2]}
-	addr,err := Dcrm_LiLoReqAddress(&v)
-	if addr == "" || err != nil {
-	ss := tmps[0] + "-" + tmps[6] + "-" + "fail" + msgtypesep + "rpc_req_dcrmaddr_res"
-	//p2pdcrm.Broatcast(ss)
+	v := DcrmConfirmAddr{Txhash:tmps[1],Tx:tmps[2],FusionAddr:tmps[3],DcrmAddr:tmps[4],Hashkey:tmps[5],Cointype:tmps[6]}
+	_,err := Dcrm_ConfirmAddr(&v)
+	if err != nil {
+	ss := tmps[0] + "-" + "fail" + msgtypesep + "rpc_confirm_dcrmaddr_res"
 
 	ch <- ss 
 	return ch
     }
    
+	//ss:  enode-wid-addr || rpc_req_dcrmaddr_res
+	ss := tmps[0] + "-" + "true" + msgtypesep + "rpc_confirm_dcrmaddr_res"
+	ch <- ss 
+	return ch
+    }
+
+    if len(mm) == 2 && mm[1] == "rpc_req_dcrmaddr" {
+	fmt.Printf("\ndcrmcall,receive rpc_req_dcrmaddr data \n")
+	tmps := strings.Split(mm[0],"-")
+	v := DcrmLiLoReqAddress{Txhash:common.HexToHash(tmps[1]),Fusionaddr:tmps[3],Pub:tmps[4],Cointype:tmps[5],Tx:tmps[2]}
+	addr,err := Dcrm_LiLoReqAddress(&v)
+	if addr == "" || err != nil {
+	    fmt.Printf("\ndcrmcall,req add fail.\n")
+	    ss := tmps[0] + "-" + tmps[6] + "-" + "fail" + msgtypesep + "rpc_req_dcrmaddr_res"
+	    //p2pdcrm.Broatcast(ss)
+
+	    ch <- ss 
+	    return ch
+	}
+   
+	fmt.Printf("\ndcrmcall,req add success,add is %s.\n",addr)
 	//ss:  enode-wid-addr || rpc_req_dcrmaddr_res
 	ss := tmps[0] + "-" + tmps[6] + "-" + addr + msgtypesep + "rpc_req_dcrmaddr_res"
 	//p2pdcrm.Broatcast(ss)
@@ -1374,7 +1506,6 @@ func callDcrm(txhash interface{}) bool {
 
 func callDcrmLockOut(do interface{}) (string,error) {
     return "true",nil
-	//return Validate_DcrmLockOut(do.(types.DcrmLockOutData))
 }
 
 var parts = make(map[int]string)
@@ -1849,51 +1980,6 @@ type SendRawTxRes struct {
     Err error
 }
 
-func Validate_DcrmLockOut(do types.DcrmLockOutData) (string,error) {
-    tx := do.Tx
-    input := string(tx.Data())
-    fmt.Printf("===============caihaijun,Validate_DcrmLockOut,input is %s===========\n",input)
-    m := strings.Split(input,":")
-    if m[0] == "LOCKOUT" {
-	if m[3] == "ETH" {
-	    txs,_ := tx.MarshalJSON()
-
-	    var data string
-	    val,ok := types.GetDcrmValidateDataKReady(tx.Hash().Hex())
-	    if ok == true {
-		vals := strings.Split(val,sep6)
-		for _,v := range vals {
-		    var a DcrmValidateRes
-		    ok2 := json.Unmarshal([]byte(v), &a)
-		    if ok2 == nil && a.ValidateRes == "pass" {
-			data = v
-			break
-		    }
-		}
-
-		var a DcrmValidateRes
-		ok2 := json.Unmarshal([]byte(data), &a)
-		if ok2 == nil {
-		    dcrmparms := strings.Split(a.DcrmParms,sep)
-		    var s []string
-		    s = append(s,dcrmparms[8])
-		    v := DcrmLockIn{Tx:string(txs),Txhashs:s}
-		    if _,err := Validate_Txhash(&v);err != nil {
-			    return "", err
-		    }
-
-		    return "true",nil
-		}
-
-	    }
-	}
-    }
-    
-    var ret2 Err
-    ret2.info = "validate lockout error."
-    return "",ret2
-}
-
 func Validate_DcrmAddr(tx string) (string,error) {
     v := ValidateDcrmAddr{Tx:tx}
     rch := make(chan interface{},1)
@@ -2161,6 +2247,63 @@ func Validate_Txhash(wr WorkReq) (string,error) {
 		    return false
 		}
 
+		func dcrm_confirmaddr(msgprex string,txhash_conaddr string,tx string,fusionaddr string,dcrmaddr string,hashkey string,cointype string,ch chan interface{}) {
+		    GetEnodesInfo()
+		    if cointype != "ETH" && cointype != "BTC" {
+			fmt.Println("===========coin type is not supported.must be btc or eth.=================")
+			var ret2 Err
+			ret2.info = "coin type is not supported."
+			res := RpcDcrmRes{ret:"",err:ret2}
+			ch <- res
+			return
+		    }
+
+		    fmt.Printf("fusionaddr is %s\n",fusionaddr)
+		    fmt.Printf("hashkey is %s\n",hashkey)
+		    if ValidateDcrm(hashkey) {
+			signtx := new(types.Transaction)
+			signtxerr := signtx.UnmarshalJSON([]byte((tx)))
+			
+			if signtxerr == nil {
+
+			    var data string
+			    val,ok := types.GetDcrmValidateDataKReady(hashkey)
+			    if ok == true {
+				vals := strings.Split(val,sep6)
+				for _,v := range vals {
+				    var a DcrmValidateRes
+				    ok2 := json.Unmarshal([]byte(v), &a)
+				    if ok2 == nil && a.ValidateRes == "pass" {
+					data = v
+					break
+				    }
+				}
+
+				var a DcrmValidateRes
+				ok2 := json.Unmarshal([]byte(data), &a)
+				if ok2 == nil {
+				    dcrmparms := strings.Split(a.DcrmParms,sep)
+		    /*fmt.Printf("d0 is %s,msgprex is %s\n",dcrmparms[0],msgprex)
+		    fmt.Printf("d1 is %s,fusionaddr is %s\n",dcrmparms[1],fusionaddr)
+		    fmt.Printf("d2 is %s,dcrmaddr is %s\n",dcrmparms[2],dcrmaddr)
+		    fmt.Printf("d3 is %s,type is %s\n",dcrmparms[3],cointype)*/
+				    if strings.EqualFold(dcrmparms[1],fusionaddr) == true && strings.EqualFold(dcrmparms[2],dcrmaddr) == true && strings.EqualFold(dcrmparms[3],cointype) == true {
+
+				    submitTransaction(signtx)
+				    res := RpcDcrmRes{ret:"true",err:nil}
+				    ch <- res
+				    return
+				    }
+				}
+
+			    }
+			}
+		    }
+		    
+		    res := RpcDcrmRes{ret:"false",err:errors.New("dcrm addr confirm fail.")}
+		    ch <- res
+		}
+
 		func dcrm_liloreqAddress(msgprex string,txhash_reqaddr string,fusionaddr string,pubkey string,cointype string,tx string,ch chan interface{}) {
 
 		    GetEnodesInfo()
@@ -2198,6 +2341,7 @@ func Validate_Txhash(wr WorkReq) (string,error) {
 		    id := getworkerid(msgprex,cur_enode)
 		    ok := KeyGenerate(msgprex,ch,id)
 		    if ok == false {
+			fmt.Printf("\ndcrm_liloreqAddress,addr gen fail.\n")
 			return
 		    }
 
@@ -2248,6 +2392,7 @@ func Validate_Txhash(wr WorkReq) (string,error) {
 		    }
 		    
 		    if stmp != "" {  //fusionaddr string,pubkey string,cointype
+			fmt.Printf("\ndcrm_liloreqAddress,stmp is %s.\n",stmp)
 			/*tmp := msgprex + ":" + fusionaddr + ":" + stmp + ":" + cointype
 			fmt.Printf("===================caihaijun,DcrmLiLoReqAddress.Run,tmp is %s=============\n",tmp)
 			types.SetDcrmAddrData(txhash_reqaddr,tmp)
@@ -2255,6 +2400,7 @@ func Validate_Txhash(wr WorkReq) (string,error) {
 			p2pdcrm.Broatcast(msg)*/
 			SendMsgToDcrmGroup(msgprex + sep + stmp + msgtypesep + "lilodcrmaddr")
 			<-workers[id].bdcrmres
+			fmt.Printf("\ndcrm_liloreqAddress,bdcrmres pass.\n")
 			answer := "pass"
 			i := 0
 			for i = 0;i<NodeCnt-1;i++ {
@@ -2265,6 +2411,7 @@ func Validate_Txhash(wr WorkReq) (string,error) {
 			    }
 			}
 			
+			fmt.Printf("\ndcrm_liloreqAddress,dcrmres pass.\n")
 			//tmp:  hash:prex:fusion:stmp:coin:tx
 			tmp := msgprex + sep + fusionaddr + sep + stmp + sep + cointype
 			cnt,_ := p2pdcrm.GetGroup()
@@ -2278,11 +2425,12 @@ func Validate_Txhash(wr WorkReq) (string,error) {
 			    types.SetDcrmValidateData(txhash_reqaddr,val)
 			    p2pdcrm.Broatcast(string(jsondvr) + msgtypesep + "lilodcrmaddrres")
 			    //tmps := strings.Split(val,sep2)
+			    fmt.Printf("============caihaijun,dcrm_liloreqAddress,txhash is %s,stmp is %s=========\n",txhash_reqaddr,stmp)
 			    if ValidateDcrm(txhash_reqaddr) {
 				signtx := new(types.Transaction)
 				signtxerr := signtx.UnmarshalJSON([]byte((tx)))
 				if signtxerr == nil {
-				    submitTransaction(signtx)
+				    //submitTransaction(signtx)
 				}
 			    }
 			    
@@ -2293,6 +2441,7 @@ func Validate_Txhash(wr WorkReq) (string,error) {
 			//lock.Unlock()//bug
 		    }
 
+		    fmt.Printf("\ndcrm_liloreqAddress,ValidateData pass.\n")
 		    s := []string{pubkey,string(ys),string(encX.Bytes())}
 		    ss := strings.Join(s,sep)
 		    db.Put([]byte(stmp),[]byte(ss))
@@ -2907,10 +3056,12 @@ func Validate_Txhash(wr WorkReq) (string,error) {
 					signtx := new(types.Transaction)
 					signtxerr := signtx.UnmarshalJSON([]byte((a.Tx)))
 					if signtxerr == nil {
-					    submitTransaction(signtx)
+					    fmt.Printf("============caihaijun,lilodcrmaddrres,txhash is %s=========\n",a.Txhash)
+					    //submitTransaction(signtx)
 					}
 				    }
 				} else {
+				    fmt.Printf("============caihaijun,lilodcrmaddrres,txhash is %s=========\n",a.Txhash)
 				    types.SetDcrmValidateData(a.Txhash,mm[0])
 				    p2pdcrm.Broatcast(msg)
 				}
@@ -3420,12 +3571,20 @@ func Dcrm_ReqAddress(wr WorkReq) (string, error) {
     return ret.ret,ret.err
 }
 
+func Dcrm_ConfirmAddr(wr WorkReq) (string, error) {
+    rch := make(chan interface{},1)
+    req := RpcReq{rpcdata:wr,ch:rch}
+    RpcReqQueue <- req
+    ret := (<- rch).(RpcDcrmRes)
+    return ret.ret,ret.err
+}
+
 func Dcrm_LiLoReqAddress(wr WorkReq) (string, error) {
     rch := make(chan interface{},1)
     req := RpcReq{rpcdata:wr,ch:rch}
     RpcReqQueue <- req
     ret := (<- rch).(RpcDcrmRes)
-    fmt.Println("=========================keygen finish.ret.ret is %s=======================\n",ret.ret)
+    fmt.Println("\n Dcrm_LiLoReqAddress,ret is %s\n",ret.ret)
     return ret.ret,ret.err
 }
 

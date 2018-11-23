@@ -23,6 +23,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	//"fmt"//caihaijun
 
 	mapset "github.com/deckarep/golang-set"
 	"github.com/fusion/go-fusion/common"
@@ -692,6 +693,7 @@ func (w *worker) updateSnapshot() {
 func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Address) ([]*types.Log, error) {
 	snap := w.current.state.Snapshot()
 
+	//fmt.Printf("=========commitTransaction============\n")//caihaijun
 	receipt, _, err := core.ApplyTransaction(w.config, w.chain, &coinbase, w.current.gasPool, w.current.state, w.current.header, tx, &w.current.header.GasUsed, vm.Config{})
 	if err != nil {
 		w.current.state.RevertToSnapshot(snap)
@@ -704,6 +706,7 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 }
 
 func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coinbase common.Address, interrupt *int32) bool {
+    //fmt.Printf("=========commitTransactions============\n")//caihaijun
 	// Short circuit if current is nil
 	if w.current == nil {
 		return true
@@ -746,6 +749,7 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 		if tx == nil {
 			break
 		}
+    //fmt.Printf("=========commitTransactions,tx data is %s============\n",string(tx.Data()))//caihaijun
 		// Error may be ignored here. The error has already been checked
 		// during transaction acceptance is the transaction pool.
 		//
@@ -754,6 +758,7 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 		// Check whether the tx is replay protected. If we're not in the EIP155 hf
 		// phase, start ignoring the sender until we do.
 		if tx.Protected() && !w.config.IsEIP155(w.current.header.Number) {
+		//fmt.Printf("=========commitTransactions3333333============\n")//caihaijun
 			log.Trace("Ignoring reply protected transaction", "hash", tx.Hash(), "eip155", w.config.EIP155Block)
 
 			txs.Pop()
@@ -818,6 +823,7 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 
 // commitNewWork generates several new sealing tasks based on the parent block.
 func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) {
+    //fmt.Printf("=========commitNewWork============\n")//caihaijun
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
@@ -912,11 +918,13 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) 
 	// Fill the block with all available pending transactions.
 	pending, err := w.eth.TxPool().Pending()
 	if err != nil {
+    //fmt.Printf("=========commitNewWork22222============\n")//caihaijun
 		log.Error("Failed to fetch pending transactions", "err", err)
 		return
 	}
 	// Short circuit if there is no available pending transactions
 	if len(pending) == 0 {
+    //fmt.Printf("=========commitNewWork3333============\n")//caihaijun
 		w.updateSnapshot()
 		return
 	}

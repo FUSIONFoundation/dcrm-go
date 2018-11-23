@@ -24,6 +24,7 @@ import (
 	"math/big"
 	"strings"
 	"time"
+	"encoding/json" //caihaijun
 	//"strconv"//caihaijun
 	//"encoding/hex"  //caihaijun
 	//"github.com/fusion/go-fusion/ethclient"  //caihaijun
@@ -603,8 +604,15 @@ result, err := json.Marshal(&aa)*/
 v,_ = new(big.Int).SetString(a.V,10)*/
 //=========================================
 
+type DcrmAddrRes struct {
+    Account string
+    Addr string
+    Txhash string
+    Type string
+}
+
 func (s *PublicFsnAPI) DcrmReqAddr(ctx context.Context,fusionaddr string,cointype string) (string, error) {
-    fmt.Println("================caihaijun DcrmReqAddr================")
+    fmt.Println("================DcrmReqAddr================\n")
   
     dcrmaddr,e := s.DcrmGetAddr(ctx,fusionaddr,cointype)
     if e == nil && dcrmaddr != "" {
@@ -656,18 +664,24 @@ func (s *PublicFsnAPI) DcrmReqAddr(ctx context.Context,fusionaddr string,cointyp
 	msg := signed.Hash().Hex() + sep9 + string(result) + sep9 + fusionaddr + sep9 + pubkey + sep9 + cointype 
 	addr,err := dcrm.SendReqToGroup(msg,"rpc_req_dcrmaddr")
 	if addr == "" || err != nil {
+		fmt.Println("\n DcrmReqAddr,req addr fail.\n")
 		return "", err
 	}
 	
 	signtx := new(types.Transaction)
 	err2 := signtx.UnmarshalJSON([]byte(result))
 	if err2 == nil {
-	    return signtx.Hash().Hex(),nil
+	    fmt.Println("\n DcrmReqAddr,req addr success.addr is %s\n",addr)
+	    m := DcrmAddrRes{Account:fusionaddr,Addr:addr,Txhash:signtx.Hash().Hex(),Type:cointype}
+	    b,_ := json.Marshal(m)
+	    return string(b),nil
 	}
 
+	fmt.Println("\n DcrmReqAddr,req addr fail,new tx fail.\n")
 	return "",err2
     }
 
+    fmt.Println("\n DcrmReqAddr,in group.\n")
     v := dcrm.DcrmLiLoReqAddress{Txhash:signed.Hash(),Fusionaddr:fusionaddr,Pub:pubkey,Cointype:cointype,Tx:string(result)}
     addr,err := dcrm.Dcrm_LiLoReqAddress(&v)
     if addr == "" || err != nil {
@@ -677,7 +691,90 @@ func (s *PublicFsnAPI) DcrmReqAddr(ctx context.Context,fusionaddr string,cointyp
     signtx := new(types.Transaction)
     err2 := signtx.UnmarshalJSON([]byte(result))
     if err2 == nil {
-	return signtx.Hash().Hex(),nil
+	fmt.Printf("\ntxhash is signtx.Hash().Hex()\n")
+	m := DcrmAddrRes{Account:fusionaddr,Addr:addr,Txhash:signtx.Hash().Hex(),Type:cointype}
+	b,_ := json.Marshal(m)
+	return string(b),nil
+    }
+
+    return "",err2
+}
+
+func (s *PublicFsnAPI) DcrmConfirmAddr(ctx context.Context,dcrmaddr string,txhash string,cointype string) (string,error) {
+    fmt.Println("================DcrmConfirmAddr================\n")
+  
+    cb,e := dcrm.Coinbase()
+    if e != nil {
+	return "",nil
+    }
+
+    fusionaddr := cb.Hex()
+    fusions := []rune(fusionaddr)
+    if len(fusions) != 42 { //42 = 2 + 20*2 =====>0x + addr
+	return "",nil 
+    }
+    
+    fromaddr,_ := new(big.Int).SetString(fusionaddr,0)
+    txfrom := common.BytesToAddress(fromaddr.Bytes())
+
+    toaddr := new(common.Address)
+    *toaddr = types.DcrmPrecompileAddr
+    args := SendTxArgs{From: txfrom,To:toaddr}
+    str := "DCRMCONFIRMADDR" + ":" + dcrmaddr + ":" + txhash + ":" + cointype
+    args.Data = new(hexutil.Bytes) 
+    args.Input = new(hexutil.Bytes) 
+    *args.Data = []byte(str)
+    *args.Input = []byte(str)
+
+    // Look up the wallet containing the requested signer
+    account := accounts.Account{Address: args.From}
+
+    wallet, err := s.b.AccountManager().Find(account)
+    if err != nil {
+	    return "", err
+    }
+
+    if err := args.setDefaults(ctx, s.b); err != nil {
+	    return "", err
+    }
+    tx := args.toTransaction()
+
+    var chainID *big.Int
+    if config := s.b.ChainConfig(); config.IsEIP155(s.b.CurrentBlock().Number()) {
+	    chainID = config.ChainID
+    }
+    signed, err := wallet.SignTx(account, tx, chainID)
+    if err != nil {
+	    return "", err
+    }
+    result,err := signed.MarshalJSON()
+    
+    if !dcrm.IsInGroup() {
+	msg := signed.Hash().Hex() + sep9 + string(result) + sep9 + fusionaddr + sep9 + dcrmaddr + sep9 + txhash + sep9 + cointype 
+	_,err := dcrm.SendReqToGroup(msg,"rpc_confirm_dcrmaddr")
+	if err != nil {
+		return "", err
+	}
+	
+	signtx := new(types.Transaction)
+	err2 := signtx.UnmarshalJSON([]byte(result))
+	if err2 == nil {
+	    return signed.Hash().Hex(),nil
+	}
+
+	return "",err2
+    }
+
+    v := dcrm.DcrmConfirmAddr{Txhash:signed.Hash().Hex(),Tx:string(result),FusionAddr:fusionaddr,DcrmAddr:dcrmaddr,Hashkey:txhash,Cointype:cointype}
+    _,err3 := dcrm.Dcrm_ConfirmAddr(&v)
+    if err3 != nil {
+	    return "", err3
+    }
+
+    signtx := new(types.Transaction)
+    err2 := signtx.UnmarshalJSON([]byte(result))
+    if err2 == nil {
+	return signed.Hash().Hex(),nil
     }
 
     return "",err2
@@ -1711,7 +1808,6 @@ func (args *SendTxArgs) toTransaction() *types.Transaction {
 	if args.To == nil {
 		return types.NewContractCreation(uint64(*args.Nonce), (*big.Int)(args.Value), uint64(*args.Gas), (*big.Int)(args.GasPrice), input)
 	}
-	fmt.Printf("===========caihaijun,toTransaction,args.Nonce is %v,args.To is %v",*args.Nonce,*args.To)//caihaijun
 	return types.NewTransaction(uint64(*args.Nonce), *args.To, (*big.Int)(args.Value), uint64(*args.Gas), (*big.Int)(args.GasPrice), input)
 }
 

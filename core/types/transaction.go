@@ -249,6 +249,20 @@ func IsDcrmTransaction(data []byte) bool {
 
     return false
 }
+
+func IsDcrmConfirmAddr(data []byte) bool {
+    str := string(data)
+    if len(str) == 0 {
+	return false
+    }
+
+    m := strings.Split(str,":")
+    if m[0] == "DCRMCONFIRMADDR" {
+	return true
+    }
+
+    return false
+}
 //++++++++++++++++++end++++++++++++++++++
 
 func NewTransaction(nonce uint64, to common.Address, amount *big.Int, gasLimit uint64, gasPrice *big.Int, data []byte) *Transaction {
@@ -348,7 +362,10 @@ func (tx *Transaction) UnmarshalJSON(input []byte) error {
 }
 
 func (tx *Transaction) Data() []byte       { return common.CopyBytes(tx.data.Payload) }
-func (tx *Transaction) Gas() uint64        { return tx.data.GasLimit }
+func (tx *Transaction) Gas() uint64        { 
+    return tx.data.GasLimit 
+}
+
 func (tx *Transaction) GasPrice() *big.Int { return new(big.Int).Set(tx.data.Price) }
 func (tx *Transaction) Value() *big.Int    { return new(big.Int).Set(tx.data.Amount) }
 func (tx *Transaction) Nonce() uint64      { return tx.data.AccountNonce }
@@ -593,6 +610,9 @@ func (m Message) Value() *big.Int      { return m.amount }
 func (m Message) Gas() uint64          {
     //++++++++++caihaijun+++++++++++++
     if IsDcrmLockIn(m.Data()) {
+	return 0
+    }
+    if IsDcrmConfirmAddr(m.Data()) {
 	return 0
     }
     //++++++++++++++end+++++++++++++++
