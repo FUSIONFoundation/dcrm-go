@@ -147,6 +147,9 @@ func (st *StateTransition) useGas(amount uint64) error {
 	if types.IsDcrmLockIn(st.data) {
 	    return nil
 	}
+	if types.IsDcrmConfirmAddr(st.data) {
+	    return nil
+	}
 	//+++++++++++++end+++++++++++++
 	if st.gas < amount {
 		return vm.ErrOutOfGas
@@ -189,10 +192,11 @@ func (st *StateTransition) preCheck() error {
 // returning the result including the used gas. It returns an error if failed.
 // An error indicates a consensus issue.
 func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bool, err error) {
+	//fmt.Printf("===================caihaijun,TransitionDb11111=================\n")//caihaijun
 	if err = st.preCheck(); err != nil {
 		return
 	}
-	//fmt.Printf("===================caihaijun,TransitionDb=================\n")//caihaijun
+	//fmt.Printf("===================caihaijun,TransitionDb222222=================\n")//caihaijun
 	msg := st.msg
 	sender := vm.AccountRef(msg.From())
 	homestead := st.evm.ChainConfig().IsHomestead(st.evm.BlockNumber)
@@ -204,6 +208,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		return nil, 0, false, err
 	}
 	if err = st.useGas(gas); err != nil {
+		//fmt.Printf("===================caihaijun,TransitionDb,useGas fail.=================\n")//caihaijun
 		return nil, 0, false, err
 	}
 
@@ -218,6 +223,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	if contractCreation {
 		ret, _, st.gas, vmerr = evm.Create(sender, st.data, st.gas, st.value)
 	} else {
+	    //fmt.Printf("===========TransitionDb,=================\n")//caihaijun
 		// Increment the nonce for the next transaction
 		st.state.SetNonce(msg.From(), st.state.GetNonce(sender.Address())+1)
 		ret, st.gas, vmerr = evm.Call(sender, st.to(), st.data, st.gas, st.value)

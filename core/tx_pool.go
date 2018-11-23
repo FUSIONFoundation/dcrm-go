@@ -25,7 +25,7 @@ import (
 	"sync"
 	"time"
 	"github.com/fusion/go-fusion/core/vm"//caihaijun
-
+	"strings"//caihaijun
 	"github.com/fusion/go-fusion/common"
 	"github.com/fusion/go-fusion/common/prque"
 	"github.com/fusion/go-fusion/core/state"
@@ -567,6 +567,7 @@ func (pool *TxPool) local() map[common.Address]types.Transactions {
 // validateTx checks whether a transaction is valid according to the consensus
 // rules and adheres to some heuristic limits of the local node (price and size).
 func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
+	//fmt.Printf("=============validateTx===========\n")//caihaijun
 	// Heuristic limit, reject transactions over 32KB to prevent DOS attacks
 	if tx.Size() > 32*1024 {
 		fmt.Printf("===================caihaijun,validateTx,excute p.ValidTx11111=================\n")//caihaijun
@@ -574,13 +575,18 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	}
 	// Transactions can't be negative. This may never happen using RLP decoded
 	// transactions but may occur if you create a transaction using the RPC.
+	//fmt.Printf("=============validateTxaaaaaaa===========\n")//caihaijun
 	if tx.Value().Sign() < 0 {
+	    fmt.Printf("===========validateTx,value < 0======\n") //caihaijun
 		return ErrNegativeValue
 	}
 	// Ensure the transaction doesn't exceed the current block limit gas.
+	//fmt.Printf("=============validateTxbbbbbbbb===========\n")//caihaijun
 	if pool.currentMaxGas < tx.Gas() {
+		fmt.Printf("=========validateTx,currentMaxGas < tx.Gas=======\n") //caihaijun
 		return ErrGasLimit
 	}
+	fmt.Printf("=============validateTxccccc===========\n")//caihaijun
 	// Make sure the transaction is signed properly
 	from, err := types.Sender(pool.signer, tx)
 	if err != nil {
@@ -588,6 +594,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 		return ErrInvalidSender
 	}
 	// Drop non-local transactions under our own minimal accepted gas price
+	//fmt.Printf("=============validateTxddddd===========\n")//caihaijun
 	local = local || pool.locals.contains(from) // account may be local even if the transaction arrived from the network
 	if !local && pool.gasPrice.Cmp(tx.GasPrice()) > 0 {
 		fmt.Printf("===================caihaijun,validateTx,excute p.ValidTx3333=================\n")//caihaijun
@@ -597,6 +604,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	// Ensure the transaction adheres to nonce ordering
 	//if pool.currentState.GetNonce(from) > tx.Nonce() {//------caihaijun----
 	//if !bytes.Equal(tx.To().Bytes(), types.DcrmLockinPrecompileAddr.Bytes()) && pool.currentState.GetNonce(from) > tx.Nonce() {//+++++++caihaijun+++++++++
+	//fmt.Printf("=============validateTxeeeee===========\n")//caihaijun
 	if !types.IsDcrmLockIn(tx.Data()) && pool.currentState.GetNonce(from) > tx.Nonce() {//+++++++caihaijun+++++++++
 		fmt.Printf("===================caihaijun,validateTx,ErrNonceTooLow=================\n")//caihaijun
 		return ErrNonceTooLow
@@ -605,16 +613,19 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	// cost == V + GP * GL
 	//if pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 { //----caihaijun------
 	//if !bytes.Equal(tx.To().Bytes(), types.DcrmLockinPrecompileAddr.Bytes()) && pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {//+++++++caihaijun++++++++
+	//fmt.Printf("=============validateTxfffff===========\n")//caihaijun
 	if !types.IsDcrmLockIn(tx.Data()) && pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {//+++++++caihaijun++++++++
 		fmt.Printf("===================caihaijun,validateTx,ErrInsufficientFunds,from is %s=================\n",from.Hex())//caihaijun
 		return ErrInsufficientFunds
 	}
+	//fmt.Printf("=============validateTxkkkkkkk===========\n")//caihaijun
 	intrGas, err := IntrinsicGas(tx.Data(), tx.To() == nil, pool.homestead)
 	if err != nil {
 		fmt.Printf("===================caihaijun,validateTx,excute p.ValidTx55555=================\n")//caihaijun
 		return err
 	}
 	
+	//fmt.Printf("=============validateTxrrrrrrr===========\n")//caihaijun
 	if tx.Gas() < intrGas {
 		fmt.Printf("===================caihaijun,validateTx,excute p.ValidTx6666=================\n")//caihaijun
 		return ErrIntrinsicGas
@@ -623,22 +634,34 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	//+++++++++++++++++caihaijun++++++++++++++++++
 	// Check precompile contracts transactions validation
 	if  tx.To() != nil && !types.IsDcrmTransaction(tx.Data()) {
+	//fmt.Printf("=============validateTxppppp===========\n")//caihaijun
 		precompiles := vm.PrecompiledContractsHomestead
 		if pool.homestead == false {
 			precompiles = vm.PrecompiledContractsByzantium
 		}
 		
+		//fmt.Printf("=============validateTxqqqqqq===========\n")//caihaijun
 		if p := precompiles[*tx.To()]; p != nil {
 		    /*if err = p.ValidTx(pool.currentState, pool.signer, tx); err != nil {
 			    return err
 		    }*/
 
-		    if types.CallValidateDcrm(tx.Hash().Hex()) == false {
+		//fmt.Printf("=============validateTxmmmmmm===========\n")//caihaijun
+		if types.IsDcrmConfirmAddr(tx.Data()) {
+		    input := strings.Split(string(tx.Data()),":")
+		    if types.CallValidateDcrm(input[2]) == false {
+		//fmt.Printf("=============validateTxtttttttttt===========\n")//caihaijun
+			return errors.New("Dcrm Validate fail.")
+		    }
+		} else if types.CallValidateDcrm(tx.Hash().Hex()) == false {
+		//fmt.Printf("=============validateTxnnnnnn===========\n")//caihaijun
 			return errors.New("Dcrm Validate fail.")
 		    }
 		}
  	}
 	//+++++++++++++++++++++end++++++++++++++++++++
+
+	//fmt.Printf("===============validateTx=============endendend\n")//caihaijun
 	return nil
 }
 
@@ -651,22 +674,27 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 // whitelisted, preventing any associated transaction from being dropped out of
 // the pool due to pricing constraints.
 func (pool *TxPool) add(tx *types.Transaction, local bool) (bool, error) {
+	    //fmt.Printf("========pool.add=========\n")//caihaijun
 	// If the transaction is already known, discard it
 	hash := tx.Hash()
 	if pool.all.Get(hash) != nil {
+	    //fmt.Printf("===========pool.add fail============\n")//caihaijun
 		log.Trace("Discarding already known transaction", "hash", hash)
 		return false, fmt.Errorf("known transaction: %x", hash)
 	}
 	// If the transaction fails basic validation, discard it
 	if err := pool.validateTx(tx, local); err != nil {
+	    //fmt.Printf("===========pool.add fail11111111============\n")//caihaijun
 		log.Trace("Discarding invalid transaction", "hash", hash, "err", err)
 		invalidTxCounter.Inc(1)
 		return false, err
 	}
 	// If the transaction pool is full, discard underpriced transactions
 	if uint64(pool.all.Count()) >= pool.config.GlobalSlots+pool.config.GlobalQueue {
+	    //fmt.Printf("===========pool.add fail22222============\n")//caihaijun
 		// If the new transaction is underpriced, don't accept it
 		if !local && pool.priced.Underpriced(tx, pool.locals) {
+	    //fmt.Printf("===========pool.add fail3333333============\n")//caihaijun
 			log.Trace("Discarding underpriced transaction", "hash", hash, "price", tx.GasPrice())
 			underpricedTxCounter.Inc(1)
 			return false, ErrUnderpriced
@@ -674,6 +702,7 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (bool, error) {
 		// New transaction is better than our worse ones, make room for it
 		drop := pool.priced.Discard(pool.all.Count()-int(pool.config.GlobalSlots+pool.config.GlobalQueue-1), pool.locals)
 		for _, tx := range drop {
+	    //fmt.Printf("===========pool.add fail444444============\n")//caihaijun
 			log.Trace("Discarding freshly underpriced transaction", "hash", tx.Hash(), "price", tx.GasPrice())
 			underpricedTxCounter.Inc(1)
 			pool.removeTx(tx.Hash(), false)
@@ -685,11 +714,13 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (bool, error) {
 		// Nonce already pending, check if required price bump is met
 		inserted, old := list.Add(tx, pool.config.PriceBump)
 		if !inserted {
+	    //fmt.Printf("===========pool.add fail5555============\n")//caihaijun
 			pendingDiscardCounter.Inc(1)
 			return false, ErrReplaceUnderpriced
 		}
 		// New transaction is better, replace old one
 		if old != nil {
+	    //fmt.Printf("===========pool.add fail6666============\n")//caihaijun
 			pool.all.Remove(old.Hash())
 			pool.priced.Removed()
 			pendingReplaceCounter.Inc(1)
@@ -703,6 +734,7 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (bool, error) {
 		// We've directly injected a replacement transaction, notify subsystems
 		go pool.txFeed.Send(NewTxsEvent{types.Transactions{tx}})
 
+	    //fmt.Printf("===========pool.add fail77777============\n")//caihaijun
 		return old != nil, nil
 	}
 	// New transaction isn't replacing a pending one, push into queue
@@ -720,6 +752,7 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (bool, error) {
 	pool.journalTx(from, tx)
 
 	log.Trace("Pooled new future transaction", "hash", hash, "from", from, "to", tx.To())
+	    //fmt.Printf("===========pool.add fail88888============\n")//caihaijun
 	return replace, nil
 }
 
