@@ -245,7 +245,7 @@ func (self *RecvMsg) Run(workid int,ch chan interface{}) bool {
 	return false
     }
 
-    fmt.Printf("===============caihaijun,RecvMsg.Run,msg is %s================\n",self.msg)
+    //fmt.Printf("===============caihaijun,RecvMsg.Run,msg is %s================\n",self.msg)
 
     mm := strings.Split(self.msg,msgtypesep)
     if len(mm) != 2 {

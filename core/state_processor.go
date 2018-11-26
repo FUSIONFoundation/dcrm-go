@@ -97,8 +97,8 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, author *commo
 	// Create a new environment which holds all relevant information
 	// about the transaction and calling mechanisms.
 	vmenv := vm.NewEVM(context, statedb, config, cfg)
-	txhash := tx.Hash().Hex()//fmt.Sprintf("%v",tx.Hash())   //++++++caihaijun+++++++
-	vmenv.SetTxhash(txhash) //++++++++caihaijun+++++++
+	//txhash := tx.Hash().Hex()//fmt.Sprintf("%v",tx.Hash())   //++++++caihaijun+++++++
+	//vmenv.SetTxhash(txhash) //++++++++caihaijun+++++++
 
 	//++++++++++++caihaijun+++++++++++++++
 	/*if  tx.To() != nil && !types.IsDcrmTransaction(tx.Data()) {
