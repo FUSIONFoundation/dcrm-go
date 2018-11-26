@@ -81,11 +81,14 @@ func RegisterRecvCallback(recvPrivkeyFunc func(interface{})) {
 func RegisterCallback(recvDcrmFunc func(interface{})) {
 	callback = recvDcrmFunc
 }
-func RegisterDcrmCallback(dcrmcallback func(interface{}) <-chan interface{}) {
+func RegisterDcrmCallback(dcrmcallback func(interface{}) <-chan string) {
 	discover.RegisterDcrmCallback(dcrmcallback)
 }
 func callEvent(msg string) {
 	callback(msg)
+}
+func RegisterDcrmRetCallback(dcrmcallback func(interface{})){
+	discover.RegisterDcrmRetCallback(dcrmcallback)
 }
 
 type peerInfo struct {
@@ -135,13 +138,12 @@ func init() {
 
 func (e *Emitter) addPeer(p *p2p.Peer, ws p2p.MsgReadWriter) {
 	fmt.Println("========  addPeer()  ========")
-	log.Debug("p: %+v, ws: %+v\n", p, ws)
+	log.Debug("addPeer", "p: ", p, "ws: ", ws)
 	e.Lock()
 	defer e.Unlock()
 	//id := fmt.Sprintf("%x", p.ID)
 	//fmt.Printf("addpeer, id: %x\n", id)
 	e.peers[p.ID()] = &peer{ws: ws, peer: p, peerInfo: &peerInfo{int(ProtocolVersion)}}
-	log.Debug("e.peers[%+v].RecvMessage: %#v\n", p.ID(), e.peers[p.ID()].RecvMessage)
 }
 
 // Start implements node.Service, starting the background data propagation thread
@@ -222,20 +224,19 @@ func HandlePeer(peer *p2p.Peer, rw p2p.MsgReadWriter) error {
 	//id := fmt.Sprintf("%x", peer.ID)
 	id := peer.ID()
 	//fmt.Printf("handle, id: %x\n", id)
-	log.Debug("emitter", "emitter.peers: %#v\n", emitter.peers)
+	log.Debug("emitter", "emitter.peers: ", emitter.peers)
 	//p2p.SendItems(rw, dcrmMsgCode, "aaaaaaaaaaaaaaaaaaa")
 	for {
 		msg, err := rw.ReadMsg()
 		if err != nil {
 			return err
 		}
-		log.Debug("receive Msgs from peer: %+v\n", msg)
+		log.Debug("HandlePeer", "receive Msgs from peer: ", msg)
 		var recv []string
 		switch msg.Code {
 		case dcrmMsgCode:
 			//fmt.Printf("receive Msgs from peer: %v\n", peer)
-			log.Debug("emitter", "emitter.peers[id]: %#v\n", emitter.peers[id])
-			log.Debug("emitter", "emitter.peers[id].RecvMessage: %#v\n", emitter.peers[id].RecvMessage)
+			log.Debug("emitter", "emitter.peers[id]: ", emitter.peers[id])
 			//if err := msg.Decode(&emitter.peers[id].RecvMessage); err != nil {
 			if err := msg.Decode(&recv); err != nil {
 				fmt.Println("decode msg err", err)
@@ -266,7 +267,7 @@ func GetGroup() (int, string) {
 	enode := ""
 	count := 0
 	for i, e := range dcrmgroup.group {
-		log.Debug("i=%+v, e=%+v\n", i, e)
+		log.Debug("GetGroup", "i", i, "e", e)
 		if enode != "" {
 			enode += discover.Dcrmdelimiter
 		}
@@ -285,16 +286,16 @@ func GetSelfID() discover.NodeID {
 func recvGroupInfo(req interface{}) {
 	log.Debug("==== recvGroupInfo() ====\n")
 	selfid = discover.GetLocalID()
-	log.Debug("local ID: %+v\n", selfid)
-	log.Debug("req = %#v\n", req)
+	log.Debug("recvGroupInfo", "local ID: ", selfid)
+	log.Debug("recvGroupInfo", "req = ", req)
 	dcrmgroup = NewDcrmGroup()
 	for i, enode := range req.([]*discover.Node) {
-		log.Debug("i: %+v, e: %+v\n", i, enode)
+		log.Debug("recvGroupInfo", "i: ", i, "e: ", enode)
 		node, _ := discover.ParseNode(enode.String())
 		dcrmgroup.group[node.ID.String()] = &group{id: node.ID, ip: node.IP, port: node.UDP, enode: enode.String()}
-		log.Debug("dcrmgroup.group = %#v\n", dcrmgroup.group[node.ID.String()])
+		log.Debug("recvGroupInfo", "dcrmgroup.group = ", dcrmgroup.group[node.ID.String()])
 	}
-	log.Debug("dcrmgroup = %#v\n", dcrmgroup)
+	log.Debug("recvGroupInfo", "dcrmgroup = ", dcrmgroup)
 }
 
 //TODO callback
@@ -309,9 +310,9 @@ func recvPrivkeyInfo(msg interface{}) {
 
 func SendToPeer(enode string, msg string) {
 	log.Debug("==== DCRM SendToPeer ====\n")
-	log.Debug("enode: %v, msg: %v\n", enode, msg)
+	log.Debug("SendToPeer", "enode: ", enode, "msg: ", msg)
 	node, _ := discover.ParseNode(enode)
-	log.Debug("node.id: %+v, node.IP: %+v, node.UDP: %+v\n", node.ID, node.IP, node.UDP)
+	//log.Debug("node.id: %+v, node.IP: %+v, node.UDP: %+v\n", node.ID, node.IP, node.UDP)
 	ipa := &net.UDPAddr{IP: node.IP, Port: int(node.UDP)}
 	discover.SendMsgToPeer(node.ID, ipa, msg)
 }
@@ -334,15 +335,15 @@ func BroatcastToGroup(msg string) {
 			return
 		}
 		log.Debug("BroatcastToGroup", "group: ", dcrmgroup)
-		log.Debug("emitter", "peer: %#v\n", emitter)
+		log.Debug("emitter", "peer: ", emitter)
 		for _, g := range dcrmgroup.group {
-			log.Debug("group", "g: %+v\n", g)
+			log.Debug("group", "g: ", g)
 			if selfid == g.id {
 				continue
 			}
 			p := emitter.peers[g.id]
 			if p == nil {
-				log.Debug("NodeID: %+v not in peers\n", g.id)
+				log.Debug("BroatcastToGroup", "NodeID: ", g.id, "not in peers\n")
 				continue
 			}
 			log.Debug("send to node(group)", "g = ", g, "p.peer = ", p.peer)
@@ -363,9 +364,9 @@ func Broatcast(msg string) {
 	emitter.Lock()
 	defer emitter.Unlock()
 	func() {
-		log.Debug("peer: ", "%#v\n", emitter)
+		log.Debug("peer", "emitter", emitter)
 		for _, p := range emitter.peers {
-			log.Debug("Broastcast to ", "p: %+v\n", p, ", msg: %+v\n", msg)
+		    log.Debug("Broastcast", "to , p: ", p, "msg: ", p, msg)
 			if err := p2p.SendItems(p.ws, dcrmMsgCode, msg); err != nil {
 				fmt.Printf("Emitter.loopSendMsg p2p.SendItems err", err, "peer id", p.peer.ID())
 				continue

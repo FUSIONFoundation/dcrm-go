@@ -178,14 +178,10 @@ var number [3]byte
 // sendgroup sends to group dcrm and waits until
 // the node has reply.
 func (t *udp) sendToGroupDCRM(toid NodeID, toaddr *net.UDPAddr, msg string) (string, error) {
-	log.Debug("====  (t *udp) sendToGroupDCRM()  ====")
+	log.Debug("====  (t *udp) sendToGroupDCRM()  ====\n")
 	retmsg := ""
-	errc := t.pending(toid, gotDcrmPacket, func(r interface{}) bool {
-		log.Debug("dcrm", "gotDcrmPacket: ", r)
-		retmsg = r.(*dcrmmessage).Msg
-		return true
-	})
 	number[0]++
+	log.Debug("sendToGroupDCRM", "send toaddr: ", toaddr)
 	if len(msg) <= 800 {
 		number[1] = 1
 		number[2] = 1
@@ -212,12 +208,17 @@ func (t *udp) sendToGroupDCRM(toid NodeID, toaddr *net.UDPAddr, msg string) (str
 			Expiration: uint64(time.Now().Add(expiration).Unix()),
 		})
 	} else {
-		log.Info("send", "msg size > 1600, sent failed.")
+		fmt.Printf("send, msg size > 1600, sent failed.\n")
 		return "", nil
 	}
-	err := <-errc
-	log.Debug("dcrm", "retmsg: ", retmsg)
-	return retmsg, err
+	//errc := t.pending(toid, gotDcrmPacket, func(r interface{}) bool {
+	//	fmt.Printf("dcrm, gotDcrmPacket: %+v\n", r)
+	//	retmsg = r.(*dcrmmessage).Msg
+	//	return true
+	//})
+	//err := <-errc
+	//fmt.Printf("dcrm, retmsg: %+v\n", retmsg)
+	return retmsg, nil
 }
 
 func (req *getdcrmmessage) handle(t *udp, from *net.UDPAddr, fromID NodeID, mac []byte) error {
@@ -237,7 +238,7 @@ func (req *getdcrmmessage) handle(t *udp, from *net.UDPAddr, fromID NodeID, mac 
 	}
 	msgp := req.Msg
 	num := req.Number
-	log.Debug("dcrm handle", "req.Number = ", num)
+	log.Debug("dcrm handle", "req.Number", num)
 	if num[2] > 1 {
 		if tmpdcrmmsg.Number[0] == 0 || num[0] != tmpdcrmmsg.Number[0] {
 			tmpdcrmmsg = &(*req)
@@ -264,8 +265,10 @@ func (req *getdcrmmessage) handle(t *udp, from *net.UDPAddr, fromID NodeID, mac 
 	log.Debug("getdcrmmessage", "retmsg: ", msg)
 	//tmpdcrmmsg.Number = [3]byte{}
 	//t.send(from, gotDcrmPacket, &getdcrmmessage{
+	log.Debug("getdcrmmessage", "send(from: ", from, "msg = ", msg)
 	t.send(from, gotDcrmPacket, &dcrmmessage{
-		Msg:        msg.(string),
+		Target:     fromID,
+		Msg:        msg,
 		Expiration: uint64(time.Now().Add(expiration).Unix()),
 	})
 	log.Debug("dcrm handle", "send to from: ", from, ", message: ", msg)
@@ -273,14 +276,16 @@ func (req *getdcrmmessage) handle(t *udp, from *net.UDPAddr, fromID NodeID, mac 
 }
 
 func (req *dcrmmessage) handle(t *udp, from *net.UDPAddr, fromID NodeID, mac []byte) error {
-	log.Debug("====  (req *group) handle()  ====")
-	log.Debug("dcrmmessage", "group handle: ", req)
+	log.Debug("====  (req *dcrmmessage) handle()  ====\n")
+	log.Debug("dcrmmessage", "handle, req: ", req)
 	//if expired(req.Expiration) {
 	//        return errExpired
 	//}
-	if !t.handleReply(fromID, gotDcrmPacket, req) {
-		return errUnsolicitedReply
-	}
+	//if !t.handleReply(fromID, gotDcrmPacket, req) {
+	//	return errUnsolicitedReply
+	//}
+	log.Debug("dcrmmessage", "handle, req.Msg", req.Msg)
+	go calldcrmReturn(req.Msg)
 	return nil
 }
 
@@ -499,14 +504,21 @@ func callMsgEvent(msg string) {
 }
 
 //peer(of DCRM group) receive other peer msg to run dcrm
-var dcrmcallback func(interface{}) <-chan interface{}
-
-func RegisterDcrmCallback(callbackfunc func(interface{}) <-chan interface{}) {
+var dcrmcallback func(interface{}) <-chan string
+func RegisterDcrmCallback(callbackfunc func(interface{}) <-chan string) {
 	dcrmcallback = callbackfunc
 }
-
-func calldcrmEvent(e interface{}) <-chan interface{} {
+func calldcrmEvent(e interface{}) <-chan string {
 	return dcrmcallback(e)
+}
+//return
+var dcrmretcallback func(interface{})
+func RegisterDcrmRetCallback(callbackfunc func(interface{})) {
+	dcrmretcallback = callbackfunc
+}
+func calldcrmReturn(e interface{}) {
+	log.Debug("calldcrmReturn", "args", e)
+	dcrmretcallback(e)
 }
 
 //get private Key

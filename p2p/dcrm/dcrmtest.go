@@ -15,8 +15,8 @@ func call(msg interface{}) {
 	fmt.Printf("\n\ncall: msg=%v\n", msg)
 }
 
-func dcrmcall(msg interface{}) (<-chan interface{}) {
-	ch := make(chan interface{}, 800)
+func dcrmcall(msg interface{}) (<-chan string) {
+	ch := make(chan string, 800)
 	fmt.Printf("\ndcrmcall: msg=%v\n", msg)
 	ch <- "jklaafd"
 	return ch
