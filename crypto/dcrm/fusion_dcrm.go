@@ -742,11 +742,13 @@ func (self *ConfirmAddrSendMsgToDcrm) Run(workid int,ch chan interface{}) bool {
     }
 
     GetEnodesInfo()
+    w := non_dcrm_workers[workid]
     
     ss := cur_enode + "-" + self.Txhash + "-" + self.Tx + "-" + self.FusionAddr + "-" + self.DcrmAddr + "-" + self.Hashkey + "-" + self.Cointype + "-" + strconv.Itoa(workid) + msgtypesep + "rpc_confirm_dcrmaddr"
-    result := p2pdcrm.SendToDcrmGroup(ss)
+    p2pdcrm.SendToDcrmGroup(ss)
+    data := <-w.dcrmret
 
-    data := fmt.Sprintf("%s",result)
+    //data := fmt.Sprintf("%s",result)
     mm := strings.Split(data,msgtypesep)
     if len(mm) == 2 && mm[1] == "rpc_confirm_dcrmaddr_res" {
 	tmps := strings.Split(mm[0],"-")
@@ -782,16 +784,18 @@ func (self *ReqAddrSendMsgToDcrm) Run(workid int,ch chan interface{}) bool {
     }
 
     GetEnodesInfo()
-    //w := non_dcrm_workers[workid]
+    w := non_dcrm_workers[workid]
     
     //ss:  enode-txhash-tx-fusion-pub-coin-wid||rpc_req_dcrmaddr
     ss := cur_enode + "-" + self.Txhash + "-" + self.Tx + "-" + self.Fusionaddr + "-" + self.Pub + "-" + self.Cointype + "-" + strconv.Itoa(workid) + msgtypesep + "rpc_req_dcrmaddr"
     
     fmt.Printf("\nReqAddrSendMsgToDcrm.Run,send data is %s\n",ss)
-    result := p2pdcrm.SendToDcrmGroup(ss)
-    fmt.Printf("\nReqAddrSendMsgToDcrm.Run,receive the result,result is %s.\n",fmt.Sprintf("%s",result))
-
-    data := fmt.Sprintf("%s",result)
+    p2pdcrm.SendToDcrmGroup(ss)
+    data := <-w.dcrmret
+    fmt.Printf("\ndcrm return data is %s\n",data)
+    //fmt.Printf("\nReqAddrSendMsgToDcrm.Run,receive the result,result is %s.\n",fmt.Sprintf("%s",result))
+    
+    //data := fmt.Sprintf("%s",result)
     mm := strings.Split(data,msgtypesep)
     if len(mm) == 2 && mm[1] == "rpc_req_dcrmaddr_res" {
 	fmt.Printf("\nReqAddrSendMsgToDcrm.Run,rpc_req_dcrmaddr_res\n")
@@ -841,12 +845,13 @@ func (self *LockInSendMsgToDcrm) Run(workid int,ch chan interface{}) bool {
     }
 
     GetEnodesInfo()
-    //w := non_dcrm_workers[workid]
+    w := non_dcrm_workers[workid]
     
     //ss:  enode-txhash-tx-fusion-coin-txhashs-wid||rpc_lockin
     ss := cur_enode + "-" + self.Txhash + "-" + self.Tx + "-" + self.Fusionaddr + "-" + self.Cointype + "-" + self.Txhashs + "-" + strconv.Itoa(workid) + msgtypesep + "rpc_lockin"
-    result := p2pdcrm.SendToDcrmGroup(ss)
-    data := fmt.Sprintf("%s",result)
+    p2pdcrm.SendToDcrmGroup(ss)
+    //data := fmt.Sprintf("%s",result)
+    data := <-w.dcrmret
     mm := strings.Split(data,msgtypesep)
     if len(mm) == 2 && mm[1] == "rpc_lockin_res" {
 	tmps := strings.Split(mm[0],"-")
@@ -895,14 +900,14 @@ func (self *LockOutSendMsgToDcrm) Run(workid int,ch chan interface{}) bool {
     }
 
     GetEnodesInfo()
-    //w := non_dcrm_workers[workid]
+    w := non_dcrm_workers[workid]
     
     fmt.Printf("=============caihaijun,LockOutSendMsgToDcrm.Run11111111111111111111111111================\n")
     //ss:  enode-sig-txhash-dcrmaddr-coin-wid||rpc_lockout
     ss := cur_enode + "-" + self.Txhash + "-" + self.Tx + "-" + self.Sig + "-" + self.Fusionhash + "-" + self.Lockto + "-" + self.FusionAddr + "-" + self.DcrmAddr + "-" + self.Value + "-" + self.Cointype + "-" + strconv.Itoa(workid) + msgtypesep + "rpc_lockout"
-    result := p2pdcrm.SendToDcrmGroup(ss)
-    fmt.Printf("=============caihaijun,LockOutSendMsgToDcrm.Run2222222222222222222222222,result is %+v================\n",result)
-    data := fmt.Sprintf("%s",result)
+    p2pdcrm.SendToDcrmGroup(ss)
+    //data := fmt.Sprintf("%s",result)
+    data := <-w.dcrmret
     mm := strings.Split(data,msgtypesep)
     if len(mm) == 2 && mm[1] == "rpc_lockout_res" {
 	    tmps := strings.Split(mm[0],"-")
@@ -996,6 +1001,7 @@ func NewRpcReqNonDcrmWorker(workerPool chan chan RpcReq) RpcReqNonDcrmWorker {
     RpcReqWorkerPool: workerPool,
     RpcReqChannel: make(chan RpcReq),
     rpcquit:       make(chan bool),
+    dcrmret:	make(chan string,1),
     ch:		   make(chan interface{})}
 }
 
@@ -1007,6 +1013,7 @@ type RpcReqNonDcrmWorker struct {
     id int
 
     ch chan interface{}
+    dcrmret chan string
 }
 
 func (w RpcReqNonDcrmWorker) Start() {
@@ -1405,15 +1412,55 @@ func init(){
 	types.RegisterValidateDcrmCallback(callDcrm)
 	core.RegisterDcrmLockOutCallback(callDcrmLockOut)
 	p2pdcrm.RegisterDcrmCallback(dcrmcall)
+	p2pdcrm.RegisterDcrmRetCallback(dcrmret)
 	InitNonDcrmChan()
 	nonce = 0
 	lockoutx = nil
 }
 
-func dcrmcall(msg interface{}) <-chan interface{} {
+func dcrmret(msg interface{}) {
+
+    data := fmt.Sprintf("%s",msg)
+    fmt.Printf("\ndcrmret,data is %s\n",data)
+    if data == "" {
+	return 
+    }
+    
+    mm := strings.Split(data,msgtypesep)
+    if len(mm) == 2 && mm[1] == "rpc_req_dcrmaddr_res" {
+	tmps := strings.Split(mm[0],"-")
+	fmt.Printf("\ndcrmret,data is %s,worker id is %s\n",data,tmps[1])
+	id,_ := strconv.Atoi(tmps[1])
+	w := non_dcrm_workers[id]
+	w.dcrmret <- data
+    }
+    if len(mm) == 2 && mm[1] == "rpc_confirm_dcrmaddr_res" {
+	tmps := strings.Split(mm[0],"-")
+	fmt.Printf("\ndcrmret,data is %s,worker id is %s\n",data,tmps[1])
+	id,_ := strconv.Atoi(tmps[1])
+	w := non_dcrm_workers[id]
+	w.dcrmret <- data
+    }
+    if len(mm) == 2 && mm[1] == "rpc_lockin_res" {
+	tmps := strings.Split(mm[0],"-")
+	fmt.Printf("\ndcrmret,data is %s,worker id is %s\n",data,tmps[1])
+	id,_ := strconv.Atoi(tmps[1])
+	w := non_dcrm_workers[id]
+	w.dcrmret <- data
+    }
+    if len(mm) == 2 && mm[1] == "rpc_lockout_res" {
+	tmps := strings.Split(mm[0],"-")
+	fmt.Printf("\ndcrmret,data is %s,worker id is %s\n",data,tmps[1])
+	id,_ := strconv.Atoi(tmps[1])
+	w := non_dcrm_workers[id]
+	w.dcrmret <- data
+    }
+}
+
+func dcrmcall(msg interface{}) <-chan string {
 
     fmt.Printf("=====caihaijun,dcrmcall,msg is %s=====\n",msg)
-    ch := make(chan interface{}, 1)
+    ch := make(chan string, 1)
     data := fmt.Sprintf("%s",msg)
     mm := strings.Split(data,msgtypesep)
     if len(mm) == 2 && mm[1] == "rpc_confirm_dcrmaddr" {
@@ -1421,14 +1468,14 @@ func dcrmcall(msg interface{}) <-chan interface{} {
 	v := DcrmConfirmAddr{Txhash:tmps[1],Tx:tmps[2],FusionAddr:tmps[3],DcrmAddr:tmps[4],Hashkey:tmps[5],Cointype:tmps[6]}
 	_,err := Dcrm_ConfirmAddr(&v)
 	if err != nil {
-	ss := tmps[0] + "-" + "fail" + msgtypesep + "rpc_confirm_dcrmaddr_res"
+	ss := tmps[0] + "-" + tmps[7] + "-" + "fail" + msgtypesep + "rpc_confirm_dcrmaddr_res"
 
 	ch <- ss 
 	return ch
     }
    
 	//ss:  enode-wid-addr || rpc_req_dcrmaddr_res
-	ss := tmps[0] + "-" + "true" + msgtypesep + "rpc_confirm_dcrmaddr_res"
+	ss := tmps[0] + "-" + tmps[7] + "-" + "true" + msgtypesep + "rpc_confirm_dcrmaddr_res"
 	ch <- ss 
 	return ch
     }
