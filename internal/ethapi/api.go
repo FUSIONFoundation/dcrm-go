@@ -660,6 +660,10 @@ func (s *PublicFsnAPI) DcrmReqAddr(ctx context.Context,fusionaddr string,cointyp
     }
     result,err := signed.MarshalJSON()
     
+    if dcrm.IsExsitDcrmAddr(signed.Hash().Hex()) { ///bug:call DcrmReqAddr two times continuous and error will occur. 
+	return "the account has generate dcrm address already,please call dcrmConfirmAddr to confirm the addr.",nil
+    }
+    
     if !dcrm.IsInGroup() {
 	msg := signed.Hash().Hex() + sep9 + string(result) + sep9 + fusionaddr + sep9 + pubkey + sep9 + cointype 
 	addr,err := dcrm.SendReqToGroup(msg,"rpc_req_dcrmaddr")

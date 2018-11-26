@@ -2023,6 +2023,19 @@ func Validate_Txhash(wr WorkReq) (string,error) {
 }
 //###############
 
+func IsExsitDcrmAddr(txhash string) bool {
+    if txhash == "" {
+	return true
+    }
+
+    _,ok := types.GetDcrmValidateDataKReady(txhash) 
+    if ok == true {
+	return true
+    }
+
+    return false
+}
+
 		func GetEnodesInfo() {
 		    cnt,_ := p2pdcrm.GetEnodes()
 		    //others := strings.Split(nodes,sep2)
@@ -2316,7 +2329,7 @@ func Validate_Txhash(wr WorkReq) (string,error) {
 			res := RpcDcrmRes{ret:"",err:ret2}
 			ch <- res
 			return
-		    }*/
+		    }
 
 		    if cointype != "ETH" && cointype != "BTC" {
 			fmt.Println("===========coin type is not supported.must be btc or eth.=================")
@@ -2325,7 +2338,7 @@ func Validate_Txhash(wr WorkReq) (string,error) {
 			res := RpcDcrmRes{ret:"",err:ret2}
 			ch <- res
 			return
-		    }
+		    }*/
 
 		    if int32(enode_cnts) != int32(NodeCnt) {
 			fmt.Println("============the net group is not ready.please try again.================")
