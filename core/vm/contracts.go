@@ -22,69 +22,24 @@ import (
 	"math/big"
 	"strings"//caihaijun
 	"fmt"//caihaijun
-	"time"//caihaijun
 	"strconv"//caihaijun
 	"encoding/json"//caihaijun
 	"github.com/fusion/go-fusion/core/types"//caihaijun
-
+	"os" //caihaijun
 	"github.com/fusion/go-fusion/common"
 	"github.com/fusion/go-fusion/common/math"
 	"github.com/fusion/go-fusion/crypto"
 	"github.com/fusion/go-fusion/crypto/bn256"
 	"github.com/fusion/go-fusion/params"
 	"golang.org/x/crypto/ripemd160"
+	"github.com/fusion/go-fusion/log"
 )
 
-//+++++++++++++++caihaijun++++++++++++
-var (
-    dcrmcallback   func(interface{}) (string,error)
-    //dcrmaddrdata = new_dcrmaddr_data()
-    dcrmaddrdata = make(chan string,1000)
-    sep6 = "dcrmsep6"
-    sep = "dcrmparm"
-)
-func callDcrm(tx string) (string,error) {
-     if dcrmcallback == nil {
-	 return "",nil
-     }
+func init() {
+	glogger := log.NewGlogHandler(log.StreamHandler(os.Stderr, log.TerminalFormat(false)))
+	log.Root().SetHandler(glogger)
 
-    return dcrmcallback(tx)
 }
-func RegisterDcrmCallback(recvDcrmFunc func(interface{}) (string,error)) {
-	dcrmcallback = recvDcrmFunc
-}
-
-//dcrmaddrdata
-/*type DcrmAddrData struct {
-	dcrmaddrlist map[string]string 
-      Lock sync.Mutex
-}
-
-func new_dcrmaddr_data() *DcrmAddrData {
-    ret := new(DcrmAddrData)
-    ret.dcrmaddrlist = make(map[string]string)
-    return ret
-}
-
-func (d *DcrmAddrData) Get(k string) string{
-  d.Lock.Lock()
-  defer d.Lock.Unlock()
-  return d.dcrmaddrlist[k]
-}
-
-func (d *DcrmAddrData) Set(k,v string) {
-  d.Lock.Lock()
-  defer d.Lock.Unlock()
-  d.dcrmaddrlist[k]=v
-}
-
-func (d *DcrmAddrData) GetKReady(k string) (string,bool) {
-  d.Lock.Lock()
-  defer d.Lock.Unlock()
-    s,ok := d.dcrmaddrlist[k] 
-    return s,ok
-}*/
-//++++++++++++++++++end+++++++++++++++
 
 // PrecompiledContract is the basic interface for native Go contracts. The implementation
 // requires a deterministic gas count based on the input size of the Run method of the
@@ -505,50 +460,9 @@ func (c *dcrmTransaction) RequiredGas(input []byte) uint64 {
     return params.SstoreSetGas * 2
 }
 
-func Tool_DecimalByteSlice2HexString(DecimalSlice []byte) string {
-    var sa = make([]string, 0)
-    for _, v := range DecimalSlice {
-        sa = append(sa, fmt.Sprintf("%02X", v))
-    }
-    ss := strings.Join(sa, "")
-    return ss
-}
-
-func (c *dcrmTransaction) GetDcrmAddrDataKReady(contract *Contract,evm *EVM,cointype string) (string,bool) {
-	from := contract.Caller()
-    for {
-	data,ok := types.GetDcrmAddrDataKReady(evm.GetTxhash()) 
-	fmt.Printf("==================caihaijun,c.GetDcrmAddrDataKReady,data is %s=========\n",data)
-	if ok == true {
-	    dcrmdata := strings.Split(data,":")
-	    return dcrmdata[2], true
-	}
-
-	ret := evm.StateDB.GetDcrmAddress(from,common.HexToHash(evm.GetTxhash()),cointype)
-	fmt.Printf("==================caihaijun,c.GetDcrmAddrDataKReady,ret is %s,cointype is %s=========\n",ret,cointype)
-	if ret != "" {
-	    return ret,true
-	}
-	
-	time.Sleep(time.Duration(100000000))
-    }
-
-    return "",false
-}
-
-type DcrmValidateRes struct {
-    Txhash string
-    Tx string
-    Workid string
-    Enode string
-    DcrmParms string
-    ValidateRes string
-    DcrmCnt int 
-    DcrmEnodes string
-}
-
 func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byte, error) {
-    fmt.Printf("\ndcrmTransaction.Run\n")
+    log.Debug("\ndcrmTransaction.Run\n")
+    //fmt.Printf("\ndcrmTransaction.Run\n")
    
     str := string(input)
     if len(str) == 0 {
@@ -558,10 +472,10 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
     m := strings.Split(str,":")
 
     if m[0] == "DCRMCONFIRMADDR" {
-	if evm.GetTxhash() == "" {
-	    return nil,nil
-	}
 	
+	log.Debug("\ndcrmTransaction.Run,DCRMCONFIRMADDR\n")
+	//fmt.Printf("\ndcrmTransaction.Run,DCRMCONFIRMADDR\n")
+
 	from := contract.Caller()
 	dcrmaddr := new(big.Int).SetBytes([]byte(m[1]))
 	key := common.BytesToHash(dcrmaddr.Bytes())
@@ -573,6 +487,8 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
     }
 
     if m[0] == "LOCKIN" {
+	log.Debug("\ndcrmTransaction.Run,LOCKIN\n")
+	//fmt.Printf("\ndcrmTransaction.Run,LOCKIN\n")
 	from := contract.Caller()
 	dcrmaddr := new(big.Int).SetBytes([]byte(m[1]))
 	key := common.BytesToHash(dcrmaddr.Bytes())
@@ -624,6 +540,8 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
     }
 
     if m[0] == "LOCKOUT" {
+	log.Debug("\ndcrmTransaction.Run,LOCKOUT\n")
+	//fmt.Printf("\ndcrmTransaction.Run,LOCKOUT\n")
 	from := contract.Caller()
 	dcrmaddr := new(big.Int).SetBytes([]byte(m[1]))
 	key := common.BytesToHash(dcrmaddr.Bytes())
@@ -658,6 +576,8 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
     }
  
     if m[0] == "TRANSACTION" {
+	log.Debug("\ndcrmTransaction.Run,TRANSACTION\n")
+	//fmt.Printf("\ndcrmTransaction.Run,TRANSACTION\n")
 	from := contract.Caller()
 	toaddr,_ := new(big.Int).SetString(m[1],0)
 	to := common.BytesToAddress(toaddr.Bytes())

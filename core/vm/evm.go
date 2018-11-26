@@ -23,7 +23,6 @@ import (
 	"bytes"//caihaijun
 	"strings"//caihaijun
 
-	"fmt"//caihaijun
 	"github.com/fusion/go-fusion/common"
 	"github.com/fusion/go-fusion/core/types"//caihaijun
 	"github.com/fusion/go-fusion/crypto"
@@ -199,12 +198,10 @@ func (evm *EVM) Interpreter() Interpreter {
 // execution error or failed value transfer.
 func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas uint64, value *big.Int) (ret []byte, leftOverGas uint64, err error) { 
 
-	fmt.Printf("========call11111=================\n")//caihaijun
 	if evm.vmConfig.NoRecursion && evm.depth > 0 {
 		return nil, gas, nil
 	}
 
-	fmt.Printf("========call2222=================\n")//caihaijun
 	// Fail if we're trying to execute above the call depth limit
 	if evm.depth > int(params.CallCreateDepth) {
 		return nil, gas, ErrDepth
@@ -212,7 +209,6 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	// Fail if we're trying to transfer more than the available balance
 	//if !evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {//----caihaijun----
 	//if !bytes.Equal(AccountRef(addr).Address().Bytes(), types.DcrmLockinPrecompileAddr.Bytes()) && !evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {//+++++++++caihaijun++++++++++
-	fmt.Printf("========call3333=================\n")//caihaijun
 	if !types.IsDcrmLockIn(input) && !evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {//+++++++++caihaijun++++++++++
 		return nil, gas, ErrInsufficientBalance
 	}
@@ -288,7 +284,6 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		}()
 	}
 
-	fmt.Printf("call=================\n")//caihaijun
 	ret, err = run(evm, contract, input, false)
 
 	// When an error was returned by the EVM or when setting the creation code
