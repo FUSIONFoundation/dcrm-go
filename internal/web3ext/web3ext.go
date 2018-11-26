@@ -695,6 +695,12 @@ web3._extend({
 			inputFormatter: [null,null]
 		}),
 		new web3._extend.Method({
+			name: 'dcrmConfirmAddr',
+			call: 'lilo_dcrmConfirmAddr',
+			params: 3,
+			inputFormatter: [null,null,null]
+		}),
+		new web3._extend.Method({
 			name: 'dcrmLockin',
 			call: 'lilo_dcrmLockin',
 			params: 3,
