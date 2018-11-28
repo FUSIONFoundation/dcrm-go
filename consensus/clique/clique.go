@@ -18,8 +18,6 @@
 package clique
 
 import (
-	"fmt"
-
 	"bytes"
 	"errors"
 	"math/big"
@@ -54,8 +52,8 @@ const (
 
 // Clique proof-of-authority protocol constants.
 var (
-	FsnBlockReward       = big.NewInt(3e+18) // Block reward in wei for successfully mining a block
-	epochLength = uint64(30000) // Default number of blocks after which to checkpoint and reset the pending votes
+	FsnBlockReward = big.NewInt(3e+18) // Block reward in wei for successfully mining a block
+	epochLength    = uint64(30000)     // Default number of blocks after which to checkpoint and reset the pending votes
 
 	extraVanity = 32 // Fixed number of extra-data prefix bytes reserved for signer vanity
 	extraSeal   = 65 // Fixed number of extra-data suffix bytes reserved for signer seal
@@ -167,7 +165,7 @@ func sigHash(header *types.Header) (hash common.Hash) {
 		header.GasLimit,
 		header.GasUsed,
 		header.Time,
-		header.Extra[:len(header.Extra)-65], // Yes, this will panic if extra is too short
+		header.Extra[:len(header.Extra)-65-common.AddressLength], // Yes, this will panic if extra is too short
 		header.MixDigest,
 		header.Nonce,
 	})
@@ -307,7 +305,7 @@ func (c *Clique) verifyHeader(chain consensus.ChainReader, header *types.Header,
 		return errMissingSignature
 	}
 	// Ensure that the extra-data contains a signer list on checkpoint, but none otherwise
-	signersBytes := len(header.Extra) - extraVanity - extraSeal
+	signersBytes := len(header.Extra) - extraVanity - common.AddressLength - extraSeal
 	if !checkpoint && signersBytes != 0 {
 		return errExtraSigners
 	}
@@ -566,6 +564,7 @@ func (c *Clique) Prepare(chain consensus.ChainReader, header *types.Header) erro
 			header.Extra = append(header.Extra, signer[:]...)
 		}
 	}
+	header.Extra = append(header.Extra, make([]byte, common.AddressLength)...)
 	header.Extra = append(header.Extra, make([]byte, extraSeal)...)
 
 	// Mix digest is reserved for now, set to empty
@@ -587,10 +586,9 @@ func (c *Clique) Prepare(chain consensus.ChainReader, header *types.Header) erro
 // rewards given, and returns the final block.
 func (c *Clique) Finalize(chain consensus.ChainReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
 	// No block rewards in PoA, so the state remains as is and uncles are dropped
-
 	// Fsn
 	// Accumulate any block and uncle rewards and commit the final state root
-	//c.accumulateRewards(chain.Config(), state, header, uncles)
+	c.accumulateRewards(chain.Config(), state, header, uncles)
 
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
 	header.UncleHash = types.CalcUncleHash(nil)
@@ -661,6 +659,7 @@ func (c *Clique) Seal(chain consensus.ChainReader, block *types.Block, results c
 	if err != nil {
 		return err
 	}
+	copy(header.Extra[32:], signer.Bytes()[0:common.AddressLength])
 	copy(header.Extra[len(header.Extra)-extraSeal:], sighash)
 	// Wait until sealing is terminated or delay timeout.
 	log.Trace("Waiting for slot to sign and propagate", "delay", common.PrettyDuration(delay))
@@ -732,16 +731,20 @@ var (
 // AccumulateRewards credits the coinbase of the given block with the mining
 // reward. The total reward consists of the static block reward and rewards for
 // included uncles. The coinbase of each uncle block is also rewarded.
-func accumulateRewards(config *params.ChainConfig, state *state.StateDB, header *types.Header, signer common.Address) {
-	fmt.Printf("\n\n==== accumulateRewards ====\n")
+func (c *Clique) accumulateRewards(config *params.ChainConfig, state *state.StateDB, header *types.Header, uncles []*types.Header) {
+	log.Debug("==== accumulateRewards ====\n")
 
 	blockReward := FsnBlockReward
-	fmt.Printf("state: %#v\n",state)
 	// Select the correct block reward based on chain progression
 	if config.IsByzantium(header.Number) {
 		blockReward = FsnBlockReward
 	}
 	// Accumulate the rewards for the signer
 	reward := new(big.Int).Set(blockReward)
-	state.AddBalance(signer, reward)
+	sig := header.Extra[32 : len(header.Extra)-65]
+	if common.BytesToAddress(sig) != (common.Address{}) {
+		state.AddBalance(common.BytesToAddress(sig), reward)
+	} else {
+		state.AddBalance(c.signer, reward)
+	}
 }
