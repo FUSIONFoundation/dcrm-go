@@ -8,6 +8,7 @@ import (
     "fmt"
     "github.com/fusion/go-fusion/common/math"
     "github.com/fusion/go-fusion/crypto/secp256k1"
+    "github.com/fusion/go-fusion/log"
 )
 
 type ECDSASignature struct {
@@ -58,11 +59,11 @@ func verify2(r *big.Int,s *big.Int,v int32,message string,pkx *big.Int,pky *big.
     xR := new(big.Int).Mod(xxx,secp256k1.S256().N)
 
     if xR.Cmp(r) == 0 {
-	fmt.Println("--Info: ECDSA Signature Verify Passed! (r,s) is a Valid Siganture!\n",r,s);
+	log.Debug("--Info: ECDSA Signature Verify Passed! (r,s) is a Valid Siganture!\n",r,s);
 	return true
     }
 
-    fmt.Println("@@ERROR@@@@@@@@@@@@@@@@@@@@@@@@@@@@: ECDSA Signature Verify NOT Passed! (r,s) is a InValid Siganture!\n",r,s);
+    log.Debug("@@ERROR@@@@@@@@@@@@@@@@@@@@@@@@@@@@: ECDSA Signature Verify NOT Passed! (r,s) is a InValid Siganture!\n",r,s);
     return false
 }
 

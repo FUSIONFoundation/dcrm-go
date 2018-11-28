@@ -20,6 +20,7 @@ import (
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/fusion/go-fusion/log"
 )
 
 func GenerateBTC() (string, string, error) {
@@ -128,39 +129,39 @@ func b58encode(b []byte) (s string) {
 // b58checkencode encodes version ver and byte slice b into a base-58 check encoded string.
 func b58checkencode(bitcoin_net int,ver uint8, b []byte) (s string) {
 	/* Prepend version */
-	fmt.Println("4 - Add version byte in front of RIPEMD-160 hash (0x00 for Main Network)")
+	log.Debug("4 - Add version byte in front of RIPEMD-160 hash (0x00 for Main Network)\n")
 	bcpy := append([]byte{ver}, b...)
 	fmt.Println(byteString(bcpy))
-	fmt.Println("=======================")
+	log.Debug("=======================\n")
 
 	/* Create a new SHA256 context */
 	sha256H := sha256.New()
 
 	/* SHA256 Hash #1 */
-	fmt.Println("5 - Perform SHA-256 hash on the extended RIPEMD-160 result")
+	log.Debug("5 - Perform SHA-256 hash on the extended RIPEMD-160 result\n")
 	sha256H.Reset()
 	sha256H.Write(bcpy)
 	hash1 := sha256H.Sum(nil)
 	fmt.Println(byteString(hash1))
-	fmt.Println("=======================")
+	log.Debug("=======================\n")
 
 	/* SHA256 Hash #2 */
-	fmt.Println("6 - Perform SHA-256 hash on the result of the previous SHA-256 hash")
+	log.Debug("6 - Perform SHA-256 hash on the result of the previous SHA-256 hash\n")
 	sha256H.Reset()
 	sha256H.Write(hash1)
 	hash2 := sha256H.Sum(nil)
 	fmt.Println(byteString(hash2))
-	fmt.Println("=======================")
+	log.Debug("=======================\n")
 
 	/* Append first four bytes of hash */
-	fmt.Println("7 - Take the first 4 bytes of the second SHA-256 hash. This is the address checksum")
+	log.Debug("7 - Take the first 4 bytes of the second SHA-256 hash. This is the address checksum\n")
 	fmt.Println(byteString(hash2[0:4]))
-	fmt.Println("=======================")
+	log.Debug("=======================\n")
 
-	fmt.Println("8 - Add the 4 checksum bytes from stage 7 at the end of extended RIPEMD-160 hash from stage 4. This is the 25-byte binary Bitcoin Address.")
+	log.Debug("8 - Add the 4 checksum bytes from stage 7 at the end of extended RIPEMD-160 hash from stage 4. This is the 25-byte binary Bitcoin Address.\n")
 	bcpy = append(bcpy, hash2[0:4]...)
 	fmt.Println(byteString(bcpy))
-	fmt.Println("=======================")
+	log.Debug("=======================\n")
 
 	/* Encode base58 string */
 	s = b58encode(bcpy)
@@ -175,9 +176,9 @@ func b58checkencode(bitcoin_net int,ver uint8, b []byte) (s string) {
 	    }
 	}
 
-	fmt.Println("9 - Convert the result from a byte string into a base58 string using Base58Check encoding. This is the most commonly used Bitcoin Address format")
+	log.Debug("9 - Convert the result from a byte string into a base58 string using Base58Check encoding. This is the most commonly used Bitcoin Address format\n")
 	fmt.Println(s)
-	fmt.Println("=======================")
+	log.Debug("=======================\n")
 
 	return s
 }
@@ -208,22 +209,22 @@ func (w Wallet) GetAddress(bitcoin_net int) (address string) {
 	pub_bytes := w.PublicKey
 
 	/* SHA256 Hash */
-	fmt.Println("2 - Perform SHA-256 hashing on the public key")
+	log.Debug("2 - Perform SHA-256 hashing on the public key\n")
 	sha256_h := sha256.New()
 	sha256_h.Reset()
 	sha256_h.Write(pub_bytes)
 	pub_hash_1 := sha256_h.Sum(nil)
 	fmt.Println(byteString(pub_hash_1))
-	fmt.Println("=======================")
+	log.Debug("=======================\n")
 
 	/* RIPEMD-160 Hash */
-	fmt.Println("3 - Perform RIPEMD-160 hashing on the result of SHA-256")
+	log.Debug("3 - Perform RIPEMD-160 hashing on the result of SHA-256\n")
 	ripemd160_h := ripemd160.New()
 	ripemd160_h.Reset()
 	ripemd160_h.Write(pub_hash_1)
 	pub_hash_2 := ripemd160_h.Sum(nil)
 	fmt.Println(byteString(pub_hash_2))
-	fmt.Println("=======================")
+	log.Debug("=======================\n")
 	/* Convert hash bytes to base58 check encoded sequence */
 	//0x00 main net
 	//0x6f test public network

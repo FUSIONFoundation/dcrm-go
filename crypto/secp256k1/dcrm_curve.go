@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"github.com/fusion/go-fusion/common/math"
+	"github.com/fusion/go-fusion/log"
 )
 
 /*
@@ -19,19 +20,21 @@ extern int secp256k1_get_ecdsa_sign_v(const secp256k1_context* ctx, unsigned cha
 */
 import "C"
 
+func init() {
+	glogger := log.NewGlogHandler(log.StreamHandler(os.Stderr, log.TerminalFormat(false)))
+	log.Root().SetHandler(glogger)
+}
+
 //return value is normalized.
 func DecodePoint(pubkeyc []byte) (*big.Int,*big.Int){
 
 	pk := make([]byte, 64)
-	//for i := range pk {
-	//	pk[i] = 0
-	//}
 
 	pkPtr := (*C.struct___0)(unsafe.Pointer(&pk[0]))
 	pkcPtr := (*C.uchar)(unsafe.Pointer(&pubkeyc[0]))
 	res := C.secp256k1_ec_pubkey_parse(context, pkPtr,pkcPtr,65)
 	if res == 0 {
-	    fmt.Printf("pk string is NULL \n")
+	    log.Debug("pk string is NULL \n")
 	    return nil,nil
 	}
 
@@ -43,7 +46,7 @@ func DecodePoint(pubkeyc []byte) (*big.Int,*big.Int){
 	outlenPtr := (*C.size_t)(unsafe.Pointer(outlen))
 	res2 := C.secp256k1_ec_pubkey_serialize(context,soutPtr,outlenPtr,pkPtr,C.uint(flag))
 	if res2 == 0 {
-	    fmt.Printf("pk serialize output string is NULL \n")
+	    log.Debug("pk serialize output string is NULL \n")
 	    return nil,nil
 	}
 

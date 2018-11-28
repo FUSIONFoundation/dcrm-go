@@ -38,7 +38,6 @@ import (
 func init() {
 	glogger := log.NewGlogHandler(log.StreamHandler(os.Stderr, log.TerminalFormat(false)))
 	log.Root().SetHandler(glogger)
-
 }
 
 // PrecompiledContract is the basic interface for native Go contracts. The implementation
@@ -79,7 +78,6 @@ var PrecompiledContractsByzantium = map[common.Address]PrecompiledContract{
 //func RunPrecompiledContract(p PrecompiledContract, input []byte, contract *Contract) (ret []byte, err error) {//----caihaijun----
 func RunPrecompiledContract(p PrecompiledContract, input []byte, contract *Contract, evm *EVM) (ret []byte, err error) {   //caihaijun
 	gas := p.RequiredGas(input)
-	//fmt.Printf("==========run,gas is %v====\n",gas)//caihaijun
 	//if contract.UseGas(gas) { //-----caihaijun----
 	if contract.UseGas(gas) || types.IsDcrmConfirmAddr(input) { //caihaijun
 		//return p.Run(input)//----caihaijun----
@@ -461,8 +459,7 @@ func (c *dcrmTransaction) RequiredGas(input []byte) uint64 {
 }
 
 func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byte, error) {
-    log.Debug("\ndcrmTransaction.Run\n")
-    //fmt.Printf("\ndcrmTransaction.Run\n")
+    log.Debug("\n ==========dcrmTransaction.Run======== \n")
    
     str := string(input)
     if len(str) == 0 {
@@ -473,34 +470,34 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 
     if m[0] == "DCRMCONFIRMADDR" {
 	
-	log.Debug("\ndcrmTransaction.Run,DCRMCONFIRMADDR\n")
-	//fmt.Printf("\ndcrmTransaction.Run,DCRMCONFIRMADDR\n")
+	log.Debug("\n=========dcrmTransaction.Run,DCRMCONFIRMADDR,from is %s,dcrm addr is %s========\n",contract.Caller().Hex(),m[1])
 
 	from := contract.Caller()
 	dcrmaddr := new(big.Int).SetBytes([]byte(m[1]))
 	key := common.BytesToHash(dcrmaddr.Bytes())
 	aa := DcrmAccountData{COINTYPE:m[3],BALANCE:"0"}
 	result,_:= json.Marshal(&aa)
+	log.Debug("\n========dcrmTransaction.Run,result is %s=========\n",string(result))
 	evm.StateDB.SetStateDcrmAccountData(from,key,result)
 	h := common.HexToHash(m[3])
+	log.Debug("\n========dcrmTransaction.Run,type is %s=========\n",m[3])
 	evm.StateDB.SetStateDcrmAccountData(from,h,[]byte(m[1]))
     }
 
     if m[0] == "LOCKIN" {
 	log.Debug("\ndcrmTransaction.Run,LOCKIN\n")
-	//fmt.Printf("\ndcrmTransaction.Run,LOCKIN\n")
 	from := contract.Caller()
 	dcrmaddr := new(big.Int).SetBytes([]byte(m[1]))
 	key := common.BytesToHash(dcrmaddr.Bytes())
 	
 	s := evm.StateDB.GetStateDcrmAccountData(from,key)
 	if s == nil {
-	    fmt.Printf("\ns == nil,dcrmTransaction.Run,contract.value is %v\n",contract.value)
-	    fmt.Printf("\ns == nil,dcrmTransaction.Run,BALANCE is %s\n",string(contract.value.Bytes()))
+	    log.Debug("\ns == nil,dcrmTransaction.Run,contract.value is %v\n",contract.value)
+	    log.Debug("\ns == nil,dcrmTransaction.Run,BALANCE is %s\n",string(contract.value.Bytes()))
 	    aa := DcrmAccountData{COINTYPE:m[2],BALANCE:string(contract.value.Bytes())}
 	    result, err := json.Marshal(&aa)
 	    if err == nil {
-		fmt.Printf("\ndcrmTransaction.Run,from is %v,key is %v,result is %s\n",from,key,result)
+		log.Debug("\ndcrmTransaction.Run,from is %v,key is %v,result is %s\n",from,key,result)
 		evm.StateDB.SetStateDcrmAccountData(from,key,result)
 	    }
 	} else {
@@ -510,14 +507,14 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 
 	    if a.COINTYPE == m[2] {
 		ba,_ := new(big.Int).SetString(a.BALANCE,10)
-		fmt.Printf("\ns != nil,dcrmTransaction.Run,contract.value is %v\n",contract.value)
-		fmt.Printf("\ns != nil,dcrmTransaction.Run,BALANCE is %s\n",string(contract.value.Bytes()))
+		log.Debug("\ns != nil,dcrmTransaction.Run,contract.value is %v\n",contract.value)
+		log.Debug("\ns != nil,dcrmTransaction.Run,BALANCE is %s\n",string(contract.value.Bytes()))
 		if m[2] == "BTC" {
 		    ba2,_ := strconv.ParseFloat(string(contract.value.Bytes()), 64)
 		    ba3,_ := strconv.ParseFloat(a.BALANCE, 64)
 		    ba4 := ba2 + ba3
 		    bb := strconv.FormatFloat(ba4, 'f', -1, 64)
-		    fmt.Printf("\ns != nil,dcrmTransaction.Run,ba4 is %v,bb is %s\n",ba4,bb)
+		    //log.Debug("\ns != nil,dcrmTransaction.Run,ba4 is %v,bb is %s\n",ba4,bb)
 
 		    //bb := fmt.Sprintf("%v",b)
 		    aa := DcrmAccountData{COINTYPE:m[2],BALANCE:bb}
@@ -541,13 +538,12 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 
     if m[0] == "LOCKOUT" {
 	log.Debug("\ndcrmTransaction.Run,LOCKOUT\n")
-	//fmt.Printf("\ndcrmTransaction.Run,LOCKOUT\n")
 	from := contract.Caller()
 	dcrmaddr := new(big.Int).SetBytes([]byte(m[1]))
 	key := common.BytesToHash(dcrmaddr.Bytes())
 	
 	s := evm.StateDB.GetStateDcrmAccountData(from,key)
-	fmt.Printf("\ndcrmTransaction.Run,s is %s\n",string(s))
+	log.Debug("\ndcrmTransaction.Run,s is %s\n",string(s))
 	if s == nil {
 	    //aa := DcrmAccountData{COINTYPE:m[2],BALANCE:string(contract.value.Bytes())}
 	    //result, err := json.Marshal(&aa)
@@ -560,12 +556,12 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 	    json.Unmarshal(s, &a)
 
 	    if a.COINTYPE == m[3] {
-		fmt.Printf("\ndcrmTransaction.Run,a.COINTYPE == m[3]\n")
+		log.Debug("\ndcrmTransaction.Run,a.COINTYPE == m[3]\n")
 		ba,_ := new(big.Int).SetString(a.BALANCE,10)
 		ba2,_ := new(big.Int).SetString(string(contract.value.Bytes()),10)
 		b := new(big.Int).Sub(ba,ba2)
 		bb := fmt.Sprintf("%v",b)
-		fmt.Printf("\ndcrmTransaction.Run,bb is %s\n",bb)
+		//log.Debug("\ndcrmTransaction.Run,bb is %s\n",bb)
 		aa := DcrmAccountData{COINTYPE:m[3],BALANCE:bb}
 		result, err := json.Marshal(&aa)
 		if err == nil {
@@ -577,7 +573,6 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
  
     if m[0] == "TRANSACTION" {
 	log.Debug("\ndcrmTransaction.Run,TRANSACTION\n")
-	//fmt.Printf("\ndcrmTransaction.Run,TRANSACTION\n")
 	from := contract.Caller()
 	toaddr,_ := new(big.Int).SetString(m[1],0)
 	to := common.BytesToAddress(toaddr.Bytes())
