@@ -5,7 +5,6 @@ package dcrm
 
 import (
     "math/big"
-    "fmt"
     "github.com/fusion/go-fusion/common/math"
     "github.com/fusion/go-fusion/crypto/secp256k1"
     "github.com/fusion/go-fusion/log"

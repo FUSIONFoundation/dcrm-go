@@ -20,7 +20,7 @@ import (
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/fusion/go-fusion/log"
+	dcrmlog "github.com/fusion/go-fusion/log"
 )
 
 func GenerateBTC() (string, string, error) {
@@ -129,39 +129,39 @@ func b58encode(b []byte) (s string) {
 // b58checkencode encodes version ver and byte slice b into a base-58 check encoded string.
 func b58checkencode(bitcoin_net int,ver uint8, b []byte) (s string) {
 	/* Prepend version */
-	log.Debug("4 - Add version byte in front of RIPEMD-160 hash (0x00 for Main Network)\n")
+	dcrmlog.Debug("4 - Add version byte in front of RIPEMD-160 hash (0x00 for Main Network)\n")
 	bcpy := append([]byte{ver}, b...)
 	fmt.Println(byteString(bcpy))
-	log.Debug("=======================\n")
+	dcrmlog.Debug("=======================\n")
 
 	/* Create a new SHA256 context */
 	sha256H := sha256.New()
 
 	/* SHA256 Hash #1 */
-	log.Debug("5 - Perform SHA-256 hash on the extended RIPEMD-160 result\n")
+	dcrmlog.Debug("5 - Perform SHA-256 hash on the extended RIPEMD-160 result\n")
 	sha256H.Reset()
 	sha256H.Write(bcpy)
 	hash1 := sha256H.Sum(nil)
 	fmt.Println(byteString(hash1))
-	log.Debug("=======================\n")
+	dcrmlog.Debug("=======================\n")
 
 	/* SHA256 Hash #2 */
-	log.Debug("6 - Perform SHA-256 hash on the result of the previous SHA-256 hash\n")
+	dcrmlog.Debug("6 - Perform SHA-256 hash on the result of the previous SHA-256 hash\n")
 	sha256H.Reset()
 	sha256H.Write(hash1)
 	hash2 := sha256H.Sum(nil)
 	fmt.Println(byteString(hash2))
-	log.Debug("=======================\n")
+	dcrmlog.Debug("=======================\n")
 
 	/* Append first four bytes of hash */
-	log.Debug("7 - Take the first 4 bytes of the second SHA-256 hash. This is the address checksum\n")
+	dcrmlog.Debug("7 - Take the first 4 bytes of the second SHA-256 hash. This is the address checksum\n")
 	fmt.Println(byteString(hash2[0:4]))
-	log.Debug("=======================\n")
+	dcrmlog.Debug("=======================\n")
 
-	log.Debug("8 - Add the 4 checksum bytes from stage 7 at the end of extended RIPEMD-160 hash from stage 4. This is the 25-byte binary Bitcoin Address.\n")
+	dcrmlog.Debug("8 - Add the 4 checksum bytes from stage 7 at the end of extended RIPEMD-160 hash from stage 4. This is the 25-byte binary Bitcoin Address.\n")
 	bcpy = append(bcpy, hash2[0:4]...)
 	fmt.Println(byteString(bcpy))
-	log.Debug("=======================\n")
+	dcrmlog.Debug("=======================\n")
 
 	/* Encode base58 string */
 	s = b58encode(bcpy)
@@ -176,9 +176,9 @@ func b58checkencode(bitcoin_net int,ver uint8, b []byte) (s string) {
 	    }
 	}
 
-	log.Debug("9 - Convert the result from a byte string into a base58 string using Base58Check encoding. This is the most commonly used Bitcoin Address format\n")
+	dcrmlog.Debug("9 - Convert the result from a byte string into a base58 string using Base58Check encoding. This is the most commonly used Bitcoin Address format\n")
 	fmt.Println(s)
-	log.Debug("=======================\n")
+	dcrmlog.Debug("=======================\n")
 
 	return s
 }
@@ -209,22 +209,22 @@ func (w Wallet) GetAddress(bitcoin_net int) (address string) {
 	pub_bytes := w.PublicKey
 
 	/* SHA256 Hash */
-	log.Debug("2 - Perform SHA-256 hashing on the public key\n")
+	dcrmlog.Debug("2 - Perform SHA-256 hashing on the public key\n")
 	sha256_h := sha256.New()
 	sha256_h.Reset()
 	sha256_h.Write(pub_bytes)
 	pub_hash_1 := sha256_h.Sum(nil)
 	fmt.Println(byteString(pub_hash_1))
-	log.Debug("=======================\n")
+	dcrmlog.Debug("=======================\n")
 
 	/* RIPEMD-160 Hash */
-	log.Debug("3 - Perform RIPEMD-160 hashing on the result of SHA-256\n")
+	dcrmlog.Debug("3 - Perform RIPEMD-160 hashing on the result of SHA-256\n")
 	ripemd160_h := ripemd160.New()
 	ripemd160_h.Reset()
 	ripemd160_h.Write(pub_hash_1)
 	pub_hash_2 := ripemd160_h.Sum(nil)
 	fmt.Println(byteString(pub_hash_2))
-	log.Debug("=======================\n")
+	dcrmlog.Debug("=======================\n")
 	/* Convert hash bytes to base58 check encoded sequence */
 	//0x00 main net
 	//0x6f test public network

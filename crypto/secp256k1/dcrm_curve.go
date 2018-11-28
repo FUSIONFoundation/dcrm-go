@@ -6,8 +6,7 @@ package secp256k1
 import (
 	"math/big"
 	"unsafe"
-	"fmt"
-
+	"os"//caihaijun
 	"github.com/fusion/go-fusion/common/math"
 	"github.com/fusion/go-fusion/log"
 )

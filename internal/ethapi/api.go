@@ -24,6 +24,7 @@ import (
 	"math/big"
 	"strings"
 	"time"
+	"os"//caihaijun
 	"encoding/json" //caihaijun
 	"github.com/davecgh/go-spew/spew"
 	"github.com/fusion/go-fusion/accounts"
