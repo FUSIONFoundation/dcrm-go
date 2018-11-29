@@ -237,7 +237,7 @@ func (self *stateObject) GetDcrmAccountBalance(db Database, key common.Hash,coin
     if a.COINTYPE == cointype {
 	var ba *big.Int
 	if cointype == "BTC" {
-	    log.Debug("==============GetDcrmAccountBalance,a.BALANCE is %s============\n",a.BALANCE)
+	    log.Debug("GetDcrmAccountBalance","a.BALANCE",a.BALANCE)
 	    ba = new(big.Int).SetBytes([]byte(a.BALANCE))
 	} else {
 	    ba,_ = new(big.Int).SetString(a.BALANCE,10)
@@ -290,7 +290,7 @@ func (self *stateObject) SetStateDcrmAccountData(db Database, key common.Hash, v
 }
 
 func (self *stateObject) setStateDcrmAccountData(key common.Hash, value []byte) {
-	log.Debug("===============SetStateDcrmAccountData,value is %s===========\n",string(value))//caihaijun
+	//log.Debug("===============SetStateDcrmAccountData,value is %s===========\n",string(value))//caihaijun
 	//self.cachedStorageDcrmAccountData[key] = value
 	self.dirtyStorageDcrmAccountData[key] = value
 
@@ -324,20 +324,21 @@ func (self *stateObject) setState(key, value common.Hash) {
 
 // updateTrie writes cached storage modifications into the object's storage trie.
 func (self *stateObject) updateTrie(db Database) Trie {
+	//log.Debug("","===============stateObject.updateTrie===========")//caihaijun
 	tr := self.getTrie(db)
 	for key, value := range self.dirtyStorage {
-		log.Debug("===============stateObject.updateTrie,delete dirtyStorage ===========\n")//caihaijun
+	    log.Debug("===============stateObject.updateTrie, dirtyStorage:","get key",key,"get value",value.Hex(),"","=====================")//caihaijun
 		delete(self.dirtyStorage, key)
 
 		// Skip noop changes, persist actual changes
 		if value == self.originStorage[key] {
-		    log.Debug("============stateObject.updateTrie,value == self.originStorage[key],key is %v========\n",key)//caihaijun
+		    log.Debug("============stateObject.updateTrie, dirtyStorage:","key",key.Hex(),"","no change,and skip.============")//caihaijun
 			continue
 		}
 		self.originStorage[key] = value
 
 		if (value == common.Hash{}) {
-			log.Debug("===============stateObject.updateTrie,value is common.Hash nil. ===========\n")//caihaijun
+		    log.Debug("===============stateObject.updateTrie, dirtyStorage:","key",key.Hex(),"","value is nil and delete it.===========")//caihaijun
 			self.setError(tr.TryDelete(key[:]))
 			continue
 		}
@@ -348,25 +349,25 @@ func (self *stateObject) updateTrie(db Database) Trie {
 
 	//+++++++++++++++caihaijun++++++++++++++++
 	for key, value := range self.dirtyStorageDcrmAccountData {
-		log.Debug("===============updateTrie,delete dirtyStorageDcrmAccountData ===========\n")//caihaijun
+	    log.Debug("===============stateObject.updateTrie, dirtyStorageDcrmAccountData:","get key",key.Hex(),"get value",string(value),"","=====================")//caihaijun
 		delete(self.dirtyStorageDcrmAccountData, key)
 
 		// Skip noop changes, persist actual changes
 		if string(value) == string(self.cachedStorageDcrmAccountData[key]) {
-			log.Debug("===============updateTrie,string(value) == string(self.cachedStorageDcrmAccountData[key]),key is %v ===========\n",key)//caihaijun
+		    log.Debug("============stateObject.updateTrie, dirtyStorageDcrmAccountData:","key",key.Hex(),"","no change,and skip.============")//caihaijun
 			continue
 		}
 		self.cachedStorageDcrmAccountData[key] = value
 
 		if (value == nil) {
-			log.Debug("===============updateTrie,value is nil ===========\n")//caihaijun
+		    log.Debug("===============stateObject.updateTrie, dirtyStorageDcrmAccountData:","key",key.Hex(),"","value is nil and delete it.===========")//caihaijun
 			self.setError(tr.TryDelete(key[:]))
 			continue
 		}
 		// Encoding []byte cannot fail, ok to ignore the error.
 		//v, _ := rlp.EncodeToBytes(bytes.TrimLeft(value[:], "\x00"))
 		v := value//v, _ := rlp.EncodeToBytes(bytes.TrimLeft(value[:], ""))
-		log.Debug("===============updateTrie,v is %s ===========\n",string(v))//caihaijun
+		log.Debug("===============stateObject.updateTrie, dirtyStorageDcrmAccountData:","key",key.Hex(),"value",string(v),"","is update into trie.===========")//caihaijun
 		self.setError(tr.TryUpdate(key[:], v))
 	}
 	//++++++++++++++++++end+++++++++++++++++++
@@ -382,14 +383,15 @@ func (self *stateObject) updateRoot(db Database) {
 // CommitTrie the storage trie of the object to db.
 // This updates the trie root.
 func (self *stateObject) CommitTrie(db Database) error {
+	log.Debug("=========stateObject.CommitTrie, call updateTrie to update trie root and write to db ======")//caihaijun
 	self.updateTrie(db)
 	if self.dbErr != nil {
-	    log.Debug("=========stateObject.CommitTrie,db error.======\n")//caihaijun
+	    log.Debug("=========stateObject.CommitTrie,db error.======")//caihaijun
 		return self.dbErr
 	}
 	root, err := self.trie.Commit(nil)
 	if err == nil {
-		log.Debug("=========stateObject.CommitTrie,update root ======\n")//caihaijun
+		log.Debug("=========stateObject.CommitTrie,update root ======")//caihaijun
 		self.data.Root = root
 	}
 	return err

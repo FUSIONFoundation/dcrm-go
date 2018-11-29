@@ -27,6 +27,7 @@ import (
 	"github.com/fusion/go-fusion/core/types"//caihaijun
 	"github.com/fusion/go-fusion/crypto"
 	"github.com/fusion/go-fusion/params"
+	"github.com/fusion/go-fusion/log"//caihaijun
 )
 
 // emptyCodeHash is used by create to ensure deployment is disallowed to already
@@ -219,6 +220,8 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	)
 	//if !evm.StateDB.Exist(addr) {//-----caihaijun-----
 	if !bytes.Equal(AccountRef(addr).Address().Bytes(), types.DcrmPrecompileAddr.Bytes()) && !evm.StateDB.Exist(addr) { //+++++++++caihaijun++++++++++++
+
+	    log.Debug("===========EVM.call,is not exist","addr",addr.Hex(),"","============") //caihaijun
 		precompiles := PrecompiledContractsHomestead
 		if evm.ChainConfig().IsByzantium(evm.BlockNumber) {
 			precompiles = PrecompiledContractsByzantium

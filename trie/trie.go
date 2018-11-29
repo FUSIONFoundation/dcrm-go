@@ -131,8 +131,12 @@ func (t *Trie) Get(key []byte) []byte {
 // The value bytes must not be modified by the caller.
 // If a node was not found in the database, a MissingNodeError is returned.
 func (t *Trie) TryGet(key []byte) ([]byte, error) {
+	log.Debug("=========TryGet","key1",string(key),"","===========")//caihaijun
 	key = keybytesToHex(key)
+	log.Debug("=========TryGet","key2",string(key),"","===========")//caihaijun
+	log.Debug("=========TryGet","old t.root",t.root,"","===========")//caihaijun
 	value, newroot, didResolve, err := t.tryGet(t.root, key, 0)
+	log.Debug("=========TryGet","new t.root",t.root,"value",string(value),"","===========")//caihaijun
 	if err == nil && didResolve {
 		t.root = newroot
 	}
@@ -144,6 +148,7 @@ func (t *Trie) tryGet(origNode node, key []byte, pos int) (value []byte, newnode
 	case nil:
 		return nil, nil, false, nil
 	case valueNode:
+		//log.Debug("=========tryGet,n is %v======\n",n)//caihaijun
 		return n, n, false, nil
 	case *shortNode:
 		if len(key)-pos < len(n.Key) || !bytes.Equal(n.Key, key[pos:pos+len(n.Key)]) {
@@ -156,6 +161,7 @@ func (t *Trie) tryGet(origNode node, key []byte, pos int) (value []byte, newnode
 			n.Val = newnode
 			n.flags.gen = t.cachegen
 		}
+		//log.Debug("=========tryGet,shortnode,value is %s,n is %v,didResolve is %v,err is %v======\n",string(value),n, didResolve, err)//caihaijun
 		return value, n, didResolve, err
 	case *fullNode:
 		value, newnode, didResolve, err = t.tryGet(n.Children[key[pos]], key, pos+1)
@@ -164,6 +170,7 @@ func (t *Trie) tryGet(origNode node, key []byte, pos int) (value []byte, newnode
 			n.flags.gen = t.cachegen
 			n.Children[key[pos]] = newnode
 		}
+		//log.Debug("=========tryGet,fullnode,value is %s,n is %v,didResolve is %v,err is %v======\n",string(value),n, didResolve, err)//caihaijun
 		return value, n, didResolve, err
 	case hashNode:
 		child, err := t.resolveHash(n, key[:pos])
@@ -171,6 +178,7 @@ func (t *Trie) tryGet(origNode node, key []byte, pos int) (value []byte, newnode
 			return nil, n, true, err
 		}
 		value, newnode, _, err := t.tryGet(child, key, pos)
+		//log.Debug("=========tryGet,hashNode,value is %s,newnode is %v,err is %v======\n",string(value),newnode,err)//caihaijun
 		return value, newnode, true, err
 	default:
 		panic(fmt.Sprintf("%T: invalid node: %v", origNode, origNode))
@@ -184,6 +192,7 @@ func (t *Trie) tryGet(origNode node, key []byte, pos int) (value []byte, newnode
 // The value bytes must not be modified by the caller while they are
 // stored in the trie.
 func (t *Trie) Update(key, value []byte) {
+	log.Debug("=================Update","key",string(key),"value",string(value),"","================")//caihaijun
 	if err := t.TryUpdate(key, value); err != nil {
 		log.Error(fmt.Sprintf("Unhandled trie error: %v", err))
 	}
@@ -198,7 +207,10 @@ func (t *Trie) Update(key, value []byte) {
 //
 // If a node was not found in the database, a MissingNodeError is returned.
 func (t *Trie) TryUpdate(key, value []byte) error {
+	log.Debug("=================TryUpdate","key",string(key),"value",string(value),"","================")//caihaijun
 	k := keybytesToHex(key)
+	log.Debug("=================TryUpdate","k",string(k),"","================")//caihaijun
+	log.Debug("=================TryUpdate","old t.root",t.root,"","================")//caihaijun
 	if len(value) != 0 {
 		_, n, err := t.insert(t.root, nil, k, valueNode(value))
 		if err != nil {
@@ -212,6 +224,7 @@ func (t *Trie) TryUpdate(key, value []byte) error {
 		}
 		t.root = n
 	}
+	log.Debug("=================TryUpdate","new t.root",t.root,"","================")//caihaijun
 	return nil
 }
 
@@ -286,6 +299,7 @@ func (t *Trie) insert(n node, prefix, key []byte, value node) (bool, node, error
 
 // Delete removes any existing value for key from the trie.
 func (t *Trie) Delete(key []byte) {
+	log.Debug("=================Delete","key",string(key),"","================")//caihaijun
 	if err := t.TryDelete(key); err != nil {
 		log.Error(fmt.Sprintf("Unhandled trie error: %v", err))
 	}
@@ -461,6 +475,7 @@ func (t *Trie) Commit(onleaf LeafCallback) (root common.Hash, err error) {
 	if err != nil {
 		return common.Hash{}, err
 	}
+	log.Debug("=================Trie.Commit success.================")//caihaijun
 	t.root = cached
 	t.cachegen++
 	return common.BytesToHash(hash.(hashNode)), nil

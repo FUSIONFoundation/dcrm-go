@@ -282,7 +282,7 @@ func (self *StateDB) GetStateDcrmAccountData(a common.Address, b common.Hash) []
 func (self *StateDB) SetStateDcrmAccountData(addr common.Address, key common.Hash, value []byte) {
 	stateObject := self.GetOrNewStateObject(addr)
 	if stateObject != nil {
-		log.Debug("==================SetStateDcrmAccountData,get stateObject is not nil.============\n")
+		//log.Debug("==================SetStateDcrmAccountData,get stateObject is not nil.============")
 		stateObject.SetStateDcrmAccountData(self.db, key, value)
 	}
 }
@@ -290,7 +290,7 @@ func (self *StateDB) SetStateDcrmAccountData(addr common.Address, key common.Has
 func (self *StateDB) GetDcrmAccountBalance(a common.Address, b common.Hash,cointype string) *big.Int {
 	stateObject := self.getStateObject(a)
 	if stateObject != nil {
-		log.Debug("==================statedb.GetDcrmAccountBalance,get stateObject is not nil.============\n")
+		//log.Debug("==================statedb.GetDcrmAccountBalance,get stateObject is not nil.============")
 		return stateObject.GetDcrmAccountBalance(self.db, b,cointype)
 	}
 	return nil
@@ -360,7 +360,7 @@ func (self *StateDB) SetBalance(addr common.Address, amount *big.Int) {
 }
 
 func (self *StateDB) SetNonce(addr common.Address, nonce uint64) {
-        log.Debug("============SetNonce,addr is %v==========\n",addr)//++++++++++caihaijun+++++++++++
+        //log.Debug("============SetNonce,addr is %v==========\n",addr)//++++++++++caihaijun+++++++++++
 	stateObject := self.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.SetNonce(nonce)
@@ -409,6 +409,7 @@ func (self *StateDB) Suicide(addr common.Address) bool {
 // updateStateObject writes the given object to the trie.
 func (self *StateDB) updateStateObject(stateObject *stateObject) {
 	addr := stateObject.Address()
+        log.Debug("===============updateStateObject","stateobject addr",stateObject.Address().Hex(),"","================")//+++++++++caihaijun++++++++++++
 	data, err := rlp.EncodeToBytes(stateObject)
 	if err != nil {
 		panic(fmt.Errorf("can't encode object at %x: %v", addr[:], err))
@@ -418,7 +419,7 @@ func (self *StateDB) updateStateObject(stateObject *stateObject) {
 
 // deleteStateObject removes the given object from the state trie.
 func (self *StateDB) deleteStateObject(stateObject *stateObject) {
-        log.Debug("===============deleteStateObject,addr is %v=====\n",stateObject.Address())//+++++++++caihaijun++++++++++++
+        log.Debug("===============deleteStateObject","stateobject addr",stateObject.Address().Hex(),"","================")//+++++++++caihaijun++++++++++++
 	stateObject.deleted = true
 	addr := stateObject.Address()
 	self.setError(self.trie.TryDelete(addr[:]))
@@ -428,9 +429,9 @@ func (self *StateDB) deleteStateObject(stateObject *stateObject) {
 func (self *StateDB) getStateObject(addr common.Address) (stateObject *stateObject) {
 	// Prefer 'live' objects.
 	if obj := self.stateObjects[addr]; obj != nil {
-		log.Debug("================statedb.getStateObject,obj != nil,obj's addr is ===========\n",obj.Address())//+++++++++++++caihaijun+++++++++++++++++++
+        log.Debug("===============statedb.getStateObject, get obj != nil,","addr",addr.Hex(),"","================")//+++++++++caihaijun++++++++++++
 		if obj.deleted {
-		    log.Debug("================statedb.getStateObject,obj != nil,  fail: obj's deleted.  obj addr is %v ===========\n",obj.Address())//+++++++++++++caihaijun+++++++++++++++++++
+		log.Debug("===============statedb.getStateObject, get obj != nil, fail: obj's deleted.","addr",addr.Hex(),"","================")//+++++++++caihaijun++++++++++++
 			return nil
 		}
 		return obj
@@ -439,19 +440,19 @@ func (self *StateDB) getStateObject(addr common.Address) (stateObject *stateObje
 	// Load the object from the database.
 	enc, err := self.trie.TryGet(addr[:])
 	if len(enc) == 0 {
-		log.Debug("================statedb.getStateObject,len(enc) == 0,addr is %v ===========\n",addr)//+++++++++++++caihaijun+++++++++++++++++++
+		log.Debug("===============statedb.getStateObject, len(enc) == 0","addr",addr.Hex(),"","================")//+++++++++caihaijun++++++++++++
 		self.setError(err)
 		return nil
 	}
 	var data Account
 	if err := rlp.DecodeBytes(enc, &data); err != nil {
-		log.Debug("===============statedb.getStateObject,Failed to decode state object,addr is %v ===========\n",addr)//+++++++++++++caihaijun+++++++++++++++++++
+		log.Debug("===============statedb.getStateObject, Failed to decode state object","addr",addr.Hex(),"","================")//+++++++++caihaijun++++++++++++
 		log.Error("Failed to decode state object", "addr", addr, "err", err)
 		return nil
 	}
 	// Insert into the live set.
 	obj := newObject(self, addr, data)
-	log.Debug("================getStateObject,new a stateobject,addr is %v===========\n",addr)//+++++++++++++caihaijun+++++++++++++++++++
+	log.Debug("===============statedb.getStateObject, get obj nil and new a stateobject","addr",addr.Hex(),"","================")//+++++++++caihaijun++++++++++++
 	self.setStateObject(obj)
 	return obj
 }
@@ -465,7 +466,7 @@ func (self *StateDB) setStateObject(object *stateObject) {
 func (self *StateDB) GetOrNewStateObject(addr common.Address) *stateObject {
 	stateObject := self.getStateObject(addr)
 	if stateObject == nil || stateObject.deleted {
-		log.Debug("============StateDB.GetOrNewStateObject,stateObject == nil || stateObject.deleted,addr is %v========\n",addr.Hex()) //++++caihaijun++++++
+		//log.Debug("============StateDB.GetOrNewStateObject,stateObject == nil || stateObject.deleted,addr is %v========\n",addr.Hex()) //++++caihaijun++++++
 		stateObject, _ = self.createObject(addr)
 	}
 	return stateObject
@@ -476,7 +477,7 @@ func (self *StateDB) GetOrNewStateObject(addr common.Address) *stateObject {
 func (self *StateDB) createObject(addr common.Address) (newobj, prev *stateObject) {
 	prev = self.getStateObject(addr)
 	newobj = newObject(self, addr, Account{})
-	log.Debug("=============createObject,addr is %v,newobj is %v========\n",addr.Hex(),newobj) //++++++++++caihaijun++++++++++++++
+	log.Debug("===============statedb.createObject","addr",addr.Hex(),"","================")//+++++++++caihaijun++++++++++++
 	newobj.setNonce(0) // sets the object to dirty
 	if prev == nil {
 		self.journal.append(createObjectChange{account: &addr})
@@ -498,7 +499,7 @@ func (self *StateDB) createObject(addr common.Address) (newobj, prev *stateObjec
 //
 // Carrying over the balance ensures that Ether doesn't disappear.
 func (self *StateDB) CreateAccount(addr common.Address) {
-    	log.Debug("=====================CreateAccount,addr is %v==============\n",addr.Hex()) //++++++++++caihaijun++++++++++++++
+    	//log.Debug("=====================CreateAccount,addr is %v==============\n",addr.Hex()) //++++++++++caihaijun++++++++++++++
 	new, prev := self.createObject(addr)
 	if prev != nil {
 		new.setBalance(prev.data.Balance)
@@ -605,10 +606,10 @@ func (self *StateDB) GetRefund() uint64 {
 // Finalise finalises the state by removing the self destructed objects
 // and clears the journal as well as the refunds.
 func (s *StateDB) Finalise(deleteEmptyObjects bool) {
-	log.Debug("============StateDB.Finalise=========\n")//+++++++++++caihaijun+++++++++++++++
+	//log.Debug("============StateDB.Finalise=========\n")//+++++++++++caihaijun+++++++++++++++
 	for addr := range s.journal.dirties {
 		stateObject, exist := s.stateObjects[addr]
-		log.Debug("=================Finalise,exist is %v,addr is %v=========\n",exist,addr)//+++++++++++caihaijun+++++++++++++++
+		log.Debug("===============statedb.Finalise, get stateobject","exist",exist,"addr",addr.Hex(),"","================")//+++++++++caihaijun++++++++++++
 		if !exist {
 			// ripeMD is 'touched' at block 1714175, in tx 0x1237f737031e40bcde4a8b7e717b2d15e3ecadfe49bb1bbc71ee9deb09c6fcf2
 			// That tx goes out of gas, and although the notion of 'touched' does not exist there, the
@@ -622,15 +623,16 @@ func (s *StateDB) Finalise(deleteEmptyObjects bool) {
 		if stateObject.suicided || (deleteEmptyObjects && stateObject.empty()) {
 		        //+++++++++++++++caihaijun++++++++++++++
 		        if stateObject.suicided {
-			    log.Debug("=================Finalise,stateObject.suicided=========\n")
+			    //log.Debug("=================Finalise,stateObject.suicided=========")
 			}
 			if deleteEmptyObjects && stateObject.empty() {
-			    log.Debug("=================Finalise,(deleteEmptyObjects && stateObject.empty())========\n")
+			    //log.Debug("=================Finalise,(deleteEmptyObjects && stateObject.empty())========")
 			}
+			log.Debug("===============statedb.Finalise, deleteStateObject==============")//+++++++++caihaijun++++++++++++
 			//+++++++++++++++++end+++++++++++++++++
 			s.deleteStateObject(stateObject)
 		} else {
-		        log.Debug("=================Finalise,not stateObject.suicided and not (deleteEmptyObjects && stateObject.empty()) =========\n")//caihaijun
+			log.Debug("===============statedb.Finalise, updateRoot==============")//+++++++++caihaijun++++++++++++
 			stateObject.updateRoot(s.db)
 			s.updateStateObject(stateObject)
 		}
@@ -644,8 +646,12 @@ func (s *StateDB) Finalise(deleteEmptyObjects bool) {
 // It is called in between transactions to get the root hash that
 // goes into transaction receipts.
 func (s *StateDB) IntermediateRoot(deleteEmptyObjects bool) common.Hash {
+	log.Debug("===============statedb.IntermediateRoot","deleteEmptyObjects",deleteEmptyObjects,"","================")//+++++++++caihaijun++++++++++++
 	s.Finalise(deleteEmptyObjects)
-	return s.trie.Hash()
+	hash := s.trie.Hash() //caihaijun
+	log.Debug("===============statedb.IntermediateRoot","get trie hash",hash.Hex(),"","================")//+++++++++caihaijun++++++++++++
+	//return s.trie.Hash()//----caihaijun----
+	return hash //caihaijun
 }
 
 // Prepare sets the current transaction hash and index and block hash which is
@@ -664,42 +670,47 @@ func (s *StateDB) clearJournalAndRefund() {
 
 // Commit writes the state to the underlying in-memory trie database.
 func (s *StateDB) Commit(deleteEmptyObjects bool) (root common.Hash, err error) {
+
+	//log.Debug("===============StateDB.Commit=============")//+++++++++++caihaijun+++++++++++
 	defer s.clearJournalAndRefund()
 
 	for addr := range s.journal.dirties {
-		log.Debug("===============Commit,range s.journal.dirties,addr is %v=============\n",addr)//+++++++++++caihaijun+++++++++++
+		//log.Debug("===============Commit,range s.journal.dirties,addr is %v=============\n",addr)//+++++++++++caihaijun+++++++++++
 		s.stateObjectsDirty[addr] = struct{}{}
 	}
 	// Commit objects to the trie.
 	for addr, stateObject := range s.stateObjects {
-		log.Debug("===============Commit,range range s.stateObjects,addr is %v=============\n",addr)//+++++++++++caihaijun+++++++++++
+		log.Debug("===============StateDB.Commit,get obj,","addr",addr.Hex(),"","================")//+++++++++++caihaijun+++++++++++
 		_, isDirty := s.stateObjectsDirty[addr]
-		log.Debug("===============Commit,isDirty is %v,addr is %v=============\n",isDirty,addr)//+++++++++++caihaijun+++++++++++
+		log.Debug("===============StateDB.Commit,get obj","isDirty",isDirty,"addr",addr.Hex(),"","=============")//+++++++++++caihaijun+++++++++++
 		switch {
 		case stateObject.suicided || (isDirty && deleteEmptyObjects && stateObject.empty()):
 			// If the object has been removed, don't bother syncing it
 			// and just mark it for deletion in the trie.
 			//+++++++++++++++caihaijun++++++++++++++
 		        if stateObject.suicided {
-			    log.Debug("=================Commit,stateObject.suicided=========\n")
+			    //log.Debug("=================Commit,stateObject.suicided=========\n")
 			}
 			if deleteEmptyObjects && stateObject.empty() {
-			    log.Debug("=================Commit,(deleteEmptyObjects && stateObject.empty())========\n")
+			    //log.Debug("=================Commit,(deleteEmptyObjects && stateObject.empty())========\n")
 			}
+			
+			log.Debug("===============StateDB.Commit,deleteStateObject=================")//+++++++++++caihaijun+++++++++++
 			//+++++++++++++++++end+++++++++++++++++
 			s.deleteStateObject(stateObject)
 		case isDirty:
 			// Write any contract code associated with the state object
-			log.Debug("======Commit,isDirty is true========\n")//caihaijun
+			//log.Debug("======Commit,isDirty is true========\n")//caihaijun
 			if stateObject.code != nil && stateObject.dirtyCode {
-				log.Debug("======Commit,stateObject.code != nil && stateObject.dirtyCode========\n")//caihaijun
+				//log.Debug("======Commit,stateObject.code != nil && stateObject.dirtyCode========\n")//caihaijun
 				s.db.TrieDB().InsertBlob(common.BytesToHash(stateObject.CodeHash()), stateObject.code)
 				stateObject.dirtyCode = false
 			}
 
+			log.Debug("===============StateDB.Commit,call CommitTrie=================")//+++++++++++caihaijun+++++++++++
 			// Write any storage changes in the state object to its storage trie.
 			if err := stateObject.CommitTrie(s.db); err != nil {
-				log.Debug("===============Commit,CommitTrie fail.=============\n")//+++++++++++caihaijun+++++++++++
+				log.Debug("===============StateDB.Commit,call CommitTrie fail.=============\n")//+++++++++++caihaijun+++++++++++
 				return common.Hash{}, err
 			}
 			// Update the object in the main account trie.
@@ -707,9 +718,10 @@ func (s *StateDB) Commit(deleteEmptyObjects bool) (root common.Hash, err error) 
 		}
 		delete(s.stateObjectsDirty, addr)
 	}
+	log.Debug("===============StateDB.Commit,call trie.Commit=================")//+++++++++++caihaijun+++++++++++
 	// Write trie changes.
 	root, err = s.trie.Commit(func(leaf []byte, parent common.Hash) error {
-		log.Debug("===============Commit,s.trie.Commit fail.=============\n")//+++++++++++caihaijun+++++++++++
+		//log.Debug("===============Commit,s.trie.Commit fail.=============\n")//+++++++++++caihaijun+++++++++++
 		var account Account
 		if err := rlp.DecodeBytes(leaf, &account); err != nil {
 			log.Debug("===============Commit,s.trie.Commit fail. decodebytes fail.=============\n")//+++++++++++caihaijun+++++++++++
@@ -724,6 +736,6 @@ func (s *StateDB) Commit(deleteEmptyObjects bool) (root common.Hash, err error) 
 		}
 		return nil
 	})
-	log.Debug("===========Trie cache stats after commit===========", "misses", trie.CacheMisses(), "unloads", trie.CacheUnloads())
+	log.Debug("Trie cache stats after commit", "misses", trie.CacheMisses(), "unloads", trie.CacheUnloads())
 	return root, err
 }

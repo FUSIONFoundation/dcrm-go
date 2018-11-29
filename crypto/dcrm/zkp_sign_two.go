@@ -392,31 +392,31 @@ func (this *ZkpSignTwo) verify(params *PublicParameters,BitCurve *secp256k1.BitC
 	    case u1 := <- chu1: //select case 只限定bool值
 	    	count += 1
 		if u1 == false {
-		log.Debug("======zkp_sign_two u1===========\n")
+		log.Debug("======zkp_sign_two u1===========")
 		return false
 		}
 	    case u2 := <- chu2: //select case 只限定bool值
 	    	count += 1
 		if u2 == false {
-		log.Debug("======zkp_sign_two u2===========\n")
+		log.Debug("======zkp_sign_two u2===========")
 		return false
 		}
 	    case u3 := <- chu3: //select case 只限定bool值
 	    	count += 1
 		if u3 == false {
-		log.Debug("======zkp_sign_two u3===========\n")
+		log.Debug("======zkp_sign_two u3===========")
 		return false
 		}
 	    case v1 := <- chv1: //select case 只限定bool值
 	    	count += 1
 		if v1 == false {
-		log.Debug("======zkp_sign_two v1===========\n")
+		log.Debug("======zkp_sign_two v1===========")
 		return false
 		}
 	    case v3 := <- chv3: //select case 只限定bool值
 	    	count += 1
 		if v3 == false {
-		log.Debug("======zkp_sign_two v3===========\n")
+		log.Debug("======zkp_sign_two v3===========")
 		return false
 		}
 

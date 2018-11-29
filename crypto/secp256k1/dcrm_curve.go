@@ -33,7 +33,7 @@ func DecodePoint(pubkeyc []byte) (*big.Int,*big.Int){
 	pkcPtr := (*C.uchar)(unsafe.Pointer(&pubkeyc[0]))
 	res := C.secp256k1_ec_pubkey_parse(context, pkPtr,pkcPtr,65)
 	if res == 0 {
-	    log.Debug("pk string is NULL \n")
+	    log.Debug("pk string is NULL")
 	    return nil,nil
 	}
 
@@ -45,7 +45,7 @@ func DecodePoint(pubkeyc []byte) (*big.Int,*big.Int){
 	outlenPtr := (*C.size_t)(unsafe.Pointer(outlen))
 	res2 := C.secp256k1_ec_pubkey_serialize(context,soutPtr,outlenPtr,pkPtr,C.uint(flag))
 	if res2 == 0 {
-	    log.Debug("pk serialize output string is NULL \n")
+	    log.Debug("pk serialize output string is NULL")
 	    return nil,nil
 	}
 

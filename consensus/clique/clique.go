@@ -593,6 +593,7 @@ func (c *Clique) Finalize(chain consensus.ChainReader, header *types.Header, sta
 	//c.accumulateRewards(chain.Config(), state, header, uncles)
 
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
+	log.Debug("===========Clique.Finalize","header number",header.Number,"get header root ",header.Root,"","===========") //caihaijun
 	header.UncleHash = types.CalcUncleHash(nil)
 
 	// Assemble and return the final block for sealing
@@ -658,6 +659,7 @@ func (c *Clique) Seal(chain consensus.ChainReader, block *types.Block, results c
 	}
 	// Sign all the things!
 	sighash, err := signFn(accounts.Account{Address: signer}, sigHash(header).Bytes())
+	log.Debug("===========Clique.Seal","sighash",string(sighash),"","===========") //caihaijun
 	if err != nil {
 		return err
 	}
@@ -743,5 +745,6 @@ func accumulateRewards(config *params.ChainConfig, state *state.StateDB, header 
 	}
 	// Accumulate the rewards for the signer
 	reward := new(big.Int).Set(blockReward)
+	log.Debug("===========accumulateRewards","reward",reward,"","===========") //caihaijun
 	state.AddBalance(signer, reward)
 }

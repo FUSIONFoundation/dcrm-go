@@ -275,25 +275,25 @@ func (this *ZkpKG) verify(params *PublicParameters,BitCurve *secp256k1.BitCurve,
 	    case v1 := <- u1ch: //select case 只限定bool值
 	    	count += 1
 		if v1 == false {
-		log.Debug("======zkpkg v1===========\n")
+		log.Debug("======zkpkg v1===========")
 		return false
 		}
 	    case v2 := <- u2ch: //select case 只限定bool值
 	    	count += 1
 		if v2 == false {
-		log.Debug("======zkpkg v2===========\n")
+		log.Debug("======zkpkg v2===========")
 		return false
 		}
 	    case v3 := <- u3ch: //select case 只限定bool值
 	    	count += 1
 		if v3 == false {
-		log.Debug("======zkpkg v3===========\n")
+		log.Debug("======zkpkg v3===========")
 		return false
 		}
 	    case v4 := <- ech: //select case 只限定bool值
 	    	count += 1
 		if v4 == false {
-		log.Debug("======zkpkg v4===========\n")
+		log.Debug("======zkpkg v4===========")
 		return false
 		}
 

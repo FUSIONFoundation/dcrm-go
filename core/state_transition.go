@@ -190,11 +190,11 @@ func (st *StateTransition) preCheck() error {
 // returning the result including the used gas. It returns an error if failed.
 // An error indicates a consensus issue.
 func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bool, err error) {
-	log.Debug("===============TransitionDb,step 1=================\n")//caihaijun
+	log.Debug("===============TransitionDb,step 1=================")//caihaijun
 	if err = st.preCheck(); err != nil {
 		return
 	}
-	log.Debug("==================TransitionDb,step 2=================\n")//caihaijun
+	log.Debug("==================TransitionDb,step 2=================")//caihaijun
 	msg := st.msg
 	sender := vm.AccountRef(msg.From())
 	homestead := st.evm.ChainConfig().IsHomestead(st.evm.BlockNumber)
@@ -206,13 +206,13 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		return nil, 0, false, err
 	}
 
-	log.Debug("==================TransitionDb,step 3=================\n")
+	log.Debug("==================TransitionDb,step 3=================")
 	if err = st.useGas(gas); err != nil {
-		log.Debug("===================TransitionDb,useGas fail.=================\n")//caihaijun
+		log.Debug("===================TransitionDb,useGas fail.=================")//caihaijun
 		return nil, 0, false, err
 	}
 
-	log.Debug("===================TransitionDb,useGas finish.=================\n")//caihaijun
+	log.Debug("===================TransitionDb,useGas finish.=================")//caihaijun
 	var (
 		evm = st.evm
 		// vm errors do not effect consensus and are therefor
@@ -228,7 +228,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		ret, st.gas, vmerr = evm.Call(sender, st.to(), st.data, st.gas, st.value)
 	}
 	if vmerr != nil {
-		log.Debug("=========VM returned with error=========\n", "err", vmerr)
+		log.Debug("VM returned with error", "err", vmerr)
 		// The only possible consensus-error would be if there wasn't
 		// sufficient balance to make the transfer happen. The first
 		// balance transfer may never fail.

@@ -510,30 +510,30 @@ func NewPublicFsnAPI(b Backend) *PublicFsnAPI {
 //+++++++++++++++++caihaijun+++++++++++++++++++
 
 func (s *PublicFsnAPI) DcrmReqAddress(ctx context.Context,pubkey string,cointype string) (string, error) {
-    log.Debug("================DcrmReqAddress================\n")
+    log.Debug("================DcrmReqAddress================")
     v := dcrm.DcrmReqAddress{Pub:pubkey,Cointype:cointype}
     //addr,err := dcrm.Dcrm_ReqAddress(pubkey,cointype)
     addr,err := dcrm.Dcrm_ReqAddress(&v)
-    log.Debug("================DcrmReqAddress ret is %+v================\n",addr)
+    log.Debug("DcrmReqAddress","ret",addr)
     return addr,err
 }
 
 func (s *PublicFsnAPI) DcrmSign(ctx context.Context,sig string,txhash string,dcrmaddr string,cointype string) (string, error) {
-    log.Debug("================DcrmSign================\n")
+    log.Debug("================DcrmSign================")
     v := dcrm.DcrmSign{Sig:sig,Txhash:txhash,DcrmAddr:dcrmaddr,Cointype:cointype}
     sign,err := dcrm.Dcrm_Sign(&v)
-    log.Debug("================DcrmSign ret is %+v================\n",sign)
+    log.Debug("DcrmSign","ret",sign)
     return sign,err
 }
 
 func (s *PublicFsnAPI) DcrmNodeInfo(ctx context.Context) (string, error) {
-    log.Debug("================DcrmNodeInfo================\n")
+    log.Debug("================DcrmNodeInfo================")
     info,err := dcrm.Dcrm_NodeInfo()
     return info,err
 }
 
 func (s *PublicFsnAPI) DcrmGetAccountList(ctx context.Context,pubkey string) (string, error) {
-    log.Debug("================DcrmGetAccountList===============\n")
+    log.Debug("================DcrmGetAccountList===============")
     accountlist,err := dcrm.Dcrm_GetAccountList(pubkey)
     return accountlist,err
 }
@@ -617,7 +617,7 @@ type DcrmAddrRes struct {
 }
 
 func (s *PublicFsnAPI) DcrmReqAddr(ctx context.Context,fusionaddr string,cointype string) (string, error) {
-    log.Debug("================DcrmReqAddr================\n")
+    log.Debug("================DcrmReqAddr================")
   
     dcrmaddr,e := s.DcrmGetAddr(ctx,fusionaddr,cointype)
     if e == nil && dcrmaddr != "" {
@@ -673,24 +673,24 @@ func (s *PublicFsnAPI) DcrmReqAddr(ctx context.Context,fusionaddr string,cointyp
 	msg := signed.Hash().Hex() + sep9 + string(result) + sep9 + fusionaddr + sep9 + pubkey + sep9 + cointype 
 	addr,err := dcrm.SendReqToGroup(msg,"rpc_req_dcrmaddr")
 	if addr == "" || err != nil {
-		log.Debug("\n ==============DcrmReqAddr,req addr fail.===========\n")
+		log.Debug("==============DcrmReqAddr,req addr fail.===========")
 		return "", err
 	}
 	
 	signtx := new(types.Transaction)
 	err2 := signtx.UnmarshalJSON([]byte(result))
 	if err2 == nil {
-	    log.Debug("\n ==========DcrmReqAddr,req addr success.addr is %s==========\n",addr)
+	    log.Debug("DcrmReqAddr,req addr success.","addr",addr)
 	    m := DcrmAddrRes{Account:fusionaddr,Addr:addr,Txhash:signtx.Hash().Hex(),Type:cointype}
 	    b,_ := json.Marshal(m)
 	    return string(b),nil
 	}
 
-	log.Debug("\n ===========DcrmReqAddr,req addr fail,new tx fail.===========\n")
+	log.Debug("==========DcrmReqAddr,req addr fail,new tx fail.===========")
 	return "",err2
     }
 
-    log.Debug("\n ============DcrmReqAddr,in group.==========\n")
+    log.Debug("===========DcrmReqAddr,in group.==========")
     v := dcrm.DcrmLiLoReqAddress{Txhash:signed.Hash(),Fusionaddr:fusionaddr,Pub:pubkey,Cointype:cointype,Tx:string(result)}
     addr,err := dcrm.Dcrm_LiLoReqAddress(&v)
     if addr == "" || err != nil {
@@ -700,7 +700,7 @@ func (s *PublicFsnAPI) DcrmReqAddr(ctx context.Context,fusionaddr string,cointyp
     signtx := new(types.Transaction)
     err2 := signtx.UnmarshalJSON([]byte(result))
     if err2 == nil {
-	log.Debug("\n ============return json data include dcrm addr.==============\n")
+	log.Debug("============return json data include dcrm addr.==============")
 	m := DcrmAddrRes{Account:fusionaddr,Addr:addr,Txhash:signtx.Hash().Hex(),Type:cointype}
 	b,_ := json.Marshal(m)
 	return string(b),nil
@@ -710,7 +710,7 @@ func (s *PublicFsnAPI) DcrmReqAddr(ctx context.Context,fusionaddr string,cointyp
 }
 
 func (s *PublicFsnAPI) DcrmConfirmAddr(ctx context.Context,dcrmaddr string,txhash string,cointype string) (string,error) {
-    log.Debug("================DcrmConfirmAddr================\n")
+    log.Debug("================DcrmConfirmAddr===============")
   
     cb,e := dcrm.Coinbase()
     if e != nil {
@@ -808,7 +808,7 @@ func (s *PublicFsnAPI) DcrmGetAddr(ctx context.Context,fusionaddr string,cointyp
 }
 
 func (s *PublicFsnAPI) DcrmLockin(ctx context.Context,value string,cointype string,txhashs []string) (common.Hash, error) {
-	log.Debug("=============DcrmLockin================\n")
+	log.Debug("=============DcrmLockin================")
 
 	//##########################################
 	cb,e := dcrm.Coinbase()
@@ -932,7 +932,7 @@ func (s *PublicFsnAPI) DcrmGetBalance(ctx context.Context,fusionaddr string,coin
 	from := common.BytesToAddress(fromaddr.Bytes())
 	key := common.BytesToHash(addr2.Bytes())
 	ret := state.GetDcrmAccountBalance(from,key,cointype)
-	log.Debug("===================DcrmGetBalance,ret is %v=================\n",ret)
+	log.Debug("DcrmGetBalance","ret",ret)
 
 	var ret2 string
 	if cointype == "BTC" && ret != nil {
@@ -946,7 +946,7 @@ func (s *PublicFsnAPI) DcrmGetBalance(ctx context.Context,fusionaddr string,coin
 
 func (s *PublicFsnAPI) DcrmSendTransaction(ctx context.Context,fusionto string,value string,cointype string) (common.Hash, error) {
 
-	log.Debug("=============DcrmSendTransaction================\n")
+	log.Debug("=============DcrmSendTransaction================")
 	//========================================================
 	cb,e := dcrm.Coinbase()
 	if e != nil {
@@ -1034,7 +1034,7 @@ func (s *PublicFsnAPI) DcrmSendTransaction(ctx context.Context,fusionto string,v
 
 func (s *PublicFsnAPI) DcrmLockout(ctx context.Context,lockoutto string,value string,cointype string) (common.Hash, error) {
 
-	log.Debug("=============DcrmLockout================\n")
+	log.Debug("=============DcrmLockout================")
 
 	//========================================================
 	cb,e := dcrm.Coinbase()

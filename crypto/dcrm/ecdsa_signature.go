@@ -58,11 +58,11 @@ func verify2(r *big.Int,s *big.Int,v int32,message string,pkx *big.Int,pky *big.
     xR := new(big.Int).Mod(xxx,secp256k1.S256().N)
 
     if xR.Cmp(r) == 0 {
-	log.Debug("--Info: ECDSA Signature Verify Passed! (r,s) is a Valid Siganture!\n",r,s);
+	log.Debug("ECDSA Signature Verify Passed!","(r,s)",r,"",s,"","is a Valid Siganture!");
 	return true
     }
 
-    log.Debug("@@ERROR@@@@@@@@@@@@@@@@@@@@@@@@@@@@: ECDSA Signature Verify NOT Passed! (r,s) is a InValid Siganture!\n",r,s);
+    log.Debug("@@ERROR@@@@@@@@@@@@@@@@@@@@@@@@@@@@: ECDSA Signature Verify NOT Passed!"," (r,s) ",r,"",s,"","is a InValid Siganture!");
     return false
 }
 
