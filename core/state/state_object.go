@@ -258,29 +258,35 @@ func (self *stateObject) GetDcrmAddress(db Database, txhash common.Hash,cointype
 }
 
 func (self *stateObject) GetStateDcrmAccountData(db Database, key common.Hash) []byte {
+	log.Debug("========stateObject.GetStateDcrmAccountData================")
 	// If we have a dirty value for this state entry, return it
 	value, dirty := self.dirtyStorageDcrmAccountData[key]
 	if dirty {
 		return value
 	}
+	log.Debug("========stateObject.GetStateDcrmAccountData,call GetCommittedStateDcrmAccountData================")
 	// Otherwise return the entry's original value
 	return self.GetCommittedStateDcrmAccountData(db, key)
 }
 
 func (self *stateObject) GetCommittedStateDcrmAccountData(db Database, key common.Hash) []byte {
+	log.Debug("========stateObject.GetCommittedStateDcrmAccountData================")
 	value, exists := self.cachedStorageDcrmAccountData[key]
 	if exists {
 		return value
 	}
+	log.Debug("========stateObject.GetCommittedStateDcrmAccountData,call TryGet","key",string(key[:]),"","================")
 	// Load from DB in case it is missing.
 	value, err := self.getTrie(db).TryGet(key[:])
 	if err == nil && len(value) != 0 {
 		self.cachedStorageDcrmAccountData[key] = value
 	}
+	log.Debug("========stateObject.GetCommittedStateDcrmAccountData,call TryGet","value",string(value),"","================")
  	return value
  }
 
 func (self *stateObject) SetStateDcrmAccountData(db Database, key common.Hash, value []byte) {
+	log.Debug("========stateObject.SetStateDcrmAccountData================")
 	self.db.journal.append(storageDcrmAccountDataChange{
 		account:  &self.address,
 		key:      key,

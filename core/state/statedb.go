@@ -280,9 +280,10 @@ func (self *StateDB) GetStateDcrmAccountData(a common.Address, b common.Hash) []
 }
 
 func (self *StateDB) SetStateDcrmAccountData(addr common.Address, key common.Hash, value []byte) {
+	log.Debug("===========SetStateDcrmAccountData","key",key,"","============")
 	stateObject := self.GetOrNewStateObject(addr)
 	if stateObject != nil {
-		//log.Debug("==================SetStateDcrmAccountData,get stateObject is not nil.============")
+		log.Debug("==================SetStateDcrmAccountData,get stateObject is not nil.============")
 		stateObject.SetStateDcrmAccountData(self.db, key, value)
 	}
 }
@@ -437,6 +438,7 @@ func (self *StateDB) getStateObject(addr common.Address) (stateObject *stateObje
 		return obj
 	}
 
+        log.Debug("===============statedb.getStateObject,do TryGet================")//+++++++++caihaijun++++++++++++
 	// Load the object from the database.
 	enc, err := self.trie.TryGet(addr[:])
 	if len(enc) == 0 {
@@ -466,7 +468,7 @@ func (self *StateDB) setStateObject(object *stateObject) {
 func (self *StateDB) GetOrNewStateObject(addr common.Address) *stateObject {
 	stateObject := self.getStateObject(addr)
 	if stateObject == nil || stateObject.deleted {
-		//log.Debug("============StateDB.GetOrNewStateObject,stateObject == nil || stateObject.deleted,addr is %v========\n",addr.Hex()) //++++caihaijun++++++
+		log.Debug("============StateDB.GetOrNewStateObject,stateObject == nil || stateObject.deleted================") //++++caihaijun++++++
 		stateObject, _ = self.createObject(addr)
 	}
 	return stateObject

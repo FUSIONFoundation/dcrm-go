@@ -481,7 +481,7 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 	log.Debug("========dcrmTransaction.Run","result",string(result),"","==================")
 	evm.StateDB.SetStateDcrmAccountData(from,key,result)
 	h := common.HexToHash(m[3])
-	log.Debug("========dcrmTransaction.Run","cointype",m[3],"cointype hash",key.Hex(),"","================")
+	log.Debug("========dcrmTransaction.Run","cointype",m[3],"cointype hash",h.Hex(),"","================")
 	evm.StateDB.SetStateDcrmAccountData(from,h,[]byte(m[1]))
     }
 
