@@ -803,7 +803,7 @@ func (s *PublicFsnAPI) DcrmGetAddr(ctx context.Context,fusionaddr string,cointyp
    
     fromaddr,_ := new(big.Int).SetString(fusionaddr,0)
     from := common.BytesToAddress(fromaddr.Bytes())
-    ret := state.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(s)),cointype)
+    ret := state.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(cointype)),cointype)
     return ret,nil
 }
 
