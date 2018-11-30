@@ -25,8 +25,7 @@ import (
 	"github.com/fusion/go-fusion/core/vm"
 	"github.com/fusion/go-fusion/crypto"
 	"github.com/fusion/go-fusion/params"
-	//"fmt"//caihaijun
-	//"errors"//caihaijun
+	"github.com/fusion/go-fusion/log"
 )
 
 // StateProcessor is a basic Processor, which takes care of transitioning
@@ -69,6 +68,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	}
 	// Iterate over and process the individual transactions
 	for i, tx := range block.Transactions() {
+		log.Debug("===========StateProcessor.Process","tx hash",tx.Hash(),"block hash",block.Hash(),"header number",header.Number,"","============") //caihaijun
 		statedb.Prepare(tx.Hash(), block.Hash(), i)
 		receipt, _, err := ApplyTransaction(p.config, p.bc, nil, gp, statedb, header, tx, usedGas, cfg)
 		if err != nil {
@@ -90,6 +90,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 func ApplyTransaction(config *params.ChainConfig, bc ChainContext, author *common.Address, gp *GasPool, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config) (*types.Receipt, uint64, error) {
 	msg, err := tx.AsMessage(types.MakeSigner(config, header.Number))
 	if err != nil {
+		log.Debug("===========ApplyTransaction,new msg fail.======") //caihaijun
 		return nil, 0, err
 	}
 	// Create a new context to be used in the EVM environment
@@ -97,38 +98,25 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, author *commo
 	// Create a new environment which holds all relevant information
 	// about the transaction and calling mechanisms.
 	vmenv := vm.NewEVM(context, statedb, config, cfg)
-	//txhash := tx.Hash().Hex()//fmt.Sprintf("%v",tx.Hash())   //++++++caihaijun+++++++
-	//vmenv.SetTxhash(txhash) //++++++++caihaijun+++++++
-
-	//++++++++++++caihaijun+++++++++++++++
-	/*if  tx.To() != nil && !types.IsDcrmTransaction(tx.Data()) {
-		precompiles := vm.PrecompiledContractsHomestead
-		if config.IsByzantium(header.Number) {
-			precompiles = vm.PrecompiledContractsByzantium
-		}
-		
-		if p := precompiles[*tx.To()]; p != nil {
-
-		    if types.CallValidateDcrm(txhash) == false {
-			return nil,0,errors.New("Dcrm Validate fail.")
-		    }
-		}
- 	}*/
-	//+++++++++++++++end++++++++++++++++++
 
 	// Apply the transaction to the current state (included in the env)
 	_, gas, failed, err := ApplyMessage(vmenv, msg, gp)
 	if err != nil {
+		log.Debug("===========ApplyTransaction,apply msg fail.======") //caihaijun
 		return nil, 0, err
 	}
 	// Update the state with pending changes
 	var root []byte
 	if config.IsByzantium(header.Number) {
+		log.Debug("===========ApplyTransaction,config.IsByzantium======") //caihaijun
 		statedb.Finalise(true)
 	} else {
+		log.Debug("===========ApplyTransaction,config.Is not Byzantium and get mekle root======") //caihaijun
 		root = statedb.IntermediateRoot(config.IsEIP158(header.Number)).Bytes()
+		log.Debug("===========ApplyTransaction,","get root",string(root),"","==============") //caihaijun
 	}
 	*usedGas += gas
+	log.Debug("===========ApplyTransaction,","usedGas",*usedGas,"tx hash",tx.Hash(),"","==============") //caihaijun
 
 	// Create a new receipt for the transaction, storing the intermediate root and gas used by the tx
 	// based on the eip phase, we're passing whether the root touch-delete accounts.

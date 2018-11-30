@@ -16,7 +16,7 @@ import (
     "crypto/sha256"
     "github.com/fusion/go-fusion/crypto/secp256k1"
     "math/rand"
-	crand"crypto/rand"
+    crand"crypto/rand"
     "github.com/fusion/go-fusion/common/math"
     "github.com/fusion/go-fusion/crypto/dcrm/pbc"
 )

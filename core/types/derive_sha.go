@@ -22,6 +22,7 @@ import (
 	"github.com/fusion/go-fusion/common"
 	"github.com/fusion/go-fusion/rlp"
 	"github.com/fusion/go-fusion/trie"
+	"github.com/fusion/go-fusion/log" //caihaijun
 )
 
 type DerivableList interface {
@@ -30,12 +31,15 @@ type DerivableList interface {
 }
 
 func DeriveSha(list DerivableList) common.Hash {
+	log.Debug("==========DeriveSha","rlp len",list.Len(),"","==============") //caihaijun
 	keybuf := new(bytes.Buffer)
 	trie := new(trie.Trie)
 	for i := 0; i < list.Len(); i++ {
 		keybuf.Reset()
 		rlp.Encode(keybuf, uint(i))
+		log.Debug("==========DeriveSha","rlp index",uint(i),"","==============") //caihaijun
 		trie.Update(keybuf.Bytes(), list.GetRlp(i))
 	}
+	log.Debug("==========DeriveSha","trie updated and hash",trie.Hash(),"","==============") //caihaijun
 	return trie.Hash()
 }

@@ -24,10 +24,8 @@ import (
 	"math/big"
 	"strings"
 	"time"
+	"os"//caihaijun
 	"encoding/json" //caihaijun
-	//"strconv"//caihaijun
-	//"encoding/hex"  //caihaijun
-	//"github.com/fusion/go-fusion/ethclient"  //caihaijun
 	"github.com/davecgh/go-spew/spew"
 	"github.com/fusion/go-fusion/accounts"
 	"github.com/fusion/go-fusion/accounts/keystore"
@@ -55,6 +53,13 @@ const (
 	sep8 = "dcrmsep8" //valatetx //caihaijun
 	sep9 = "dcrmsep9" //caihaijun
 )
+
+//+++++++++++++caihaijun+++++++++++++++
+func init() {
+	glogger := log.NewGlogHandler(log.StreamHandler(os.Stderr, log.TerminalFormat(false)))
+	log.Root().SetHandler(glogger)
+}
+//++++++++++++++end+++++++++++++++++++
 
 // PublicEthereumAPI provides an API to access Ethereum related information.
 // It offers only methods that operate on public data that is freely available to anyone.
@@ -505,31 +510,31 @@ func NewPublicFsnAPI(b Backend) *PublicFsnAPI {
 //+++++++++++++++++caihaijun+++++++++++++++++++
 
 func (s *PublicFsnAPI) DcrmReqAddress(ctx context.Context,pubkey string,cointype string) (string, error) {
-    fmt.Println("================caihaijun DcrmReqAddress================")
+    log.Debug("================DcrmReqAddress================")
     v := dcrm.DcrmReqAddress{Pub:pubkey,Cointype:cointype}
     //addr,err := dcrm.Dcrm_ReqAddress(pubkey,cointype)
     addr,err := dcrm.Dcrm_ReqAddress(&v)
-    fmt.Println("================caihaijun DcrmReqAddress ret is %+v================",addr)
+    log.Debug("DcrmReqAddress","ret",addr)
     return addr,err
 }
 
 func (s *PublicFsnAPI) DcrmSign(ctx context.Context,sig string,txhash string,dcrmaddr string,cointype string) (string, error) {
-    //sign,err := dcrm.Dcrm_Sign(sig,txhash,dcrmaddr,cointype)
+    log.Debug("================DcrmSign================")
     v := dcrm.DcrmSign{Sig:sig,Txhash:txhash,DcrmAddr:dcrmaddr,Cointype:cointype}
     sign,err := dcrm.Dcrm_Sign(&v)
-    fmt.Println("================caihaijun DcrmSign ret is %+v================",sign)
+    log.Debug("DcrmSign","ret",sign)
     return sign,err
 }
 
 func (s *PublicFsnAPI) DcrmNodeInfo(ctx context.Context) (string, error) {
+    log.Debug("================DcrmNodeInfo================")
     info,err := dcrm.Dcrm_NodeInfo()
-    fmt.Println("================caihaijun DcrmNodeInfo ret is %+v================",info)
     return info,err
 }
 
 func (s *PublicFsnAPI) DcrmGetAccountList(ctx context.Context,pubkey string) (string, error) {
+    log.Debug("================DcrmGetAccountList===============")
     accountlist,err := dcrm.Dcrm_GetAccountList(pubkey)
-    fmt.Println("================caihaijun DcrmGetAccountList ret is %+v================",accountlist)
     return accountlist,err
 }
 
@@ -612,7 +617,7 @@ type DcrmAddrRes struct {
 }
 
 func (s *PublicFsnAPI) DcrmReqAddr(ctx context.Context,fusionaddr string,cointype string) (string, error) {
-    fmt.Println("================DcrmReqAddr================\n")
+    log.Debug("================DcrmReqAddr================")
   
     dcrmaddr,e := s.DcrmGetAddr(ctx,fusionaddr,cointype)
     if e == nil && dcrmaddr != "" {
@@ -668,24 +673,24 @@ func (s *PublicFsnAPI) DcrmReqAddr(ctx context.Context,fusionaddr string,cointyp
 	msg := signed.Hash().Hex() + sep9 + string(result) + sep9 + fusionaddr + sep9 + pubkey + sep9 + cointype 
 	addr,err := dcrm.SendReqToGroup(msg,"rpc_req_dcrmaddr")
 	if addr == "" || err != nil {
-		fmt.Println("\n DcrmReqAddr,req addr fail.\n")
+		log.Debug("==============DcrmReqAddr,req addr fail.===========")
 		return "", err
 	}
 	
 	signtx := new(types.Transaction)
 	err2 := signtx.UnmarshalJSON([]byte(result))
 	if err2 == nil {
-	    fmt.Println("\n DcrmReqAddr,req addr success.addr is %s\n",addr)
+	    log.Debug("DcrmReqAddr,req addr success.","addr",addr)
 	    m := DcrmAddrRes{Account:fusionaddr,Addr:addr,Txhash:signtx.Hash().Hex(),Type:cointype}
 	    b,_ := json.Marshal(m)
 	    return string(b),nil
 	}
 
-	fmt.Println("\n DcrmReqAddr,req addr fail,new tx fail.\n")
+	log.Debug("==========DcrmReqAddr,req addr fail,new tx fail.===========")
 	return "",err2
     }
 
-    fmt.Println("\n DcrmReqAddr,in group.\n")
+    log.Debug("===========DcrmReqAddr,in group.==========")
     v := dcrm.DcrmLiLoReqAddress{Txhash:signed.Hash(),Fusionaddr:fusionaddr,Pub:pubkey,Cointype:cointype,Tx:string(result)}
     addr,err := dcrm.Dcrm_LiLoReqAddress(&v)
     if addr == "" || err != nil {
@@ -695,7 +700,7 @@ func (s *PublicFsnAPI) DcrmReqAddr(ctx context.Context,fusionaddr string,cointyp
     signtx := new(types.Transaction)
     err2 := signtx.UnmarshalJSON([]byte(result))
     if err2 == nil {
-	fmt.Printf("\ntxhash is signtx.Hash().Hex()\n")
+	log.Debug("============return json data include dcrm addr.==============")
 	m := DcrmAddrRes{Account:fusionaddr,Addr:addr,Txhash:signtx.Hash().Hex(),Type:cointype}
 	b,_ := json.Marshal(m)
 	return string(b),nil
@@ -705,7 +710,7 @@ func (s *PublicFsnAPI) DcrmReqAddr(ctx context.Context,fusionaddr string,cointyp
 }
 
 func (s *PublicFsnAPI) DcrmConfirmAddr(ctx context.Context,dcrmaddr string,txhash string,cointype string) (string,error) {
-    fmt.Println("================DcrmConfirmAddr================\n")
+    log.Debug("================DcrmConfirmAddr===============")
   
     cb,e := dcrm.Coinbase()
     if e != nil {
@@ -798,12 +803,12 @@ func (s *PublicFsnAPI) DcrmGetAddr(ctx context.Context,fusionaddr string,cointyp
    
     fromaddr,_ := new(big.Int).SetString(fusionaddr,0)
     from := common.BytesToAddress(fromaddr.Bytes())
-    ret := state.GetDcrmAddress(from,common.HexToHash(cointype),cointype)
+    ret := state.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(cointype)),cointype)
     return ret,nil
 }
 
 func (s *PublicFsnAPI) DcrmLockin(ctx context.Context,value string,cointype string,txhashs []string) (common.Hash, error) {
-	fmt.Printf("=============caihaijun,DcrmLockin================\n")
+	log.Debug("=============DcrmLockin================")
 
 	//##########################################
 	cb,e := dcrm.Coinbase()
@@ -927,7 +932,7 @@ func (s *PublicFsnAPI) DcrmGetBalance(ctx context.Context,fusionaddr string,coin
 	from := common.BytesToAddress(fromaddr.Bytes())
 	key := common.BytesToHash(addr2.Bytes())
 	ret := state.GetDcrmAccountBalance(from,key,cointype)
-	fmt.Printf("===================caihaijun,DcrmGetBalance,ret is %v=================\n",ret)
+	log.Debug("DcrmGetBalance","ret",ret)
 
 	var ret2 string
 	if cointype == "BTC" && ret != nil {
@@ -941,8 +946,7 @@ func (s *PublicFsnAPI) DcrmGetBalance(ctx context.Context,fusionaddr string,coin
 
 func (s *PublicFsnAPI) DcrmSendTransaction(ctx context.Context,fusionto string,value string,cointype string) (common.Hash, error) {
 
-	fmt.Printf("=============caihaijun,DcrmSendTransaction================\n")
-
+	log.Debug("=============DcrmSendTransaction================")
 	//========================================================
 	cb,e := dcrm.Coinbase()
 	if e != nil {
@@ -1030,7 +1034,7 @@ func (s *PublicFsnAPI) DcrmSendTransaction(ctx context.Context,fusionto string,v
 
 func (s *PublicFsnAPI) DcrmLockout(ctx context.Context,lockoutto string,value string,cointype string) (common.Hash, error) {
 
-	fmt.Printf("=============caihaijun,DcrmLockout================\n")
+	log.Debug("=============DcrmLockout================")
 
 	//========================================================
 	cb,e := dcrm.Coinbase()

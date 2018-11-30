@@ -24,7 +24,6 @@ import (
 	"sync/atomic"
 	"strings"//caihaijun
 	"sync"//caihaijun
-	//"fmt"//caihaijun
 
 	"github.com/fusion/go-fusion/common"
 	"github.com/fusion/go-fusion/common/hexutil"
@@ -410,7 +409,6 @@ func (tx *Transaction) Size() common.StorageSize {
 //
 // XXX Rename message to something less arbitrary?
 func (tx *Transaction) AsMessage(s Signer) (Message, error) {
-        //fmt.Printf("=========caihaijun,AsMessage,tx.data.Amount is %v=============\n",tx.data.Amount)
 	msg := Message{
 		nonce:      tx.data.AccountNonce,
 		gasLimit:   tx.data.GasLimit,
@@ -435,9 +433,6 @@ func (tx *Transaction) WithSignature(signer Signer, sig []byte) (*Transaction, e
 	}
 	cpy := &Transaction{data: tx.data}
 	cpy.data.R, cpy.data.S, cpy.data.V = r, s, v
-	//+++++++++++++++caihaijun+++++++++++++++++++
-	//fmt.Printf("=================caihaijun,nonce is %v,price is %v,gaslimit is %v,recepient is %v,value is %v,payload is %v,r is %v,s is %v,v is %v=====================\n",cpy.data.AccountNonce,cpy.data.Price,cpy.data.GasLimit,cpy.data.Recipient,cpy.data.Amount,cpy.data.Payload,cpy.data.R,cpy.data.S,cpy.data.V)
-	//++++++++++++++++++end++++++++++++++++++++++
 	return cpy, nil
 }
 

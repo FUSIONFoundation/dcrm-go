@@ -6,10 +6,9 @@ package dcrm
 import (
     "math/big"
     "math/rand"
-    "fmt"
-    //"time"
     "github.com/fusion/go-fusion/crypto/secp256k1"
     "github.com/fusion/go-fusion/common/math"
+    "github.com/fusion/go-fusion/log"
 )
 
 var (
@@ -151,8 +150,6 @@ func (this *ZkpKG) f1(cx *big.Int,cy *big.Int,rx *big.Int,ry *big.Int) bool {
     tmp1,tmp2 := secp256k1.S256().Add(ccx,ccy,ccrx,new(big.Int).Sub(secp256k1.S256().P,ccry))
     //time.Sleep(time.Duration(20)*time.Second)
     tmp1,tmp2 = secp256k1.S256().Add(ccx,ccy,ccrx,new(big.Int).Sub(secp256k1.S256().P,ccry))//??
-    //fmt.Println("======v1 tmp1 is ===========\n",tmp1)
-    //fmt.Println("======v1 tmp2 is ===========\n",tmp2)
     zero,_ := new(big.Int).SetString("0",10)
 
     if secp256k1.S256().IsOnCurve(ccx,ccy) && secp256k1.S256().IsOnCurve(ccrx,ccry) && tmp1.Cmp(zero) == 0 && tmp2.Cmp(zero) == 0 {
@@ -278,25 +275,25 @@ func (this *ZkpKG) verify(params *PublicParameters,BitCurve *secp256k1.BitCurve,
 	    case v1 := <- u1ch: //select case 只限定bool值
 	    	count += 1
 		if v1 == false {
-		fmt.Println("======zkpkg v1===========\n")
+		log.Debug("======zkpkg v1===========")
 		return false
 		}
 	    case v2 := <- u2ch: //select case 只限定bool值
 	    	count += 1
 		if v2 == false {
-		fmt.Println("======zkpkg v2===========\n")
+		log.Debug("======zkpkg v2===========")
 		return false
 		}
 	    case v3 := <- u3ch: //select case 只限定bool值
 	    	count += 1
 		if v3 == false {
-		fmt.Println("======zkpkg v3===========\n")
+		log.Debug("======zkpkg v3===========")
 		return false
 		}
 	    case v4 := <- ech: //select case 只限定bool值
 	    	count += 1
 		if v4 == false {
-		fmt.Println("======zkpkg v4===========\n")
+		log.Debug("======zkpkg v4===========")
 		return false
 		}
 

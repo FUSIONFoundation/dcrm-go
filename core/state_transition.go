@@ -20,7 +20,6 @@ import (
 	"errors"
 	"math"
 	"math/big"
-	//"fmt"//caihaijun
 
 	"github.com/fusion/go-fusion/common"
 	"github.com/fusion/go-fusion/core/vm"
@@ -160,7 +159,6 @@ func (st *StateTransition) useGas(amount uint64) error {
 }
 
 func (st *StateTransition) buyGas() error {
-	//fmt.Printf("===================caihaijun,buyGas=================\n")//caihaijun
 	mgval := new(big.Int).Mul(new(big.Int).SetUint64(st.msg.Gas()), st.gasPrice)
 	if st.state.GetBalance(st.msg.From()).Cmp(mgval) < 0 {
 		return errInsufficientBalanceForGas
@@ -192,11 +190,10 @@ func (st *StateTransition) preCheck() error {
 // returning the result including the used gas. It returns an error if failed.
 // An error indicates a consensus issue.
 func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bool, err error) {
-	//fmt.Printf("===================caihaijun,TransitionDb11111=================\n")//caihaijun
+	log.Debug("===============TransitionDb,step 1=================")//caihaijun
 	if err = st.preCheck(); err != nil {
 		return
 	}
-	//fmt.Printf("===================caihaijun,TransitionDb222222=================\n")//caihaijun
 	msg := st.msg
 	sender := vm.AccountRef(msg.From())
 	homestead := st.evm.ChainConfig().IsHomestead(st.evm.BlockNumber)
@@ -207,12 +204,14 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	if err != nil {
 		return nil, 0, false, err
 	}
+
+	log.Debug("==================TransitionDb,step 3=================")
 	if err = st.useGas(gas); err != nil {
-		//fmt.Printf("===================caihaijun,TransitionDb,useGas fail.=================\n")//caihaijun
+		log.Debug("===================TransitionDb,useGas fail.=================")//caihaijun
 		return nil, 0, false, err
 	}
 
-	//fmt.Printf("===================caihaijun,TransitionDb,useGas finish.=================\n")//caihaijun
+	log.Debug("===================TransitionDb,useGas finish.=================")//caihaijun
 	var (
 		evm = st.evm
 		// vm errors do not effect consensus and are therefor
@@ -238,7 +237,6 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		}
 	}
 	st.refundGas()
-	//fmt.Printf("===================caihaijun,TransitionDb,st.gas is %v,st.initialGas is %v=================\n",st.gas,st.initialGas)//caihaijun
 	st.state.AddBalance(st.evm.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice))
 
 	return ret, st.gasUsed(), vmerr != nil, err

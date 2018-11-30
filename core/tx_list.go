@@ -22,7 +22,6 @@ import (
 	"math/big"
 	"sort"
 	"strings" //caihaijun
-	//"fmt" //caihaijun
 	"github.com/fusion/go-fusion/common"
 	"github.com/fusion/go-fusion/core/types"
 	"github.com/fusion/go-fusion/log"

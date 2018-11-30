@@ -6,9 +6,9 @@ package dcrm
 import (
     "math/big"
     "math/rand"
-    "fmt"
     "github.com/fusion/go-fusion/crypto/secp256k1"
     "github.com/fusion/go-fusion/common/math"
+    "github.com/fusion/go-fusion/log"
 )
 
 var (
@@ -249,25 +249,25 @@ func (this *ZkpSignOne) verify(params *PublicParameters,BitCurve *secp256k1.BitC
 	    case v1 := <- ch1: //select case 只限定bool值
 	    	count += 1
 		if v1 == false {
-		fmt.Println("======zkp_sign_one v1===========\n")
+		log.Debug("======zkp_sign_one v1===========")
 		return false
 		}
 	    case v2 := <- ch2: //select case 只限定bool值
 	    	count += 1
 		if v2 == false {
-		fmt.Println("======zkp_sign_one v2===========\n")
+		log.Debug("======zkp_sign_one v2===========")
 		return false
 		}
 	    case vv := <- chv: //select case 只限定bool值
 	    	count += 1
 		if vv == false {
-		fmt.Println("======zkp_sign_one vv===========\n")
+		log.Debug("======zkp_sign_one vv===========")
 		return false
 		}
 	    case ve := <- che: //select case 只限定bool值
 	    	count += 1
 		if ve == false {
-		fmt.Println("======zkp_sign_one ve===========\n")
+		log.Debug("======zkp_sign_one ve===========")
 		return false
 		}
 

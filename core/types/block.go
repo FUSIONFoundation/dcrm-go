@@ -30,6 +30,7 @@ import (
 	"github.com/fusion/go-fusion/common/hexutil"
 	"github.com/fusion/go-fusion/crypto/sha3"
 	"github.com/fusion/go-fusion/rlp"
+	"github.com/fusion/go-fusion/log" //caihaijun
 )
 
 var (
@@ -207,6 +208,7 @@ func NewBlock(header *Header, txs []*Transaction, uncles []*Header, receipts []*
 		}
 	}
 
+	log.Debug("==========NewBlock","block header txhash",b.header.TxHash.Hex(),"block header receipt hash",b.header.ReceiptHash,"","==============") //caihaijun
 	return b
 }
 
