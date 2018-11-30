@@ -132,11 +132,11 @@ func (t *Trie) Get(key []byte) []byte {
 // The value bytes must not be modified by the caller.
 // If a node was not found in the database, a MissingNodeError is returned.
 func (t *Trie) TryGet(key []byte) ([]byte, error) {
-        fmt.Printf("========Trie.TryGet,key1 is %v========",new(big.Int).SetBytes(key))
-	//log.Debug("=========TryGet","key1",string(key),"","===========")//caihaijun
+        //fmt.Printf("========Trie.TryGet,key1 is %v========",new(big.Int).SetBytes(key))
+	log.Debug("=========TryGet","key1",new(big.Int).SetBytes(key),"","===========")//caihaijun
 	key = keybytesToHex(key)
-        fmt.Printf("========Trie.TryGet,key2 is %v========",new(big.Int).SetBytes(key))
-	//log.Debug("=========TryGet","key2",string(key),"","===========")//caihaijun
+        //fmt.Printf("========Trie.TryGet,key2 is %v========",new(big.Int).SetBytes(key))
+	log.Debug("=========TryGet","key2",new(big.Int).SetBytes(key),"","===========")//caihaijun
 	log.Debug("=========TryGet","old t.root",t.root,"","===========")//caihaijun
 	value, newroot, didResolve, err := t.tryGet(t.root, key, 0)
 	log.Debug("=========TryGet","new t.root",t.root,"value",string(value),"","===========")//caihaijun
