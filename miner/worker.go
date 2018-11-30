@@ -758,6 +758,7 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 		// Check whether the tx is replay protected. If we're not in the EIP155 hf
 		// phase, start ignoring the sender until we do.
 		if tx.Protected() && !w.config.IsEIP155(w.current.header.Number) {
+		//fmt.Printf("=========commitTransactions3333333============\n")//caihaijun
 			log.Trace("Ignoring reply protected transaction", "hash", tx.Hash(), "eip155", w.config.EIP155Block)
 
 			txs.Pop()
@@ -917,11 +918,13 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) 
 	// Fill the block with all available pending transactions.
 	pending, err := w.eth.TxPool().Pending()
 	if err != nil {
+    //fmt.Printf("=========commitNewWork22222============\n")//caihaijun
 		log.Error("Failed to fetch pending transactions", "err", err)
 		return
 	}
 	// Short circuit if there is no available pending transactions
 	if len(pending) == 0 {
+    //fmt.Printf("=========commitNewWork3333============\n")//caihaijun
 		w.updateSnapshot()
 		return
 	}

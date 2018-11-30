@@ -1394,7 +1394,7 @@ func dcrmcall(msg interface{}) <-chan string {
 	return ch
     }
    
-	//ss:  enode-wid-addr || rpc_req_dcrmaddr_res
+	//ss:  enode-wid-addr || rpc_confirm_dcrmaddr_res
 	ss := tmps[0] + "-" + tmps[7] + "-" + "true" + msgtypesep + "rpc_confirm_dcrmaddr_res"
 	ch <- ss 
 	return ch
@@ -2325,7 +2325,6 @@ func IsExsitDcrmAddr(txhash string) bool {
 		    db.Put([]byte(pubkey),[]byte(data))*/
 		    //
 
-		    //res := RpcDcrmRes{ret:string(b),err:nil}
 		    res := RpcDcrmRes{ret:stmp,err:nil}
 		    ch <- res
 
