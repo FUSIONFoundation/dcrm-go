@@ -2307,9 +2307,9 @@ func IsExsitDcrmAddr(txhash string) bool {
 		    ss := strings.Join(s,sep)
 		    db.Put([]byte(stmp),[]byte(ss))
 
-		    ret := Tool_DecimalByteSlice2HexString(ys[:])
-		    m := AccountListInfo{COINTYPE:cointype,DCRMADDRESS:stmp,DCRMPUBKEY:ret}
-		    b,_ := json.Marshal(m)
+		    //ret := Tool_DecimalByteSlice2HexString(ys[:])
+		    //m := AccountListInfo{COINTYPE:cointype,DCRMADDRESS:stmp,DCRMPUBKEY:ret}
+		    //b,_ := json.Marshal(m)
 		    //
 		    /*has,_ := db.Has([]byte(pubkey))
 		    var data string
@@ -2325,7 +2325,8 @@ func IsExsitDcrmAddr(txhash string) bool {
 		    db.Put([]byte(pubkey),[]byte(data))*/
 		    //
 
-		    res := RpcDcrmRes{ret:string(b),err:nil}
+		    //res := RpcDcrmRes{ret:string(b),err:nil}
+		    res := RpcDcrmRes{ret:stmp,err:nil}
 		    ch <- res
 
 		    db.Close()

@@ -610,8 +610,8 @@ v,_ = new(big.Int).SetString(a.V,10)*/
 //=========================================
 
 type DcrmAddrRes struct {
-    Account string
-    Addr string
+    FusionAccount string
+    DcrmAddr string
     Txhash string
     Type string
 }
@@ -681,7 +681,7 @@ func (s *PublicFsnAPI) DcrmReqAddr(ctx context.Context,fusionaddr string,cointyp
 	err2 := signtx.UnmarshalJSON([]byte(result))
 	if err2 == nil {
 	    log.Debug("DcrmReqAddr,req addr success.","addr",addr)
-	    m := DcrmAddrRes{Account:fusionaddr,Addr:addr,Txhash:signtx.Hash().Hex(),Type:cointype}
+	    m := DcrmAddrRes{FusionAccount:fusionaddr,DcrmAddr:addr,Txhash:signtx.Hash().Hex(),Type:cointype}
 	    b,_ := json.Marshal(m)
 	    return string(b),nil
 	}
@@ -701,7 +701,7 @@ func (s *PublicFsnAPI) DcrmReqAddr(ctx context.Context,fusionaddr string,cointyp
     err2 := signtx.UnmarshalJSON([]byte(result))
     if err2 == nil {
 	log.Debug("============return json data include dcrm addr.==============")
-	m := DcrmAddrRes{Account:fusionaddr,Addr:addr,Txhash:signtx.Hash().Hex(),Type:cointype}
+	m := DcrmAddrRes{FusionAccount:fusionaddr,DcrmAddr:addr,Txhash:signtx.Hash().Hex(),Type:cointype}
 	b,_ := json.Marshal(m)
 	return string(b),nil
     }
