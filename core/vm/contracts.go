@@ -459,8 +459,7 @@ func (c *dcrmTransaction) RequiredGas(input []byte) uint64 {
 }
 
 func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byte, error) {
-    log.Debug("====================dcrmTransaction.Run=========================")
-   
+    log.Debug("====================dcrmTransaction.Run=========================")   
     str := string(input)
     if len(str) == 0 {
 	return nil,nil
@@ -516,7 +515,6 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 		    ba3,_ := strconv.ParseFloat(a.BALANCE, 64)
 		    ba4 := ba2 + ba3
 		    bb := strconv.FormatFloat(ba4, 'f', -1, 64)
-		    //log.Debug("\ns != nil,dcrmTransaction.Run,ba4 is %v,bb is %s\n",ba4,bb)
 
 		    //bb := fmt.Sprintf("%v",b)
 		    aa := DcrmAccountData{COINTYPE:m[2],BALANCE:bb}
@@ -563,7 +561,6 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 		ba2,_ := new(big.Int).SetString(string(contract.value.Bytes()),10)
 		b := new(big.Int).Sub(ba,ba2)
 		bb := fmt.Sprintf("%v",b)
-		//log.Debug("\ndcrmTransaction.Run,bb is %s\n",bb)
 		aa := DcrmAccountData{COINTYPE:m[3],BALANCE:bb}
 		result, err := json.Marshal(&aa)
 		if err == nil {
