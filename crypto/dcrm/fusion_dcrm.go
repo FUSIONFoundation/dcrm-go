@@ -2118,7 +2118,7 @@ func IsExsitDcrmAddr(txhash string) bool {
 
 		func dcrm_confirmaddr(msgprex string,txhash_conaddr string,tx string,fusionaddr string,dcrmaddr string,hashkey string,cointype string,ch chan interface{}) {
 		    GetEnodesInfo()
-		    if cointype != "ETH" && cointype != "BTC" {
+		    if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false {
 			log.Debug("===========coin type is not supported.must be btc or eth.================")
 			var ret2 Err
 			ret2.info = "coin type is not supported."
@@ -2183,7 +2183,7 @@ func IsExsitDcrmAddr(txhash string) bool {
 			return
 		    }*/
 
-		    if cointype != "ETH" && cointype != "BTC" {
+		    if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false {
 			log.Debug("===========coin type is not supported.must be btc or eth.=================")
 			var ret2 Err
 			ret2.info = "coin type is not supported."
@@ -2346,7 +2346,7 @@ func IsExsitDcrmAddr(txhash string) bool {
 			return
 		    }
 
-		    if cointype != "ETH" && cointype != "BTC" {
+		    if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false {
 			log.Debug("===========coin type is not supported.must be btc or eth.=================")
 			var ret2 Err
 			ret2.info = "coin type is not supported."
@@ -2653,7 +2653,7 @@ func IsExsitDcrmAddr(txhash string) bool {
 			return
 		    }
 
-		    if cointype != "ETH" && cointype != "BTC" {
+		    if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false {
 			log.Debug("===========coin type is not supported.must be btc or eth.=================")
 			var ret2 Err
 			ret2.info = "coin type is not supported."
