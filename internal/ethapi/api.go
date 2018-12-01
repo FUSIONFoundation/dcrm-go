@@ -946,29 +946,37 @@ func (s *PublicFsnAPI) DcrmGetNonce(ctx context.Context,fusionaddr string,cointy
     return ret,nil
 }
 
-func (s *PublicFsnAPI) DcrmLockin(ctx context.Context,value string,cointype string,txhashs []string) (common.Hash, error) {
+func (s *PublicFsnAPI) DcrmLockin(ctx context.Context,value string,cointype string,txhash string) (string, error) {
 	log.Debug("=============DcrmLockin================")
+
+	if value == "" {
+	    value = "0"
+	}
+
+	if cointype == "" || txhash == "" {
+	    return "params error.",nil
+	}
 
 	//##########################################
 	cb,e := dcrm.Coinbase()
 	if e != nil {
-	    return common.Hash{},nil
+	    return "",nil
 	}
 
 	fusionaddr := cb.Hex()
 	fusions := []rune(fusionaddr)
 	if len(fusions) != 42 { //42 = 2 + 20*2 =====>0x + addr
-	    return common.Hash{},nil 
+	    return "",nil 
 	}
 
 	dcrmaddr,e2 := s.DcrmGetAddr(ctx,fusionaddr,cointype)
 	if e2 != nil || dcrmaddr == "" {
-	    return common.Hash{},nil
+	    return "",nil
 	}
 
 	dcrmaddrs := []rune(dcrmaddr)
 	if cointype == "ETH" && len(dcrmaddrs) != 42 { //42 = 2 + 20*2 =====>0x + addr
-	    return common.Hash{},nil 
+	    return "",nil 
 	}
 	
 	fromaddr,_ := new(big.Int).SetString(fusionaddr,0)
@@ -989,11 +997,11 @@ func (s *PublicFsnAPI) DcrmLockin(ctx context.Context,value string,cointype stri
 
 	wallet, err := s.b.AccountManager().Find(account)
 	if err != nil {
-		return common.Hash{}, err
+		return "", err
 	}
 
 	if err := args.setDefaults(ctx, s.b); err != nil {
-		return common.Hash{}, err
+		return "", err
 	}
 	tx := args.toTransaction()
 
@@ -1003,46 +1011,41 @@ func (s *PublicFsnAPI) DcrmLockin(ctx context.Context,value string,cointype stri
 	}
 	signed, err := wallet.SignTx(account, tx, chainID)
 	if err != nil {
-		return common.Hash{}, err
+		return "", err
 	}
 
 	result,err := signed.MarshalJSON()
 	//##########################################
 
 	if !dcrm.IsInGroup() {
-	    msg := signed.Hash().Hex() + sep9 + string(result) + sep9 + fusionaddr + sep9 + cointype + sep9
-	    for k,txs := range txhashs {
-		msg += txs
-		if k != len(txhashs) -1 {
-		    msg += sep8
-		}
-	    }
+	    msg := signed.Hash().Hex() + sep9 + string(result) + sep9 + fusionaddr + sep9 + cointype + sep9 + txhash
+	    
 	    _,err := dcrm.SendReqToGroup(msg,"rpc_lockin")
 	    if err != nil {
-		return common.Hash{}, err
+		return "", err
 	    }
 	    
 	    signtx := new(types.Transaction)
 	    err2 := signtx.UnmarshalJSON([]byte(result))
 	    if err2 == nil {
-		return signtx.Hash(),nil
+		return signtx.Hash().Hex(),nil
 	    }
 
-	    return common.Hash{},err2
+	    return "",err2
 	}
 
-	v := dcrm.DcrmLockIn{Tx:string(result),Txhashs:txhashs}
+	v := dcrm.DcrmLockIn{Tx:string(result),Hashkey:txhash}
 	if _,err = dcrm.Validate_Txhash(&v);err != nil {
-		return common.Hash{}, err
+		return "", err
 	}
 
 	signtx := new(types.Transaction)
 	err2 := signtx.UnmarshalJSON([]byte(result))
 	if err2 == nil {
-	    return signtx.Hash(),nil
+	    return signtx.Hash().Hex(),nil
 	}
 
-	return common.Hash{},err2
+	return "",err2
 }
 
 func (s *PublicFsnAPI) DcrmGetBalance(ctx context.Context,fusionaddr string,cointype string) (string, error) {
