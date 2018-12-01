@@ -946,6 +946,21 @@ func (s *PublicFsnAPI) DcrmGetNonce(ctx context.Context,fusionaddr string,cointy
     return ret,nil
 }
 
+func isDecimalNumber(s string) bool {
+    if s == "" {
+	return false
+    }
+
+    nums := []rune(s)
+    for k,_ := range nums {
+	if string(nums[k:k+1]) != "0" && string(nums[k:k+1]) != "1" && string(nums[k:k+1]) != "2" && string(nums[k:k+1]) != "3" && string(nums[k:k+1]) != "4" && string(nums[k:k+1]) != "5" && string(nums[k:k+1]) != "6" && string(nums[k:k+1]) != "7" && string(nums[k:k+1]) != "8" && string(nums[k:k+1]) != "9" {
+	    return false
+	}
+    }
+
+    return true
+}
+
 func (s *PublicFsnAPI) DcrmLockin(ctx context.Context,value string,cointype string,txhash string) (string, error) {
 	log.Debug("=============DcrmLockin================")
 
@@ -957,28 +972,44 @@ func (s *PublicFsnAPI) DcrmLockin(ctx context.Context,value string,cointype stri
 	    return "params error.",nil
 	}
 
+	if !isDecimalNumber(value) {
+	    return "params error:value is not Decimal Number,it must be xxx wei ",nil
+	}
+
+	if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false {
+	    return "coin type is not supported.",nil
+	}
+
+	txhashs := []rune(txhash)
+	if  string(txhashs[0:2]) != "0x" {
+	    return "params error:tx hash must be start with 0x.",nil
+	}
+
 	//##########################################
 	cb,e := dcrm.Coinbase()
 	if e != nil {
-	    return "",nil
+	    return "please create account.",nil
 	}
 
 	fusionaddr := cb.Hex()
 	fusions := []rune(fusionaddr)
 	if len(fusions) != 42 { //42 = 2 + 20*2 =====>0x + addr
-	    return "",nil 
+	    return "fusion addr must start with 0x and len = 42.",nil 
 	}
 
 	dcrmaddr,e2 := s.DcrmGetAddr(ctx,fusionaddr,cointype)
 	if e2 != nil || dcrmaddr == "" {
-	    return "",nil
+	    return "the account has not request dcrm addr before.",nil
 	}
 
 	dcrmaddrs := []rune(dcrmaddr)
-	if cointype == "ETH" && len(dcrmaddrs) != 42 { //42 = 2 + 20*2 =====>0x + addr
-	    return "",nil 
+	if strings.EqualFold(cointype,"ETH") == true && len(dcrmaddrs) != 42 { //42 = 2 + 20*2 =====>0x + addr
+	    return "ETH addr must start with 0x and len = 42.",nil 
 	}
-	
+	if strings.EqualFold(cointype,"BTC") == true && dcrm.ValidateAddress(1,dcrmaddr) == false {
+	    return "BTC dcrm addr is not the right format.",nil
+	}
+    
 	fromaddr,_ := new(big.Int).SetString(fusionaddr,0)
 	txfrom := common.BytesToAddress(fromaddr.Bytes())
 
