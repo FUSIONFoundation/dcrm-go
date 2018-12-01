@@ -2169,6 +2169,43 @@ func IsExsitDcrmAddr(txhash string) bool {
 		    ch <- res
 		}
 
+		func DcrmValidateResGet(hashkey string,key string) string {
+		    if hashkey == "" || key == "" {
+			return ""
+		    }
+
+		    var data string
+		    val,ok := types.GetDcrmValidateDataKReady(hashkey)
+		    if ok == true {
+			vals := strings.Split(val,sep6)
+			for _,v := range vals {
+			    var a DcrmValidateRes
+			    ok2 := json.Unmarshal([]byte(v), &a)
+			    if ok2 == nil && a.ValidateRes == "pass" {
+				data = v
+				break
+			    }
+			}
+
+			if data == "" {
+			    return ""
+			}
+
+			var a DcrmValidateRes
+			ok2 := json.Unmarshal([]byte(data), &a)
+			if ok2 == nil {
+			    dcrmparms := strings.Split(a.DcrmParms,sep)
+			    if key == "liloreqaddr" {
+				return dcrmparms[2]
+			    }
+			    //
+			}
+
+		    }
+
+		    return ""
+		}
+
 		func dcrm_liloreqAddress(msgprex string,txhash_reqaddr string,fusionaddr string,pubkey string,cointype string,tx string,ch chan interface{}) {
 
 		    GetEnodesInfo()
@@ -2247,11 +2284,11 @@ func IsExsitDcrmAddr(txhash string) bool {
 		    }
 
 		    var stmp string
-		    if cointype == "ETH" {
+		    if strings.EqualFold(cointype,"ETH") == true {
 			recoveraddress := common.BytesToAddress(crypto.Keccak256(ys[1:])[12:]).Hex()
 			stmp = fmt.Sprintf("%s", recoveraddress)
 		    }
-		    if cointype == "BTC" {
+		    if strings.EqualFold(cointype,"BTC") == true {
 			stmp = bitaddr
 		    }
 		    

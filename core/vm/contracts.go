@@ -438,6 +438,8 @@ func (c *bn256Pairing) Run(input []byte, contract *Contract, evm *EVM) ([]byte, 
 type DcrmAccountData struct {
     COINTYPE string
     BALANCE  string
+    HASHKEY string
+    NONCE string
 }
 
 type dcrmTransaction struct {
@@ -452,6 +454,10 @@ func (c *dcrmTransaction) RequiredGas(input []byte) uint64 {
 
     m := strings.Split(str,":")
     if m[0] == "LOCKIN" {
+	return 0 
+    }
+	
+    if m[0] == "DCRMCONFIRMADDR" {
 	return 0 
     }
 	
@@ -474,7 +480,7 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 	from := contract.Caller()
 	dcrmaddr := new(big.Int).SetBytes([]byte(m[1]))
 	key := common.BytesToHash(dcrmaddr.Bytes())
-	aa := DcrmAccountData{COINTYPE:m[3],BALANCE:"0"}
+	aa := DcrmAccountData{COINTYPE:m[3],BALANCE:"0",HASHKEY:m[2],NONCE:"0"}
 	result,_:= json.Marshal(&aa)
 	log.Debug("===============dcrmTransaction.Run,DCRMCONFIRMADDR","key",key.Hex(),"","=================")
 	log.Debug("========dcrmTransaction.Run","result",string(result),"","==================")
@@ -557,14 +563,16 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 
 	    if a.COINTYPE == m[3] {
 		log.Debug("dcrmTransaction.Run,a.COINTYPE == m[3]")
-		ba,_ := new(big.Int).SetString(a.BALANCE,10)
-		ba2,_ := new(big.Int).SetString(string(contract.value.Bytes()),10)
-		b := new(big.Int).Sub(ba,ba2)
-		bb := fmt.Sprintf("%v",b)
-		aa := DcrmAccountData{COINTYPE:m[3],BALANCE:bb}
-		result, err := json.Marshal(&aa)
-		if err == nil {
-		    evm.StateDB.SetStateDcrmAccountData(from,key,result)
+		if m[3] == "ETH" {
+		    ba,_ := new(big.Int).SetString(a.BALANCE,10)
+		    ba2,_ := new(big.Int).SetString(string(contract.value.Bytes()),10)
+		    b := new(big.Int).Sub(ba,ba2)
+		    bb := fmt.Sprintf("%v",b)
+		    aa := DcrmAccountData{COINTYPE:m[3],BALANCE:bb}
+		    result, err := json.Marshal(&aa)
+		    if err == nil {
+			evm.StateDB.SetStateDcrmAccountData(from,key,result)
+		    }
 		}
 	    }
 	}	

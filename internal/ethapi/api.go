@@ -616,19 +616,41 @@ type DcrmAddrRes struct {
     Type string
 }
 
-func (s *PublicFsnAPI) DcrmReqAddr(ctx context.Context,fusionaddr string,cointype string) (string, error) {
+func (s *PublicFsnAPI) DcrmReqAddr(ctx context.Context,cointype string) (string, error) {
     log.Debug("================DcrmReqAddr================")
-  
+ 
+    if cointype == "" {
+	return "param error.",nil
+    }
+    if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false {
+	return "coin type is not supported.",nil
+    }
+
+    cb,e := dcrm.Coinbase()
+    if e != nil {
+	return "please create account.",nil
+    }
+
+    fusionaddr := cb.Hex()
+    fusions := []rune(fusionaddr)
+    if len(fusions) != 42 { //42 = 2 + 20*2 =====>0x + addr
+	return "fusion addr must start with 0x and len = 42.",nil 
+    }
+    
     dcrmaddr,e := s.DcrmGetAddr(ctx,fusionaddr,cointype)
     if e == nil && dcrmaddr != "" {
-	return "the account has dcrm address already.",nil
+	    hashkey,e := s.DcrmGetHashKey(ctx,fusionaddr,cointype)
+	    if hashkey != "" && e == nil {
+		m := DcrmAddrRes{FusionAccount:fusionaddr,DcrmAddr:dcrmaddr,Txhash:hashkey,Type:cointype}
+		b,_ := json.Marshal(m)
+		return string(b),nil
+	    }
+	
+	    //return "fusion addr must start with 0x and len = 42.",nil  ???
+	    
     }
 
     pubkey := "xxx"
-    fusions := []rune(fusionaddr)
-    if len(fusions) != 42 { //42 = 2 + 20*2 =====>0x + addr
-	return "",nil 
-    }
     
     fromaddr,_ := new(big.Int).SetString(fusionaddr,0)
     txfrom := common.BytesToAddress(fromaddr.Bytes())
@@ -665,8 +687,12 @@ func (s *PublicFsnAPI) DcrmReqAddr(ctx context.Context,fusionaddr string,cointyp
     }
     result,err := signed.MarshalJSON()
     
-    if dcrm.IsExsitDcrmAddr(signed.Hash().Hex()) { ///bug:call DcrmReqAddr two times continuous and error will occur. 
-	return "the account has generate dcrm address already,please call dcrmConfirmAddr to confirm the addr.",nil
+    if dcrm.IsExsitDcrmAddr(signed.Hash().Hex()) { ///bug:call DcrmReqAddr two times continuous and error will occur.
+	dcrmaddr = dcrm.DcrmValidateResGet(signed.Hash().Hex(),"liloreqaddr")
+	m := DcrmAddrRes{FusionAccount:fusionaddr,DcrmAddr:dcrmaddr,Txhash:signed.Hash().Hex(),Type:cointype}
+	b,_ := json.Marshal(m)
+	return string(b),nil
+	//return "the account has generate dcrm address already,please call dcrmConfirmAddr to confirm the addr.",nil //TODO
     }
     
     if !dcrm.IsInGroup() {
@@ -791,19 +817,100 @@ func (s *PublicFsnAPI) DcrmConfirmAddr(ctx context.Context,dcrmaddr string,txhas
 
 func (s *PublicFsnAPI) DcrmGetAddr(ctx context.Context,fusionaddr string,cointype string) (string,error) {
 
+    if cointype == "" || fusionaddr == "" {
+	return "param error.",nil
+    }
+    if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false {
+	return "coin type is not supported.",nil
+    }
+    fusions := []rune(fusionaddr)
+    if string(fusions[0:2]) == "0x" && len(fusions) != 42 { //42 = 2 + 20*2 =====>0x + addr
+	return "param error.fusion addr must start with 0x and len = 42.",nil
+    }
+    if string(fusions[0:2]) != "0x" {
+	return "param error.fusion addr must start with 0x and len = 42.",nil
+    }
+
     state, _, err := s.b.StateAndHeaderByNumber(ctx,rpc.LatestBlockNumber)
     if state == nil || err != nil {
 	    return "", err
     }
     
-    fusions := []rune(fusionaddr)
-    if len(fusions) != 42 { //42 = 2 + 20*2 =====>0x + addr
-	return "",nil 
-    }
-   
     fromaddr,_ := new(big.Int).SetString(fusionaddr,0)
     from := common.BytesToAddress(fromaddr.Bytes())
     ret := state.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(cointype)),cointype)
+    return ret,nil
+}
+
+func (s *PublicFsnAPI) DcrmGetHashKey(ctx context.Context,fusionaddr string,cointype string) (string,error) {
+
+    if cointype == "" || fusionaddr == "" {
+	return "param error.",nil
+    }
+    if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false {
+	return "coin type is not supported.",nil
+    }
+    fusions := []rune(fusionaddr)
+    if string(fusions[0:2]) == "0x" && len(fusions) != 42 { //42 = 2 + 20*2 =====>0x + addr
+	return "param error.fusion addr must start with 0x and len = 42.",nil
+    }
+    if string(fusions[0:2]) != "0x" {
+	return "param error.fusion addr must start with 0x and len = 42.",nil
+    }
+
+    state, _, err := s.b.StateAndHeaderByNumber(ctx,rpc.LatestBlockNumber)
+    if state == nil || err != nil {
+	    return "", err
+    }
+    
+    dcrmaddr,e := s.DcrmGetAddr(ctx,fusionaddr,cointype)
+    if dcrmaddr == "" || e != nil {
+	return "",e 
+    }
+
+    fromaddr,_ := new(big.Int).SetString(fusionaddr,0)
+    from := common.BytesToAddress(fromaddr.Bytes())
+
+    d := new(big.Int).SetBytes([]byte(dcrmaddr))
+    key := common.BytesToHash(d.Bytes())
+
+    ret := state.GetDcrmHashKey(from,key,cointype)
+    return ret,nil
+}
+
+func (s *PublicFsnAPI) DcrmGetNonce(ctx context.Context,fusionaddr string,cointype string) (string,error) {
+
+    if cointype == "" || fusionaddr == "" {
+	return "param error.",nil
+    }
+    if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false {
+	return "coin type is not supported.",nil
+    }
+    fusions := []rune(fusionaddr)
+    if string(fusions[0:2]) == "0x" && len(fusions) != 42 { //42 = 2 + 20*2 =====>0x + addr
+	return "param error.fusion addr must start with 0x and len = 42.",nil
+    }
+    if string(fusions[0:2]) != "0x" {
+	return "param error.fusion addr must start with 0x and len = 42.",nil
+    }
+
+    state, _, err := s.b.StateAndHeaderByNumber(ctx,rpc.LatestBlockNumber)
+    if state == nil || err != nil {
+	    return "", err
+    }
+    
+    dcrmaddr,e := s.DcrmGetAddr(ctx,fusionaddr,cointype)
+    if dcrmaddr == "" || e != nil {
+	return "",e 
+    }
+
+    fromaddr,_ := new(big.Int).SetString(fusionaddr,0)
+    from := common.BytesToAddress(fromaddr.Bytes())
+
+    d := new(big.Int).SetBytes([]byte(dcrmaddr))
+    key := common.BytesToHash(d.Bytes())
+
+    ret := state.GetDcrmNonce(from,key,cointype)
     return ret,nil
 }
 
