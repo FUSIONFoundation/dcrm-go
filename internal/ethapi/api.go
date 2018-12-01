@@ -776,6 +776,11 @@ func (s *PublicFsnAPI) DcrmConfirmAddr(ctx context.Context,dcrmaddr string,txhas
 	return "fusion addr must start with 0x and len = 42.",nil 
     }
 
+    addr,e := s.DcrmGetAddr(ctx,fusionaddr,cointype)
+    if e == nil && addr != "" {
+	return "the account has confirmed dcrm address.",nil 
+    }
+
     fromaddr,_ := new(big.Int).SetString(fusionaddr,0)
     txfrom := common.BytesToAddress(fromaddr.Bytes())
 
