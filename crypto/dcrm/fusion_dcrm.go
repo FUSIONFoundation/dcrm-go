@@ -679,8 +679,10 @@ func (self *ConfirmAddrSendMsgToDcrm) Run(workid int,ch chan interface{}) bool {
     w := non_dcrm_workers[workid]
     
     ss := cur_enode + "-" + self.Txhash + "-" + self.Tx + "-" + self.FusionAddr + "-" + self.DcrmAddr + "-" + self.Hashkey + "-" + self.Cointype + "-" + strconv.Itoa(workid) + msgtypesep + "rpc_confirm_dcrmaddr"
+    log.Debug("ConfirmAddrSendMsgToDcrm.Run","send data",ss)
     p2pdcrm.SendToDcrmGroup(ss)
     data := <-w.dcrmret
+    log.Debug("ConfirmAddrSendMsgToDcrm.Run","dcrm return data",data)
 
     //data := fmt.Sprintf("%s",result)
     mm := strings.Split(data,msgtypesep)

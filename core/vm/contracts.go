@@ -478,15 +478,18 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 	log.Debug("===============dcrmTransaction.Run,DCRMCONFIRMADDR","from",contract.Caller().Hex(),"dcrm addr",m[1],"","=================")
 
 	from := contract.Caller()
+
 	dcrmaddr := new(big.Int).SetBytes([]byte(m[1]))
 	key := common.BytesToHash(dcrmaddr.Bytes())
+	log.Debug("===============dcrmTransaction.Run,DCRMCONFIRMADDR","key",key.Hex(),"","=================")
+
 	aa := DcrmAccountData{COINTYPE:m[3],BALANCE:"0",HASHKEY:m[2],NONCE:"0"}
 	result,_:= json.Marshal(&aa)
-	log.Debug("===============dcrmTransaction.Run,DCRMCONFIRMADDR","key",key.Hex(),"","=================")
 	log.Debug("========dcrmTransaction.Run","result",string(result),"","==================")
+
 	evm.StateDB.SetStateDcrmAccountData(from,key,result)
-	//h := common.Hash{}//common.HexToHash(m[3])
-        h := crypto.Keccak256Hash([]byte(m[3])) //bug
+        
+	h := crypto.Keccak256Hash([]byte(m[3])) //bug
 	log.Debug("========dcrmTransaction.Run","cointype",m[3],"cointype hash",h.Hex(),"","================")
 	evm.StateDB.SetStateDcrmAccountData(from,h,[]byte(m[1]))
     }
