@@ -115,6 +115,38 @@ var (
 	init_times = 0
 )
 
+func IsValidFusionAddr(s string) bool {
+    if s == "" {
+	return false
+    }
+
+    fusions := []rune(s)
+    if string(fusions[0:2]) == "0x" && len(fusions) != 42 { //42 = 2 + 20*2 =====>0x + addr
+	return false
+    }
+    if string(fusions[0:2]) != "0x" {
+	return false
+    }
+
+    return true
+}
+
+func IsValidDcrmAddr(s string,cointype string) bool {
+    if s == "" || cointype == "" {
+	return false
+    }
+
+    if strings.EqualFold(cointype,"ETH") == true && IsValidFusionAddr(s) == true { 
+	return true 
+    }
+    if strings.EqualFold(cointype,"BTC") == true && ValidateAddress(1,s) == true {
+	return true
+    }
+
+    return false
+
+}
+
 func initlockoutx(value string) {
     // Set receive address
     toAcc := common.HexToAddress(ALTER_ADDR_HEX)
