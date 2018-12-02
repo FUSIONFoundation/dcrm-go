@@ -947,6 +947,31 @@ func (s *PublicFsnAPI) DcrmGetNonce(ctx context.Context,fusionaddr string,cointy
     return ret,nil
 }
 
+func isValidBtcValue(s string) bool {
+    if s == "" {
+	return false
+    }
+
+    i := 0
+    nums := []rune(s)
+    for k,_ := range nums {
+	if string(nums[k:k+1]) == "." {
+	    i++
+	    if k == 0 || k == (len(nums)-1) {
+		return false
+	    }
+	    if i >= 2 {
+		return false
+	    }
+
+	} else if string(nums[k:k+1]) != "0" && string(nums[k:k+1]) != "1" && string(nums[k:k+1]) != "2" && string(nums[k:k+1]) != "3" && string(nums[k:k+1]) != "4" && string(nums[k:k+1]) != "5" && string(nums[k:k+1]) != "6" && string(nums[k:k+1]) != "7" && string(nums[k:k+1]) != "8" && string(nums[k:k+1]) != "9" {
+	    return false
+	}
+    }
+
+    return true
+}
+
 func isDecimalNumber(s string) bool {
     if s == "" {
 	return false
@@ -969,12 +994,16 @@ func (s *PublicFsnAPI) DcrmLockin(ctx context.Context,value string,cointype stri
 	    return "params error.",nil
 	}
 
-	if !isDecimalNumber(value) {
+	if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false {
+	    return "coin type is not supported.",nil
+	}
+
+	if strings.EqualFold(cointype,"ETH") == true && !isDecimalNumber(value) {
 	    return "params error:value is not Decimal Number,it must be xxx wei ",nil
 	}
 
-	if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false {
-	    return "coin type is not supported.",nil
+	if strings.EqualFold(cointype,"BTC") == true && !isValidBtcValue(value) {
+	    return "params error:value is not the right format. ",nil
 	}
 
 	txhashs := []rune(txhash)
