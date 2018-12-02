@@ -46,6 +46,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/util"
 	"github.com/fusion/go-fusion/crypto/dcrm"
 	"github.com/fusion/go-fusion/rpc"
+	"strconv"
 )
 
 const (
@@ -1129,43 +1130,49 @@ func (s *PublicFsnAPI) DcrmGetBalance(ctx context.Context,fusionaddr string,coin
 	return ret2, state.Error()
 }
 
-func (s *PublicFsnAPI) DcrmSendTransaction(ctx context.Context,fusionto string,value string,cointype string) (common.Hash, error) {
+func (s *PublicFsnAPI) DcrmSendTransaction(ctx context.Context,fusionto string,value string,cointype string) (string, error) {
 
 	log.Debug("=============DcrmSendTransaction================")
+	
+	amount, verr := strconv.ParseInt(value, 10, 64)
+	if verr != nil {
+	    return "",nil
+	}
+
 	cb,e := dcrm.Coinbase()
 	if e != nil {
-	    return common.Hash{},nil
+	    return "",nil
 	}
 
 	fusionfrom := cb.Hex()
 	fusions1 := []rune(fusionfrom)
 	if len(fusions1) != 42 { //42 = 2 + 20*2 =====>0x + addr
-	    return common.Hash{},nil 
+	    return "",nil 
 	}
 	
 	dcrmfrom,e2 := s.DcrmGetAddr(ctx,fusionfrom,cointype)
 	if e2 != nil || dcrmfrom == "" {
-	    return common.Hash{},nil
+	    return "",nil
 	}
 
 	dcrmaddrs1 := []rune(dcrmfrom)
 	if cointype == "ETH" && len(dcrmaddrs1) != 42 { //42 = 2 + 20*2 =====>0x + addr
-	    return common.Hash{},nil 
+	    return "",nil 
 	}
 	
 	fusions2 := []rune(fusionto)
 	if len(fusions2) != 42 { //42 = 2 + 20*2 =====>0x + addr
-	    return common.Hash{},nil 
+	    return "",nil 
 	}
 	
 	dcrmto,e3 := s.DcrmGetAddr(ctx,fusionto,cointype)
 	if e3 != nil || dcrmto == "" {
-	    return common.Hash{},nil
+	    return "",nil
 	}
 
 	dcrmaddrs2 := []rune(dcrmto)
 	if cointype == "ETH" && len(dcrmaddrs2) != 42 { //42 = 2 + 20*2 =====>0x + addr
-	    return common.Hash{},nil 
+	    return "",nil 
 	}
 	
 	fromaddr,_ := new(big.Int).SetString(fusionfrom,0)
@@ -1179,19 +1186,19 @@ func (s *PublicFsnAPI) DcrmSendTransaction(ctx context.Context,fusionto string,v
 	args.Input = new(hexutil.Bytes) 
 	*args.Data = []byte(str)
 	*args.Input = []byte(str)
-	args.Value = (*hexutil.Big)(new(big.Int).SetBytes([]byte(value)))
+	args.Value = (*hexutil.Big)(new(big.Int).Set(big.NewInt(amount)))
 
         // Look up the wallet containing the requested signer
 	account := accounts.Account{Address: args.From}
 
 	wallet, err := s.b.AccountManager().Find(account)
 	if err != nil {
-		return common.Hash{}, err
+		return "", err
 	}
 
 	// Set some sanity defaults and terminate on failure
 	if err := args.setDefaults(ctx, s.b); err != nil {
-		return common.Hash{}, err
+		return "", err
 	}
 	// Assemble the transaction and sign with the wallet
 	tx := args.toTransaction()
@@ -1202,43 +1209,51 @@ func (s *PublicFsnAPI) DcrmSendTransaction(ctx context.Context,fusionto string,v
 	}
 	signed, err := wallet.SignTx(account, tx, chainID)
 	if err != nil {
-		return common.Hash{}, err
+		return "", err
 	}
-	//============================================================
+	
 	result,_ := signed.MarshalJSON()
 	signtx := new(types.Transaction)
 	err2 := signtx.UnmarshalJSON(result)
 	if err2 == nil {
-	    return submitTransaction(ctx, s.b, signtx)
+	    hash,err := submitTransaction(ctx, s.b, signtx)
+	    if err == nil {
+		return hash.Hex(),nil
+	    }
+
+	    return "",err
 	} 
 
-	return common.Hash{}, err2
-	//================================================
+	return "", err2
 }
 
-func (s *PublicFsnAPI) DcrmLockout(ctx context.Context,lockoutto string,value string,cointype string) (common.Hash, error) {
+func (s *PublicFsnAPI) DcrmLockout(ctx context.Context,lockoutto string,value string,cointype string) (string, error) {
 
 	log.Debug("=============DcrmLockout================")
 
-	//========================================================
+	amount, verr := strconv.ParseInt(value, 10, 64)
+	if verr != nil {
+	    return "",nil
+	}
+
 	cb,e := dcrm.Coinbase()
 	if e != nil {
-	    return common.Hash{},nil
+	    return "",nil
 	}
 
 	fusionaddr := cb.Hex()
 	fusions := []rune(fusionaddr)
 	if len(fusions) != 42 { //42 = 2 + 20*2 =====>0x + addr
-	    return common.Hash{},nil 
+	    return "",nil 
 	}
 
 	if lockoutto == "" {
-	    return common.Hash{},nil
+	    return "",nil
 	}
 
 	dcrmaddr,e2 := s.DcrmGetAddr(ctx,fusionaddr,cointype)
 	if e2 != nil || dcrmaddr == "" {
-	    return common.Hash{},nil
+	    return "",nil
 	}
 
 	fromaddr,_ := new(big.Int).SetString(fusionaddr,0)
@@ -1252,19 +1267,19 @@ func (s *PublicFsnAPI) DcrmLockout(ctx context.Context,lockoutto string,value st
 	args.Input = new(hexutil.Bytes) 
 	*args.Data = []byte(str)
 	*args.Input = []byte(str)
-	args.Value = (*hexutil.Big)(new(big.Int).SetBytes([]byte(value)))
+	args.Value = (*hexutil.Big)(new(big.Int).Set(big.NewInt(amount)))
 
         // Look up the wallet containing the requested signer
 	account := accounts.Account{Address: args.From}
 
 	wallet, err := s.b.AccountManager().Find(account)
 	if err != nil {
-		return common.Hash{}, err
+		return "", err
 	}
 
 	// Set some sanity defaults and terminate on failure
 	if err := args.setDefaults(ctx, s.b); err != nil {
-		return common.Hash{}, err
+		return "", err
 	}
 	// Assemble the transaction and sign with the wallet
 	tx := args.toTransaction()
@@ -1275,7 +1290,7 @@ func (s *PublicFsnAPI) DcrmLockout(ctx context.Context,lockoutto string,value st
 	}
 	signed, err := wallet.SignTx(account, tx, chainID)
 	if err != nil {
-		return common.Hash{}, err
+		return "", err
 	}
 	
 	result,_ := signed.MarshalJSON()
@@ -1285,30 +1300,30 @@ func (s *PublicFsnAPI) DcrmLockout(ctx context.Context,lockoutto string,value st
 	    msg := signed.Hash().Hex() + sep9 + string(result) + sep9 + "xxx" + sep9 + "xxx" + sep9 + lockoutto + sep9 + fusionaddr + sep9 + dcrmaddr + sep9 + value + sep9 + cointype
 	    addr,err := dcrm.SendReqToGroup(msg,"rpc_lockout")
 	    if addr == "" || err != nil {
-		    return common.Hash{}, err
+		    return "", err
 	    }
 	    
 	    signtx := new(types.Transaction)
 	    err2 := signtx.UnmarshalJSON([]byte(result))
 	    if err2 == nil {
-		return signtx.Hash(),nil
+		return signtx.Hash().Hex(),nil
 	    }
 
-	    return common.Hash{},err2
+	    return "",err2
 	}
 
 	v := dcrm.DcrmLockOut{Txhash:signed.Hash().Hex(),Tx:string(result),Sig:"xxx",Fusionhash:"xxx",Lockto:lockoutto,FusionAddr:fusionaddr,DcrmAddr:dcrmaddr,Value:value,Cointype:cointype}
 	if _,err = dcrm.Validate_Lockout(&v);err != nil {
-		return common.Hash{}, err
+		return "", err
 	}
 
 	signtx := new(types.Transaction)
 	err2 := signtx.UnmarshalJSON([]byte(result))
 	if err2 == nil {
-	    return signtx.Hash(),nil
+	    return signtx.Hash().Hex(),nil
 	}
 
-	return common.Hash{},err2
+	return "",err2
 }
 
 //+++++++++++++++++++++end+++++++++++++++++++++
