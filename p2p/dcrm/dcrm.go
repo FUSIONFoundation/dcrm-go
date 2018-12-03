@@ -32,6 +32,7 @@ import (
 	"github.com/fusion/go-fusion/p2p"
 	"github.com/fusion/go-fusion/p2p/discover"
 	"github.com/fusion/go-fusion/rpc"
+	"github.com/fusion/go-fusion/rlp"
 	//"github.com/fusion/go-fusion/p2p/nat"
 	"github.com/fusion/go-fusion/log"
 )
@@ -228,30 +229,24 @@ func HandlePeer(peer *p2p.Peer, rw p2p.MsgReadWriter) error {
 	//p2p.SendItems(rw, dcrmMsgCode, "aaaaaaaaaaaaaaaaaaa")
 	for {
 		msg, err := rw.ReadMsg()
+		log.Debug("HandlePeer", "ReadMsg", msg)
 		if err != nil {
 			return err
 		}
-		log.Debug("HandlePeer", "receive Msgs from peer: ", msg)
-		var recv []string
+		log.Debug("HandlePeer", "receive Msgs msg.Payload", msg.Payload)
 		switch msg.Code {
 		case dcrmMsgCode:
-			//fmt.Printf("receive Msgs from peer: %v\n", peer)
+			log.Debug("HandlePeer", "receive Msgs from peer", peer)
 			log.Debug("emitter", "emitter.peers[id]: ", emitter.peers[id])
-			//if err := msg.Decode(&emitter.peers[id].RecvMessage); err != nil {
-			if err := msg.Decode(&recv); err != nil {
-				fmt.Println("decode msg err", err)
-			} else {
-				log.Debug("msg", "read msg:", recv[0])
-				callEvent(recv[0])
+			var recv []byte
 
-				//fmt.Println("read msg:", emitter.peers[id].RecvMessage[0])
-				//if P2PTEST == 0 {
-				//	callEvent(emitter.peers[id].RecvMessage[0])
-				//}else {
-				//fmt.Println("read msg:", emitter.peers[id].RecvMessage[0])
-				//}
+			err := rlp.Decode(msg.Payload, &recv)
+			log.Debug("Decode", "rlp.Decode", recv)
+			if err != nil {
+				fmt.Print("Err: decode msg err %+v\n", err)
+			}else {
+				callEvent(string(recv))
 			}
-
 		default:
 			fmt.Println("unkown msg code")
 		}
@@ -347,7 +342,7 @@ func BroatcastToGroup(msg string) {
 				continue
 			}
 			log.Debug("send to node(group)", "g = ", g, "p.peer = ", p.peer)
-			if err := p2p.SendItems(p.ws, dcrmMsgCode, msg); err != nil {
+			if err := p2p.Send(p.ws, dcrmMsgCode, msg); err != nil {
 				fmt.Printf("Emitter.loopSendMsg p2p.SendItems err", err, "peer id", p.peer.ID())
 				continue
 			}
@@ -366,9 +361,10 @@ func Broatcast(msg string) {
 	func() {
 		log.Debug("peer", "emitter", emitter)
 		for _, p := range emitter.peers {
-		    log.Debug("Broastcast", "to , p: ", p, "msg: ", p, msg)
-			if err := p2p.SendItems(p.ws, dcrmMsgCode, msg); err != nil {
-				fmt.Printf("Emitter.loopSendMsg p2p.SendItems err", err, "peer id", p.peer.ID())
+			log.Debug("Broastcast", "to , p", p, "msg", p, msg)
+			log.Debug("Broastcast", "p.ws", p.ws)
+			if err := p2p.Send(p.ws, dcrmMsgCode, msg); err != nil {
+				fmt.Printf("Emitter.loopSendMsg p2p.Send err", err, "peer id", p.peer.ID())
 				continue
 			}
 		}
