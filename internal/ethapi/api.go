@@ -1101,7 +1101,7 @@ func (s *PublicFsnAPI) DcrmLockin(ctx context.Context,value string,cointype stri
 	    return "",err2
 	}
 
-	v := dcrm.DcrmLockIn{Tx:string(result),Hashkey:txhash}
+	v := dcrm.DcrmLockin{Tx:string(result),Hashkey:txhash}
 	if _,err = dcrm.Validate_Txhash(&v);err != nil {
 		return "", err
 	}
@@ -1232,7 +1232,7 @@ func (s *PublicFsnAPI) DcrmSendTransaction(ctx context.Context,fusionto string,v
 	     balance,verr := s.DcrmGetBalance(ctx,fusionfrom,cointype)
 	     if verr == nil {
 		ba,_ := strconv.ParseInt(balance, 10, 64)
-		if ba > amount {
+		if ba < amount {
 		    return "value is great than dcrm balance.",nil
 		}
 	     }
@@ -1249,8 +1249,9 @@ func (s *PublicFsnAPI) DcrmSendTransaction(ctx context.Context,fusionto string,v
 	     
 	    balance,verr := s.DcrmGetBalance(ctx,fusionfrom,cointype)
 	     if verr == nil {
+		 log.Debug("=========DcrmSendTransaction,","From Account Balance",balance,"","====================")
 		ba,_ := strconv.ParseFloat(balance,64)
-		if ba > amount {
+		if ba < amount {
 		    return "value is great than dcrm balance.",nil
 		}
 	     }
@@ -1277,7 +1278,9 @@ func (s *PublicFsnAPI) DcrmSendTransaction(ctx context.Context,fusionto string,v
 	if strings.EqualFold(cointype,"BTC") == true {
 	    amount,_ := strconv.ParseFloat(value, 64)
 	    amount = amount * 100000000
+	     log.Debug("=========DcrmSendTransaction,","amount * 100000000 ",amount,"","====================")
 	    args.Value = (*hexutil.Big)(new(big.Int).Set(big.NewInt(int64(amount))))
+	     log.Debug("=========DcrmSendTransaction,","args.Value",args.Value,"","====================")
 	}
 
         // Look up the wallet containing the requested signer
@@ -1306,10 +1309,6 @@ func (s *PublicFsnAPI) DcrmSendTransaction(ctx context.Context,fusionto string,v
 	
 	result,_ := signed.MarshalJSON()
 
-	//
-	//TODO b-a >= 0
-	//
-
 	signtx := new(types.Transaction)
 	err2 := signtx.UnmarshalJSON(result)
 	if err2 == nil {
@@ -1326,45 +1325,125 @@ func (s *PublicFsnAPI) DcrmSendTransaction(ctx context.Context,fusionto string,v
 
 func (s *PublicFsnAPI) DcrmLockout(ctx context.Context,lockoutto string,value string,cointype string) (string, error) {
 
-	log.Debug("=============DcrmLockout================")
+	log.Debug("=========================DcrmLockout=========================")
 
-	amount, verr := strconv.ParseInt(value, 10, 64)
-	if verr != nil {
-	    return "",nil
+	if lockoutto == "" || value == "" || cointype == "" {
+	    return "param error.",nil
 	}
 
+	if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false {
+	    return "coin type is not supported.",nil
+	}
+
+	//from
 	cb,e := dcrm.Coinbase()
 	if e != nil {
-	    return "",nil
+	    return "please create account.",nil
+	}
+	fusionfrom := cb.Hex()
+	if dcrm.IsValidFusionAddr(fusionfrom) == false {
+	    return "param error.fusion addr must start with 0x and len = 42.",nil
 	}
 
-	fusionaddr := cb.Hex()
-	fusions := []rune(fusionaddr)
-	if len(fusions) != 42 { //42 = 2 + 20*2 =====>0x + addr
-	    return "",nil 
+	dcrmfrom,e := s.DcrmGetAddr(ctx,fusionfrom,cointype)
+	if e != nil || dcrmfrom == "" {
+	    return "the coinbase account has not request dcrm addr before.",nil
+	}
+	if dcrm.IsValidDcrmAddr(dcrmfrom,cointype) == false {
+	    if strings.EqualFold(cointype,"ETH") == true {
+		return "ETH coinbase dcrm addr must start with 0x and len = 42.",nil 
+	    }
+	    if strings.EqualFold(cointype,"BTC") == true {
+		return "BTC coinbase dcrm addr is not the right format.",nil
+	    }
 	}
 
-	if lockoutto == "" {
-	    return "",nil
+	//value
+	if strings.EqualFold(cointype,"ETH") == true {
+	    amount, verr := strconv.ParseInt(value, 10, 64)
+	     if verr != nil {
+		return "params error:value is not the right format,it must be xxx wei ",nil
+	     }
+
+	     balance,verr := s.DcrmGetBalance(ctx,fusionfrom,cointype)
+	     if verr == nil {
+		ba,_ := strconv.ParseInt(balance, 10, 64)
+		if ba < amount {
+		    return "value is great than dcrm balance.",nil
+		}
+	     }
 	}
 
-	dcrmaddr,e2 := s.DcrmGetAddr(ctx,fusionaddr,cointype)
-	if e2 != nil || dcrmaddr == "" {
-	    return "",nil
+	if strings.EqualFold(cointype,"BTC") == true {
+	    amount,verr := strconv.ParseFloat(value, 64)
+	    if verr != nil {
+		return "params error:value is not the right format. ",nil
+	    }
+	    if amount < 0.00000001 {
+		return "value is less than 0.00000001 BTC.",nil
+	    }
+	     
+	    balance,verr := s.DcrmGetBalance(ctx,fusionfrom,cointype)
+	     if verr == nil {
+		 log.Debug("=========DcrmLockout,","From Account Balance",balance,"","====================")
+		ba,_ := strconv.ParseFloat(balance,64)
+		if ba < amount {
+		    return "value is great than dcrm balance.",nil
+		}
+	     }
 	}
 
-	fromaddr,_ := new(big.Int).SetString(fusionaddr,0)
+	//lockoutto
+	if dcrm.IsValidDcrmAddr(lockoutto,cointype) == false {
+	    if strings.EqualFold(cointype,"ETH") == true {
+		return "ETH coinbase dcrm addr must start with 0x and len = 42.",nil 
+	    }
+	    if strings.EqualFold(cointype,"BTC") == true {
+		return "BTC coinbase dcrm addr is not the right format.",nil
+	    }
+	}
+
+	//choose real from
+	realfusionfrom,realdcrmfrom,err := dcrm.ChooseRealFusionAccountForLockout(value,cointype)
+	if err != nil {
+	    return "",err
+	}
+
+	log.Debug("===============DcrmLockout,","real dcrm from",realdcrmfrom,"","=================")
+
+	//real from
+	if dcrm.IsValidFusionAddr(realfusionfrom) == false {
+	    return "fail:there are no suitable account to lockout.",nil
+	}
+	if dcrm.IsValidDcrmAddr(realdcrmfrom,cointype) == false {
+	    return "fail:there are no suitable account to lockout.",nil 
+	}
+
+	//
+	fromaddr,_ := new(big.Int).SetString(fusionfrom,0)
 	txfrom := common.BytesToAddress(fromaddr.Bytes())
 
 	toaddr := new(common.Address)
 	*toaddr = types.DcrmPrecompileAddr
 	args := SendTxArgs{From: txfrom,To:toaddr}
-	str := "LOCKOUT" + ":" + dcrmaddr + ":" + lockoutto + ":" + cointype
+	str := "LOCKOUT" + ":" + lockoutto + ":" + value + ":" + cointype
 	args.Data = new(hexutil.Bytes) 
 	args.Input = new(hexutil.Bytes) 
 	*args.Data = []byte(str)
 	*args.Input = []byte(str)
-	args.Value = (*hexutil.Big)(new(big.Int).Set(big.NewInt(amount)))
+
+	if strings.EqualFold(cointype,"ETH") == true {
+	    amount,_:= strconv.ParseInt(value, 10, 64)
+	    args.Value = (*hexutil.Big)(new(big.Int).Set(big.NewInt(amount)))
+	}
+
+	if strings.EqualFold(cointype,"BTC") == true {
+	    amount,_ := strconv.ParseFloat(value, 64)
+	    amount = amount * 100000000
+	     log.Debug("=========DcrmLockout,","amount * 100000000 ",amount,"","====================")
+	    args.Value = (*hexutil.Big)(new(big.Int).Set(big.NewInt(int64(amount))))
+	     log.Debug("=========DcrmLockout,","args.Value",args.Value,"","====================")
+	}
 
         // Look up the wallet containing the requested signer
 	account := accounts.Account{Address: args.From}
@@ -1394,9 +1473,10 @@ func (s *PublicFsnAPI) DcrmLockout(ctx context.Context,lockoutto string,value st
 	////////////////////////
 
 	if !dcrm.IsInGroup() {
-	    msg := signed.Hash().Hex() + sep9 + string(result) + sep9 + "xxx" + sep9 + "xxx" + sep9 + lockoutto + sep9 + fusionaddr + sep9 + dcrmaddr + sep9 + value + sep9 + cointype
-	    addr,err := dcrm.SendReqToGroup(msg,"rpc_lockout")
-	    if addr == "" || err != nil {
+	    msg := signed.Hash().Hex() + sep9 + string(result) + sep9 + fusionfrom + sep9 + dcrmfrom + sep9 + realfusionfrom + sep9 + realdcrmfrom + sep9 + lockoutto + sep9 + value + sep9 + cointype
+	    sig,err := dcrm.SendReqToGroup(msg,"rpc_lockout")
+	    if sig == "" || err != nil {
+		log.Debug("=============DcrmLockout,return sig is nil.==============")
 		    return "", err
 	    }
 	    
@@ -1409,8 +1489,9 @@ func (s *PublicFsnAPI) DcrmLockout(ctx context.Context,lockoutto string,value st
 	    return "",err2
 	}
 
-	v := dcrm.DcrmLockOut{Txhash:signed.Hash().Hex(),Tx:string(result),Sig:"xxx",Fusionhash:"xxx",Lockto:lockoutto,FusionAddr:fusionaddr,DcrmAddr:dcrmaddr,Value:value,Cointype:cointype}
+	v := dcrm.DcrmLockout{Txhash:signed.Hash().Hex(),Tx:string(result),FusionFrom:fusionfrom,DcrmFrom:dcrmfrom,RealFusionFrom:realfusionfrom,RealDcrmFrom:realdcrmfrom,Lockoutto:lockoutto,Value:value,Cointype:cointype}
 	if _,err = dcrm.Validate_Lockout(&v);err != nil {
+		log.Debug("=============DcrmLockout,group insede return sig is nil.==============")
 		return "", err
 	}
 
