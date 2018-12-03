@@ -351,9 +351,9 @@ func setGroup(n *Node, replace string) {
 			return
 		}
 		log.Debug("connect", "NodeID", n.ID.String())
-		if n.ID.String() == "ead5708649f3fb10343a61249ea8509b3d700f1f51270f13ecf889cdf8dafce5e7eb649df3ee872fb027b5a136e17de73965ec34c46ea8a5553b3e3150a0bf8d" ||
-			n.ID.String() == "bd6e097bb40944bce309f6348fe4d56ee46edbdf128cc75517df3cc586755737733c722d3279a3f37d000e26b5348c9ec9af7f5b83122d4cfd8c9ad836a0e1ee" ||
-			n.ID.String() == "1520992e0053bbb92179e7683b3637ea0d43bb2cd3694a94a1e90e909108421c2ce22e0abdb0a335efdd8e6391eb08ba967f641b42e4ebde39997c8ad000e8c8" {
+		//if n.ID.String() == "ead5708649f3fb10343a61249ea8509b3d700f1f51270f13ecf889cdf8dafce5e7eb649df3ee872fb027b5a136e17de73965ec34c46ea8a5553b3e3150a0bf8d" ||
+		//	n.ID.String() == "bd6e097bb40944bce309f6348fe4d56ee46edbdf128cc75517df3cc586755737733c722d3279a3f37d000e26b5348c9ec9af7f5b83122d4cfd8c9ad836a0e1ee" ||
+		//	n.ID.String() == "1520992e0053bbb92179e7683b3637ea0d43bb2cd3694a94a1e90e909108421c2ce22e0abdb0a335efdd8e6391eb08ba967f641b42e4ebde39997c8ad000e8c8" {
 			//grouplist.gname = append(grouplist.gname, "dddddddddd")
 			grouplist.Nodes = append(grouplist.Nodes, nodeToRPC(n))
 			grouplist.count++
@@ -362,7 +362,7 @@ func setGroup(n *Node, replace string) {
 			}
 			log.Debug("group(add)", "node", n)
 			log.Debug("group", "grouplist", grouplist)
-		}
+		//}
 	} else if replace == "remove" {
 		log.Debug("group remove")
 		if grouplist.count <= 0 {
