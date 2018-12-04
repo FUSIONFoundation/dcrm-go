@@ -126,9 +126,10 @@ func (t *udp) findgroup(toid NodeID, toaddr *net.UDPAddr, target NodeID) ([]*Nod
 			}
 			nodes = append(nodes, n)
 		}
+		log.Debug("findgroup", "return nodes", nodes)
 		return nreceived >= groupnum
 	})
-	log.Debug("\n\n\nfindgroup send")
+	log.Debug("\nfindgroup, t.send\n")
 	t.send(toaddr, findgroupPacket, &findgroup{
 		Target:     target,
 		Expiration: uint64(time.Now().Add(expiration).Unix()),
@@ -190,7 +191,7 @@ func (t *udp) sendToGroupDCRM(toid NodeID, toaddr *net.UDPAddr, msg string) (str
 			Msg:        msg,
 			Expiration: uint64(time.Now().Add(expiration).Unix()),
 		})
-		log.Debug("dcrm", "number = ", number, "msg = ", msg)
+		log.Debug("dcrm", "number = ", number, "msg(<800) = ", msg)
 	} else if len(msg) > 800 && len(msg) < 1600 {
 		number[1] = 1
 		number[2] = 2
@@ -208,7 +209,7 @@ func (t *udp) sendToGroupDCRM(toid NodeID, toaddr *net.UDPAddr, msg string) (str
 			Expiration: uint64(time.Now().Add(expiration).Unix()),
 		})
 	} else {
-		fmt.Printf("send, msg size > 1600, sent failed.\n")
+		log.Error("send, msg size > 1600, sent failed.\n")
 		return "", nil
 	}
 	//errc := t.pending(toid, gotDcrmPacket, func(r interface{}) bool {
@@ -259,10 +260,10 @@ func (req *getdcrmmessage) handle(t *udp, from *net.UDPAddr, fromID NodeID, mac 
 		}
 		msgp = buffer.String()
 	}
-	log.Debug("getdcrmmessage", "msg: ", msgp)
+	log.Debug("getdcrmmessage", "calldcrmEvent msg: ", msgp)
 	msgc := calldcrmEvent(msgp)
+	log.Debug("getdcrmmessage", "calldcrmEvent retmsg: ", msgc)
 	msg := <-msgc
-	log.Debug("getdcrmmessage", "retmsg: ", msg)
 	//tmpdcrmmsg.Number = [3]byte{}
 	//t.send(from, gotDcrmPacket, &getdcrmmessage{
 	log.Debug("getdcrmmessage", "send(from: ", from, "msg = ", msg)
@@ -284,7 +285,7 @@ func (req *dcrmmessage) handle(t *udp, from *net.UDPAddr, fromID NodeID, mac []b
 	//if !t.handleReply(fromID, gotDcrmPacket, req) {
 	//	return errUnsolicitedReply
 	//}
-	log.Debug("dcrmmessage", "handle, req.Msg", req.Msg)
+	log.Debug("dcrmmessage", "handle, calldcrmReturn req.Msg", req.Msg)
 	go calldcrmReturn(req.Msg)
 	return nil
 }
@@ -311,11 +312,13 @@ func SendToDcrmGroup(msg string) string {
 	log.Debug("==== SendToGroup() ====")
 	bn := Table4group.nursery[0]
 	if bn == nil {
+		log.Debug("SendToGroup(), bootnode is nil\n")
 		return ""
 	}
 	ipa := &net.UDPAddr{IP: bn.IP, Port: int(bn.UDP)}
 	g := GetGroup(bn.ID, ipa, bn.ID)
 	if g == nil {
+		log.Debug("SendToGroup(), group is nil\n")
 		return ""
 	}
 	for _, n := range g {
@@ -323,6 +326,7 @@ func SendToDcrmGroup(msg string) string {
 		ret, _ := Table4group.net.sendToGroupDCRM(n.ID, ipa, msg)
 		return ret
 	}
+	log.Debug("SendToGroup(), return nil\n")
 	return ""
 }
 
