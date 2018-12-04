@@ -246,7 +246,7 @@ func HandlePeer(peer *p2p.Peer, rw p2p.MsgReadWriter) error {
 				fmt.Print("Err: decode msg err %+v\n", err)
 			}else {
 				log.Debug("HandlePeer", "callback(msg): ", recv)
-				callEvent(string(recv))
+				go callEvent(string(recv))
 			}
 		default:
 			fmt.Println("unkown msg code")
