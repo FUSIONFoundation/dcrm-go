@@ -26,6 +26,7 @@ import (
 	"github.com/fusion/go-fusion/crypto"
 	"github.com/fusion/go-fusion/metrics"
 	"github.com/fusion/go-fusion/p2p"
+	"github.com/fusion/go-fusion/p2p/dcrm"
 	"github.com/fusion/go-fusion/p2p/discover"
 	"github.com/fusion/go-fusion/rpc"
 )
@@ -317,6 +318,16 @@ func (api *PublicAdminAPI) Peers() ([]*p2p.PeerInfo, error) {
 		return nil, ErrNodeStopped
 	}
 	return server.PeersInfo(), nil
+}
+
+// Group retrieves all the nodes of group
+func (api *PublicAdminAPI) DcrmGroup() (*p2p.EnodeInfo, error) {
+	count, str := dcrm.GetGroup()
+	if count == 0 {
+		return nil, nil
+	}
+	enode := p2p.EnodeInfo{Num: count, Enode: strings.Split(str, discover.Dcrmdelimiter)}
+	return &enode, nil
 }
 
 // NodeInfo retrieves all the information we know about the host node at the
