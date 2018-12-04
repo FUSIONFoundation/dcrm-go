@@ -93,7 +93,9 @@ func main() {
 	fmt.Printf("ERROR: Neither of channel, chaincode, key nor dbpath could be empty\n") 
 	return 
     } 
-   
+    fmt.Printf("channel=",channel)   
+    fmt.Printf("chaincode=",chaincode)   
+    fmt.Printf("dbpath=",dbpath)   
     fmt.Printf("======caihaijun====\n")
     db, err := leveldb.OpenFile(dbpath, nil) 
     if err != nil { 
@@ -104,8 +106,10 @@ func main() {
     
     fmt.Printf("======caihaijun11111====\n")
     if key == "" { 
+	fmt.Printf("======caihaijun222222====\n")
 	readAll(db) 
     } else { 
+	fmt.Printf("======caihaijun3333333====\n")
 	readKey(db, key) 
     } 
 }

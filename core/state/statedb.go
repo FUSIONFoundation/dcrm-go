@@ -312,6 +312,22 @@ func (self *StateDB) GetDcrmAddress(a common.Address, b common.Hash,cointype str
 	}
 	return "" 
 }
+
+func (self *StateDB) GetDcrmHashKey(a common.Address, b common.Hash,cointype string) string {
+	stateObject := self.getStateObject(a)
+	if stateObject != nil {
+		return stateObject.GetDcrmHashKey(self.db, b,cointype)
+	}
+	return "" 
+}
+
+func (self *StateDB) GetDcrmNonce(a common.Address, b common.Hash,cointype string) string {
+	stateObject := self.getStateObject(a)
+	if stateObject != nil {
+		return stateObject.GetDcrmNonce(self.db, b,cointype)
+	}
+	return "" 
+}
 //++++++++++++++++++++end+++++++++++++++++++++
 
 // StorageTrie returns the storage trie of an account.

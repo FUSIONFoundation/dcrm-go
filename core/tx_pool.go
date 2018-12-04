@@ -605,7 +605,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	//if pool.currentState.GetNonce(from) > tx.Nonce() {//------caihaijun----
 	//if !bytes.Equal(tx.To().Bytes(), types.DcrmLockinPrecompileAddr.Bytes()) && pool.currentState.GetNonce(from) > tx.Nonce() {//+++++++caihaijun+++++++++
 	log.Debug("=============validateTx,step 5.===========")//caihaijun
-	if !types.IsDcrmLockIn(tx.Data()) && pool.currentState.GetNonce(from) > tx.Nonce() {//+++++++caihaijun+++++++++
+	if !types.IsDcrmLockIn(tx.Data()) && !types.IsDcrmConfirmAddr(tx.Data()) && pool.currentState.GetNonce(from) > tx.Nonce() {//+++++++caihaijun+++++++++
 	    log.Debug("===================validateTx,fail: ErrNonceTooLow=================")//caihaijun
 		return ErrNonceTooLow
 	}
@@ -614,7 +614,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	//if pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 { //----caihaijun------
 	//if !bytes.Equal(tx.To().Bytes(), types.DcrmLockinPrecompileAddr.Bytes()) && pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {//+++++++caihaijun++++++++
 	log.Debug("=============validateTx,step 6===========")//caihaijun
-	if !types.IsDcrmLockIn(tx.Data()) && pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {//+++++++caihaijun++++++++
+	if !types.IsDcrmLockIn(tx.Data()) && !types.IsDcrmConfirmAddr(tx.Data()) && pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {//+++++++caihaijun++++++++
 		log.Debug("===============validateTx,ErrInsufficientFunds","from",from.Hex(),"","=================")//caihaijun
 		return ErrInsufficientFunds
 	}

@@ -22,6 +22,7 @@ import (
 	"io"
 	"math/big"
 	"encoding/json"//caihaijun
+	"strings"//caihaijun
 
 	"github.com/fusion/go-fusion/common"
 	"github.com/fusion/go-fusion/crypto"
@@ -224,6 +225,8 @@ func (self *stateObject) GetCommittedState(db Database, key common.Hash) common.
 type DcrmAccountData struct {
     COINTYPE string
     BALANCE  string
+    HASHKEY string
+    NONCE string
 }
 
 func (self *stateObject) GetDcrmAccountBalance(db Database, key common.Hash,cointype string) *big.Int {
@@ -234,9 +237,9 @@ func (self *stateObject) GetDcrmAccountBalance(db Database, key common.Hash,coin
     
     var a DcrmAccountData
     json.Unmarshal(s, &a)
-    if a.COINTYPE == cointype {
+    if strings.EqualFold(cointype, a.COINTYPE) == true {
 	var ba *big.Int
-	if cointype == "BTC" {
+	if strings.EqualFold(cointype, "BTC") == true {
 	    log.Debug("GetDcrmAccountBalance","a.BALANCE",a.BALANCE)
 	    ba = new(big.Int).SetBytes([]byte(a.BALANCE))
 	} else {
@@ -255,6 +258,40 @@ func (self *stateObject) GetDcrmAddress(db Database, txhash common.Hash,cointype
     }
     
     return string(s) 
+}
+
+func (self *stateObject) GetDcrmHashKey(db Database, key common.Hash,cointype string) string {
+    log.Debug("========stateObject.GetDcrmHashKey================")
+    s := self.GetStateDcrmAccountData(db,key)
+    if s == nil { 
+	return ""
+    }
+    
+    log.Debug("========stateObject.GetDcrmHashKey,data is not nil.================")
+    var a DcrmAccountData
+    json.Unmarshal(s, &a)
+    if strings.EqualFold(cointype, a.COINTYPE) == true {
+	return a.HASHKEY
+    }
+
+    return ""
+}
+
+func (self *stateObject) GetDcrmNonce(db Database, key common.Hash,cointype string) string {
+    log.Debug("========stateObject.GetDcrmNonce================")
+    s := self.GetStateDcrmAccountData(db,key)
+    if s == nil { 
+	return ""
+    }
+    
+    log.Debug("========stateObject.GetDcrmNonce,data is not nil.================")
+    var a DcrmAccountData
+    json.Unmarshal(s, &a)
+    if strings.EqualFold(cointype, a.COINTYPE) == true {
+	return a.NONCE
+    }
+
+    return ""
 }
 
 func (self *stateObject) GetStateDcrmAccountData(db Database, key common.Hash) []byte {

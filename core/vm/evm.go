@@ -210,7 +210,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	// Fail if we're trying to transfer more than the available balance
 	//if !evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {//----caihaijun----
 	//if !bytes.Equal(AccountRef(addr).Address().Bytes(), types.DcrmLockinPrecompileAddr.Bytes()) && !evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {//+++++++++caihaijun++++++++++
-	if !types.IsDcrmLockIn(input) && !evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {//+++++++++caihaijun++++++++++
+	if !types.IsDcrmLockIn(input) && !types.IsDcrmConfirmAddr(input) && !evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {//+++++++++caihaijun++++++++++
 		return nil, gas, ErrInsufficientBalance
 	}
 

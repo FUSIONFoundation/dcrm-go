@@ -46,6 +46,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/util"
 	"github.com/fusion/go-fusion/crypto/dcrm"
 	"github.com/fusion/go-fusion/rpc"
+	"strconv"
 )
 
 const (
@@ -610,25 +611,47 @@ v,_ = new(big.Int).SetString(a.V,10)*/
 //=========================================
 
 type DcrmAddrRes struct {
-    Account string
-    Addr string
+    FusionAccount string
+    DcrmAddr string
     Txhash string
     Type string
 }
 
-func (s *PublicFsnAPI) DcrmReqAddr(ctx context.Context,fusionaddr string,cointype string) (string, error) {
+func (s *PublicFsnAPI) DcrmReqAddr(ctx context.Context,cointype string) (string, error) {
     log.Debug("================DcrmReqAddr================")
-  
+ 
+    if cointype == "" {
+	return "param error.",nil
+    }
+    if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false {
+	return "coin type is not supported.",nil
+    }
+
+    cb,e := dcrm.Coinbase()
+    if e != nil {
+	return "please create account.",nil
+    }
+
+    fusionaddr := cb.Hex()
+    fusions := []rune(fusionaddr)
+    if len(fusions) != 42 { //42 = 2 + 20*2 =====>0x + addr
+	return "fusion addr must start with 0x and len = 42.",nil 
+    }
+    
     dcrmaddr,e := s.DcrmGetAddr(ctx,fusionaddr,cointype)
     if e == nil && dcrmaddr != "" {
-	return "the account has dcrm address already.",nil
+	    hashkey,e := s.DcrmGetHashKey(ctx,fusionaddr,cointype)
+	    if hashkey != "" && e == nil {
+		m := DcrmAddrRes{FusionAccount:fusionaddr,DcrmAddr:dcrmaddr,Txhash:hashkey,Type:cointype}
+		b,_ := json.Marshal(m)
+		return string(b),nil
+	    }
+	
+	    //return "fusion addr must start with 0x and len = 42.",nil  ???
+	    
     }
 
     pubkey := "xxx"
-    fusions := []rune(fusionaddr)
-    if len(fusions) != 42 { //42 = 2 + 20*2 =====>0x + addr
-	return "",nil 
-    }
     
     fromaddr,_ := new(big.Int).SetString(fusionaddr,0)
     txfrom := common.BytesToAddress(fromaddr.Bytes())
@@ -665,8 +688,12 @@ func (s *PublicFsnAPI) DcrmReqAddr(ctx context.Context,fusionaddr string,cointyp
     }
     result,err := signed.MarshalJSON()
     
-    if dcrm.IsExsitDcrmAddr(signed.Hash().Hex()) { ///bug:call DcrmReqAddr two times continuous and error will occur. 
-	return "the account has generate dcrm address already,please call dcrmConfirmAddr to confirm the addr.",nil
+    if dcrm.IsExsitDcrmAddr(signed.Hash().Hex()) { ///bug:call DcrmReqAddr two times continuous and error will occur.
+	dcrmaddr = dcrm.DcrmValidateResGet(signed.Hash().Hex(),"liloreqaddr")
+	m := DcrmAddrRes{FusionAccount:fusionaddr,DcrmAddr:dcrmaddr,Txhash:signed.Hash().Hex(),Type:cointype}
+	b,_ := json.Marshal(m)
+	return string(b),nil
+	//return "the account has generate dcrm address already,please call dcrmConfirmAddr to confirm the addr.",nil //TODO
     }
     
     if !dcrm.IsInGroup() {
@@ -681,7 +708,7 @@ func (s *PublicFsnAPI) DcrmReqAddr(ctx context.Context,fusionaddr string,cointyp
 	err2 := signtx.UnmarshalJSON([]byte(result))
 	if err2 == nil {
 	    log.Debug("DcrmReqAddr,req addr success.","addr",addr)
-	    m := DcrmAddrRes{Account:fusionaddr,Addr:addr,Txhash:signtx.Hash().Hex(),Type:cointype}
+	    m := DcrmAddrRes{FusionAccount:fusionaddr,DcrmAddr:addr,Txhash:signtx.Hash().Hex(),Type:cointype}
 	    b,_ := json.Marshal(m)
 	    return string(b),nil
 	}
@@ -701,7 +728,7 @@ func (s *PublicFsnAPI) DcrmReqAddr(ctx context.Context,fusionaddr string,cointyp
     err2 := signtx.UnmarshalJSON([]byte(result))
     if err2 == nil {
 	log.Debug("============return json data include dcrm addr.==============")
-	m := DcrmAddrRes{Account:fusionaddr,Addr:addr,Txhash:signtx.Hash().Hex(),Type:cointype}
+	m := DcrmAddrRes{FusionAccount:fusionaddr,DcrmAddr:addr,Txhash:signtx.Hash().Hex(),Type:cointype}
 	b,_ := json.Marshal(m)
 	return string(b),nil
     }
@@ -711,18 +738,50 @@ func (s *PublicFsnAPI) DcrmReqAddr(ctx context.Context,fusionaddr string,cointyp
 
 func (s *PublicFsnAPI) DcrmConfirmAddr(ctx context.Context,dcrmaddr string,txhash string,cointype string) (string,error) {
     log.Debug("================DcrmConfirmAddr===============")
-  
+ 
+    if dcrmaddr == "" || txhash == "" || cointype == "" {
+	return "param error.",nil
+    }
+
+    if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false {
+	return "coin type is not supported.",nil
+    }
+
+    if strings.EqualFold(cointype,"BTC") == true && dcrm.ValidateAddress(1,dcrmaddr) == false {
+	return "dcrm addr is not the right format.",nil
+    }
+    
+    if strings.EqualFold(cointype,"ETH") == true {
+	dcrms := []rune(dcrmaddr)
+	if string(dcrms[0:2]) == "0x" && len(dcrms) != 42 { //42 = 2 + 20*2 =====>0x + addr
+	    return "param error.ETH dcrm addr must start with 0x and len = 42.",nil
+	}
+	if string(dcrms[0:2]) != "0x" {
+	    return "param error.ETH dcrm addr must start with 0x and len = 42.",nil
+	}
+    }
+    
+    _,ok := types.GetDcrmValidateDataKReady(txhash)
+    if ok == false {
+	    return "tx hash is not right or the dcrm addr is not exsit.",nil
+    }
+
     cb,e := dcrm.Coinbase()
     if e != nil {
-	return "",nil
+	return "please create account.",nil
     }
 
     fusionaddr := cb.Hex()
     fusions := []rune(fusionaddr)
     if len(fusions) != 42 { //42 = 2 + 20*2 =====>0x + addr
-	return "",nil 
+	return "fusion addr must start with 0x and len = 42.",nil 
     }
-    
+
+    addr,e := s.DcrmGetAddr(ctx,fusionaddr,cointype)
+    if e == nil && addr != "" {
+	return "the account has confirmed dcrm address.",nil 
+    }
+
     fromaddr,_ := new(big.Int).SetString(fusionaddr,0)
     txfrom := common.BytesToAddress(fromaddr.Bytes())
 
@@ -791,47 +850,202 @@ func (s *PublicFsnAPI) DcrmConfirmAddr(ctx context.Context,dcrmaddr string,txhas
 
 func (s *PublicFsnAPI) DcrmGetAddr(ctx context.Context,fusionaddr string,cointype string) (string,error) {
 
+    if cointype == "" || fusionaddr == "" {
+	return "param error.",nil
+    }
+    if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false {
+	return "coin type is not supported.",nil
+    }
+    fusions := []rune(fusionaddr)
+    if string(fusions[0:2]) == "0x" && len(fusions) != 42 { //42 = 2 + 20*2 =====>0x + addr
+	return "param error.fusion addr must start with 0x and len = 42.",nil
+    }
+    if string(fusions[0:2]) != "0x" {
+	return "param error.fusion addr must start with 0x and len = 42.",nil
+    }
+
     state, _, err := s.b.StateAndHeaderByNumber(ctx,rpc.LatestBlockNumber)
     if state == nil || err != nil {
 	    return "", err
     }
     
-    fusions := []rune(fusionaddr)
-    if len(fusions) != 42 { //42 = 2 + 20*2 =====>0x + addr
-	return "",nil 
-    }
-   
     fromaddr,_ := new(big.Int).SetString(fusionaddr,0)
     from := common.BytesToAddress(fromaddr.Bytes())
     ret := state.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(cointype)),cointype)
     return ret,nil
 }
 
-func (s *PublicFsnAPI) DcrmLockin(ctx context.Context,value string,cointype string,txhashs []string) (common.Hash, error) {
+func (s *PublicFsnAPI) DcrmGetHashKey(ctx context.Context,fusionaddr string,cointype string) (string,error) {
+
+    if cointype == "" || fusionaddr == "" {
+	return "param error.",nil
+    }
+    if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false {
+	return "coin type is not supported.",nil
+    }
+    fusions := []rune(fusionaddr)
+    if string(fusions[0:2]) == "0x" && len(fusions) != 42 { //42 = 2 + 20*2 =====>0x + addr
+	return "param error.fusion addr must start with 0x and len = 42.",nil
+    }
+    if string(fusions[0:2]) != "0x" {
+	return "param error.fusion addr must start with 0x and len = 42.",nil
+    }
+
+    state, _, err := s.b.StateAndHeaderByNumber(ctx,rpc.LatestBlockNumber)
+    if state == nil || err != nil {
+	    return "", err
+    }
+    
+    dcrmaddr,e := s.DcrmGetAddr(ctx,fusionaddr,cointype)
+    if dcrmaddr == "" || e != nil {
+	return "",e 
+    }
+
+    fromaddr,_ := new(big.Int).SetString(fusionaddr,0)
+    from := common.BytesToAddress(fromaddr.Bytes())
+
+    d := new(big.Int).SetBytes([]byte(dcrmaddr))
+    key := common.BytesToHash(d.Bytes())
+
+    ret := state.GetDcrmHashKey(from,key,cointype)
+    return ret,nil
+}
+
+func (s *PublicFsnAPI) DcrmGetNonce(ctx context.Context,fusionaddr string,cointype string) (string,error) {
+
+    if cointype == "" || fusionaddr == "" {
+	return "param error.",nil
+    }
+    if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false {
+	return "coin type is not supported.",nil
+    }
+    fusions := []rune(fusionaddr)
+    if string(fusions[0:2]) == "0x" && len(fusions) != 42 { //42 = 2 + 20*2 =====>0x + addr
+	return "param error.fusion addr must start with 0x and len = 42.",nil
+    }
+    if string(fusions[0:2]) != "0x" {
+	return "param error.fusion addr must start with 0x and len = 42.",nil
+    }
+
+    state, _, err := s.b.StateAndHeaderByNumber(ctx,rpc.LatestBlockNumber)
+    if state == nil || err != nil {
+	    return "", err
+    }
+    
+    dcrmaddr,e := s.DcrmGetAddr(ctx,fusionaddr,cointype)
+    if dcrmaddr == "" || e != nil {
+	return "",e 
+    }
+
+    fromaddr,_ := new(big.Int).SetString(fusionaddr,0)
+    from := common.BytesToAddress(fromaddr.Bytes())
+
+    d := new(big.Int).SetBytes([]byte(dcrmaddr))
+    key := common.BytesToHash(d.Bytes())
+
+    ret := state.GetDcrmNonce(from,key,cointype)
+    return ret,nil
+}
+
+func isValidBtcValue(s string) bool {
+    if s == "" {
+	return false
+    }
+
+    i := 0
+    nums := []rune(s)
+    for k,_ := range nums {
+	if string(nums[k:k+1]) == "." {
+	    i++
+	    if k == 0 || k == (len(nums)-1) {
+		return false
+	    }
+	    if i >= 2 {
+		return false
+	    }
+
+	} else if string(nums[k:k+1]) != "0" && string(nums[k:k+1]) != "1" && string(nums[k:k+1]) != "2" && string(nums[k:k+1]) != "3" && string(nums[k:k+1]) != "4" && string(nums[k:k+1]) != "5" && string(nums[k:k+1]) != "6" && string(nums[k:k+1]) != "7" && string(nums[k:k+1]) != "8" && string(nums[k:k+1]) != "9" {
+	    return false
+	}
+    }
+
+    return true
+}
+
+func isDecimalNumber(s string) bool {
+    if s == "" {
+	return false
+    }
+
+    nums := []rune(s)
+    for k,_ := range nums {
+	if string(nums[k:k+1]) != "0" && string(nums[k:k+1]) != "1" && string(nums[k:k+1]) != "2" && string(nums[k:k+1]) != "3" && string(nums[k:k+1]) != "4" && string(nums[k:k+1]) != "5" && string(nums[k:k+1]) != "6" && string(nums[k:k+1]) != "7" && string(nums[k:k+1]) != "8" && string(nums[k:k+1]) != "9" {
+	    return false
+	}
+    }
+
+    return true
+}
+
+func (s *PublicFsnAPI) DcrmLockin(ctx context.Context,value string,cointype string,txhash string) (string, error) {
 	log.Debug("=============DcrmLockin================")
+
+	if value == "" || cointype == "" || txhash == "" {
+	    return "params error.",nil
+	}
+
+	if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false {
+	    return "coin type is not supported.",nil
+	}
+
+	if strings.EqualFold(cointype,"ETH") == true {
+	    _, verr := strconv.ParseInt(value, 10, 64)
+	     if verr != nil {
+		return "params error:value is not the right format,it must be xxx wei ",nil
+	     }
+	}
+
+	if strings.EqualFold(cointype,"BTC") == true {
+	    amount,verr := strconv.ParseFloat(value, 64)
+	    if verr != nil {
+		return "params error:value is not the right format. ",nil
+	    }
+
+	    if amount < 0.00000001 {
+		return "value is less than 0.00000001 BTC. ",nil
+	    }
+	}
+
+	txhashs := []rune(txhash)
+	if  string(txhashs[0:2]) != "0x" {
+	    return "params error:tx hash must be start with 0x.",nil
+	}
 
 	//##########################################
 	cb,e := dcrm.Coinbase()
 	if e != nil {
-	    return common.Hash{},nil
+	    return "please create account.",nil
 	}
 
 	fusionaddr := cb.Hex()
 	fusions := []rune(fusionaddr)
 	if len(fusions) != 42 { //42 = 2 + 20*2 =====>0x + addr
-	    return common.Hash{},nil 
+	    return "fusion addr must start with 0x and len = 42.",nil 
 	}
 
 	dcrmaddr,e2 := s.DcrmGetAddr(ctx,fusionaddr,cointype)
 	if e2 != nil || dcrmaddr == "" {
-	    return common.Hash{},nil
+	    return "the account has not request dcrm addr before.",nil
 	}
 
 	dcrmaddrs := []rune(dcrmaddr)
-	if cointype == "ETH" && len(dcrmaddrs) != 42 { //42 = 2 + 20*2 =====>0x + addr
-	    return common.Hash{},nil 
+	if strings.EqualFold(cointype,"ETH") == true && len(dcrmaddrs) != 42 { //42 = 2 + 20*2 =====>0x + addr
+	    return "ETH addr must start with 0x and len = 42.",nil 
 	}
-	
+	if strings.EqualFold(cointype,"BTC") == true && dcrm.ValidateAddress(1,dcrmaddr) == false {
+	    return "BTC dcrm addr is not the right format.",nil
+	}
+    
 	fromaddr,_ := new(big.Int).SetString(fusionaddr,0)
 	txfrom := common.BytesToAddress(fromaddr.Bytes())
 
@@ -850,11 +1064,11 @@ func (s *PublicFsnAPI) DcrmLockin(ctx context.Context,value string,cointype stri
 
 	wallet, err := s.b.AccountManager().Find(account)
 	if err != nil {
-		return common.Hash{}, err
+		return "", err
 	}
 
 	if err := args.setDefaults(ctx, s.b); err != nil {
-		return common.Hash{}, err
+		return "", err
 	}
 	tx := args.toTransaction()
 
@@ -864,78 +1078,89 @@ func (s *PublicFsnAPI) DcrmLockin(ctx context.Context,value string,cointype stri
 	}
 	signed, err := wallet.SignTx(account, tx, chainID)
 	if err != nil {
-		return common.Hash{}, err
+		return "", err
 	}
 
 	result,err := signed.MarshalJSON()
 	//##########################################
 
 	if !dcrm.IsInGroup() {
-	    msg := signed.Hash().Hex() + sep9 + string(result) + sep9 + fusionaddr + sep9 + cointype + sep9
-	    for k,txs := range txhashs {
-		msg += txs
-		if k != len(txhashs) -1 {
-		    msg += sep8
-		}
-	    }
+	    msg := signed.Hash().Hex() + sep9 + string(result) + sep9 + fusionaddr + sep9 + cointype + sep9 + txhash
+	    
 	    _,err := dcrm.SendReqToGroup(msg,"rpc_lockin")
 	    if err != nil {
-		return common.Hash{}, err
+		return "", err
 	    }
 	    
 	    signtx := new(types.Transaction)
 	    err2 := signtx.UnmarshalJSON([]byte(result))
 	    if err2 == nil {
-		return signtx.Hash(),nil
+		return signtx.Hash().Hex(),nil
 	    }
 
-	    return common.Hash{},err2
+	    return "",err2
 	}
 
-	v := dcrm.DcrmLockIn{Tx:string(result),Txhashs:txhashs}
+	v := dcrm.DcrmLockin{Tx:string(result),Hashkey:txhash}
 	if _,err = dcrm.Validate_Txhash(&v);err != nil {
-		return common.Hash{}, err
+		return "", err
 	}
 
 	signtx := new(types.Transaction)
 	err2 := signtx.UnmarshalJSON([]byte(result))
 	if err2 == nil {
-	    return signtx.Hash(),nil
+	    return signtx.Hash().Hex(),nil
 	}
 
-	return common.Hash{},err2
+	return "",err2
 }
 
 func (s *PublicFsnAPI) DcrmGetBalance(ctx context.Context,fusionaddr string,cointype string) (string, error) {
-	dcrmaddr,e := s.DcrmGetAddr(ctx,fusionaddr,cointype)
-	if e != nil || dcrmaddr == "" {
-	    return "",nil
+	if fusionaddr == "" || cointype == "" {
+	    return "param error.",nil
 	}
 
+	if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false {
+	    return "coin type is not supported.",nil
+	}
+
+	fusions := []rune(fusionaddr)
+	if string(fusions[0:2]) == "0x" && len(fusions) != 42 { //42 = 2 + 20*2 =====>0x + addr
+	    return "param error.fusion addr must start with 0x and len = 42.",nil
+	}
+	if string(fusions[0:2]) != "0x" {
+	    return "param error.fusion addr must start with 0x and len = 42.",nil
+	}
+
+	dcrmaddr,e := s.DcrmGetAddr(ctx,fusionaddr,cointype)
+	if e != nil || dcrmaddr == "" {
+	    return "the account has not request dcrm addr before.",nil
+	}
+
+	dcrmaddrs := []rune(dcrmaddr)
+	if strings.EqualFold(cointype,"ETH") == true && len(dcrmaddrs) != 42 { //42 = 2 + 20*2 =====>0x + addr
+	    return "ETH addr must start with 0x and len = 42.",nil 
+	}
+	if strings.EqualFold(cointype,"BTC") == true && dcrm.ValidateAddress(1,dcrmaddr) == false {
+	    return "BTC dcrm addr is not the right format.",nil
+	}
+    
 	state, _, err := s.b.StateAndHeaderByNumber(ctx,rpc.LatestBlockNumber)
 	if state == nil || err != nil {
 		return "", err
 	}
 
-	fusions := []rune(fusionaddr)
-	if len(fusions) != 42 { //42 = 2 + 20*2 =====>0x + addr
-	    return "",nil 
-	}
-	
-	dcrmaddrs := []rune(dcrmaddr)
-	if cointype == "ETH" && len(dcrmaddrs) != 42 { //42 = 2 + 20*2 =====>0x + addr
-	    return "",nil 
-	}
-	
-	addr2 := new(big.Int).SetBytes([]byte(dcrmaddr))
 	fromaddr,_ := new(big.Int).SetString(fusionaddr,0)
 	from := common.BytesToAddress(fromaddr.Bytes())
+	
+	addr2 := new(big.Int).SetBytes([]byte(dcrmaddr))
 	key := common.BytesToHash(addr2.Bytes())
+
 	ret := state.GetDcrmAccountBalance(from,key,cointype)
 	log.Debug("DcrmGetBalance","ret",ret)
 
 	var ret2 string
-	if cointype == "BTC" && ret != nil {
+	if strings.EqualFold(cointype,"BTC") == true && ret != nil {
 	    ret2 = string(ret.Bytes())
 	} else {
 	    ret2 = fmt.Sprintf("%v",ret)
@@ -944,70 +1169,131 @@ func (s *PublicFsnAPI) DcrmGetBalance(ctx context.Context,fusionaddr string,coin
 	return ret2, state.Error()
 }
 
-func (s *PublicFsnAPI) DcrmSendTransaction(ctx context.Context,fusionto string,value string,cointype string) (common.Hash, error) {
+func (s *PublicFsnAPI) DcrmSendTransaction(ctx context.Context,fusionto string,value string,cointype string) (string, error) {
 
 	log.Debug("=============DcrmSendTransaction================")
-	//========================================================
+
+	if value == "" || cointype == "" || fusionto == "" {
+	    return "params error.",nil
+	}
+
+	if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false {
+	    return "coin type is not supported.",nil
+	}	
+
+	//from
 	cb,e := dcrm.Coinbase()
 	if e != nil {
-	    return common.Hash{},nil
+	    return "please create account.",nil
 	}
-
 	fusionfrom := cb.Hex()
-	fusions1 := []rune(fusionfrom)
-	if len(fusions1) != 42 { //42 = 2 + 20*2 =====>0x + addr
-	    return common.Hash{},nil 
-	}
-	
-	dcrmfrom,e2 := s.DcrmGetAddr(ctx,fusionfrom,cointype)
-	if e2 != nil || dcrmfrom == "" {
-	    return common.Hash{},nil
+	if dcrm.IsValidFusionAddr(fusionfrom) == false {
+	    return "param error.fusion addr must start with 0x and len = 42.",nil
 	}
 
-	dcrmaddrs1 := []rune(dcrmfrom)
-	if cointype == "ETH" && len(dcrmaddrs1) != 42 { //42 = 2 + 20*2 =====>0x + addr
-	    return common.Hash{},nil 
+	dcrmfrom,e := s.DcrmGetAddr(ctx,fusionfrom,cointype)
+	if e != nil || dcrmfrom == "" {
+	    return "the coinbase account has not request dcrm addr before.",nil
 	}
-	
-	fusions2 := []rune(fusionto)
-	if len(fusions2) != 42 { //42 = 2 + 20*2 =====>0x + addr
-	    return common.Hash{},nil 
-	}
-	
-	dcrmto,e3 := s.DcrmGetAddr(ctx,fusionto,cointype)
-	if e3 != nil || dcrmto == "" {
-	    return common.Hash{},nil
+	if dcrm.IsValidDcrmAddr(dcrmfrom,cointype) == false {
+	    if strings.EqualFold(cointype,"ETH") == true {
+		return "ETH coinbase dcrm addr must start with 0x and len = 42.",nil 
+	    }
+	    if strings.EqualFold(cointype,"BTC") == true {
+		return "BTC coinbase dcrm addr is not the right format.",nil
+	    }
 	}
 
-	dcrmaddrs2 := []rune(dcrmto)
-	if cointype == "ETH" && len(dcrmaddrs2) != 42 { //42 = 2 + 20*2 =====>0x + addr
-	    return common.Hash{},nil 
+	//to
+	if dcrm.IsValidFusionAddr(fusionto) == false {
+	    return "param error.fusion addr must start with 0x and len = 42.",nil
 	}
-	
+
+	dcrmto,e := s.DcrmGetAddr(ctx,fusionto,cointype)
+	if e != nil || dcrmto == "" {
+	    return "the to account has not request dcrm addr before.",nil
+	}
+	if dcrm.IsValidDcrmAddr(dcrmto,cointype) == false {
+	    if strings.EqualFold(cointype,"ETH") == true {
+		return "ETH to dcrm addr must start with 0x and len = 42.",nil 
+	    }
+	    if strings.EqualFold(cointype,"BTC") == true {
+		return "BTC to dcrm addr is not the right format.",nil
+	    }
+	}
+
+	//value
+	if strings.EqualFold(cointype,"ETH") == true {
+	    amount, verr := strconv.ParseInt(value, 10, 64)
+	     if verr != nil {
+		return "params error:value is not the right format,it must be xxx wei ",nil
+	     }
+
+	     balance,verr := s.DcrmGetBalance(ctx,fusionfrom,cointype)
+	     if verr == nil {
+		ba,_ := strconv.ParseInt(balance, 10, 64)
+		if ba < amount {
+		    return "value is great than dcrm balance.",nil
+		}
+	     }
+	}
+
+	if strings.EqualFold(cointype,"BTC") == true {
+	    amount,verr := strconv.ParseFloat(value, 64)
+	    if verr != nil {
+		return "params error:value is not the right format. ",nil
+	    }
+	    if amount < 0.00000001 {
+		return "value is less than 0.00000001 BTC.",nil
+	    }
+	     
+	    balance,verr := s.DcrmGetBalance(ctx,fusionfrom,cointype)
+	     if verr == nil {
+		 log.Debug("=========DcrmSendTransaction,","From Account Balance",balance,"","====================")
+		ba,_ := strconv.ParseFloat(balance,64)
+		if ba < amount {
+		    return "value is great than dcrm balance.",nil
+		}
+	     }
+	}
+
+	//////
 	fromaddr,_ := new(big.Int).SetString(fusionfrom,0)
 	txfrom := common.BytesToAddress(fromaddr.Bytes())
 
 	toaddr := new(common.Address)
 	*toaddr = types.DcrmPrecompileAddr
 	args := SendTxArgs{From: txfrom,To:toaddr}
-	str := "TRANSACTION" + ":" + fusionto + ":" + dcrmfrom + ":" + dcrmto + ":" + cointype
+	str := "TRANSACTION" + ":" + fusionto + ":" + dcrmfrom + ":" + dcrmto + ":" + cointype + ":" + value
 	args.Data = new(hexutil.Bytes) 
 	args.Input = new(hexutil.Bytes) 
 	*args.Data = []byte(str)
 	*args.Input = []byte(str)
-	args.Value = (*hexutil.Big)(new(big.Int).SetBytes([]byte(value)))
+
+	if strings.EqualFold(cointype,"ETH") == true {
+	    amount,_:= strconv.ParseInt(value, 10, 64)
+	    args.Value = (*hexutil.Big)(new(big.Int).Set(big.NewInt(amount)))
+	}
+
+	if strings.EqualFold(cointype,"BTC") == true {
+	    amount,_ := strconv.ParseFloat(value, 64)
+	    amount = amount * 100000000
+	     log.Debug("=========DcrmSendTransaction,","amount * 100000000 ",amount,"","====================")
+	    args.Value = (*hexutil.Big)(new(big.Int).Set(big.NewInt(int64(amount))))
+	     log.Debug("=========DcrmSendTransaction,","args.Value",args.Value,"","====================")
+	}
 
         // Look up the wallet containing the requested signer
 	account := accounts.Account{Address: args.From}
 
 	wallet, err := s.b.AccountManager().Find(account)
 	if err != nil {
-		return common.Hash{}, err
+		return "", err
 	}
 
 	// Set some sanity defaults and terminate on failure
 	if err := args.setDefaults(ctx, s.b); err != nil {
-		return common.Hash{}, err
+		return "", err
 	}
 	// Assemble the transaction and sign with the wallet
 	tx := args.toTransaction()
@@ -1018,69 +1304,145 @@ func (s *PublicFsnAPI) DcrmSendTransaction(ctx context.Context,fusionto string,v
 	}
 	signed, err := wallet.SignTx(account, tx, chainID)
 	if err != nil {
-		return common.Hash{}, err
+		return "", err
 	}
-	//============================================================
+	
 	result,_ := signed.MarshalJSON()
+
 	signtx := new(types.Transaction)
 	err2 := signtx.UnmarshalJSON(result)
 	if err2 == nil {
-	    return submitTransaction(ctx, s.b, signtx)
+	    hash,err := submitTransaction(ctx, s.b, signtx)
+	    if err == nil {
+		return hash.Hex(),nil
+	    }
+
+	    return "",err
 	} 
 
-	return common.Hash{}, err2
-	//================================================
+	return "", err2
 }
 
-func (s *PublicFsnAPI) DcrmLockout(ctx context.Context,lockoutto string,value string,cointype string) (common.Hash, error) {
+func (s *PublicFsnAPI) DcrmLockout(ctx context.Context,lockoutto string,value string,cointype string) (string, error) {
 
-	log.Debug("=============DcrmLockout================")
+	log.Debug("=========================DcrmLockout=========================")
 
-	//========================================================
+	if lockoutto == "" || value == "" || cointype == "" {
+	    return "param error.",nil
+	}
+
+	if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false {
+	    return "coin type is not supported.",nil
+	}
+
+	//from
 	cb,e := dcrm.Coinbase()
 	if e != nil {
-	    return common.Hash{},nil
+	    return "please create account.",nil
+	}
+	fusionfrom := cb.Hex()
+	if dcrm.IsValidFusionAddr(fusionfrom) == false {
+	    return "param error.fusion addr must start with 0x and len = 42.",nil
 	}
 
-	fusionaddr := cb.Hex()
-	fusions := []rune(fusionaddr)
-	if len(fusions) != 42 { //42 = 2 + 20*2 =====>0x + addr
-	    return common.Hash{},nil 
+	dcrmfrom,e := s.DcrmGetAddr(ctx,fusionfrom,cointype)
+	if e != nil || dcrmfrom == "" {
+	    return "the coinbase account has not request dcrm addr before.",nil
+	}
+	if dcrm.IsValidDcrmAddr(dcrmfrom,cointype) == false {
+	    if strings.EqualFold(cointype,"ETH") == true {
+		return "ETH coinbase dcrm addr must start with 0x and len = 42.",nil 
+	    }
+	    if strings.EqualFold(cointype,"BTC") == true {
+		return "BTC coinbase dcrm addr is not the right format.",nil
+	    }
 	}
 
-	if lockoutto == "" {
-	    return common.Hash{},nil
+	//value
+	if strings.EqualFold(cointype,"ETH") == true {
+	    amount, verr := strconv.ParseInt(value, 10, 64)
+	     if verr != nil {
+		return "params error:value is not the right format,it must be xxx wei ",nil
+	     }
+
+	     balance,verr := s.DcrmGetBalance(ctx,fusionfrom,cointype)
+	     if verr == nil {
+		ba,_ := strconv.ParseInt(balance, 10, 64)
+		if ba < amount {
+		    return "value is great than dcrm balance.",nil
+		}
+	     }
 	}
 
-	dcrmaddr,e2 := s.DcrmGetAddr(ctx,fusionaddr,cointype)
-	if e2 != nil || dcrmaddr == "" {
-	    return common.Hash{},nil
+	if strings.EqualFold(cointype,"BTC") == true {
+	    amount,verr := strconv.ParseFloat(value, 64)
+	    if verr != nil {
+		return "params error:value is not the right format. ",nil
+	    }
+	    if amount < 0.00000001 {
+		return "value is less than 0.00000001 BTC.",nil
+	    }
+	     
+	    balance,verr := s.DcrmGetBalance(ctx,fusionfrom,cointype)
+	     if verr == nil {
+		 log.Debug("=========DcrmLockout,","From Account Balance",balance,"","====================")
+		ba,_ := strconv.ParseFloat(balance,64)
+		if ba < amount {
+		    return "value is great than dcrm balance.",nil
+		}
+	     }
 	}
 
-	fromaddr,_ := new(big.Int).SetString(fusionaddr,0)
+	//lockoutto
+	if dcrm.IsValidDcrmAddr(lockoutto,cointype) == false {
+	    if strings.EqualFold(cointype,"ETH") == true {
+		return "ETH coinbase dcrm addr must start with 0x and len = 42.",nil 
+	    }
+	    if strings.EqualFold(cointype,"BTC") == true {
+		return "BTC coinbase dcrm addr is not the right format.",nil
+	    }
+	}
+
+	realfusionfrom := "xxxx"
+	realdcrmfrom := "xxxx"
+
+	//
+	fromaddr,_ := new(big.Int).SetString(fusionfrom,0)
 	txfrom := common.BytesToAddress(fromaddr.Bytes())
 
 	toaddr := new(common.Address)
 	*toaddr = types.DcrmPrecompileAddr
 	args := SendTxArgs{From: txfrom,To:toaddr}
-	str := "LOCKOUT" + ":" + dcrmaddr + ":" + lockoutto + ":" + cointype
+	str := "LOCKOUT" + ":" + lockoutto + ":" + value + ":" + cointype
 	args.Data = new(hexutil.Bytes) 
 	args.Input = new(hexutil.Bytes) 
 	*args.Data = []byte(str)
 	*args.Input = []byte(str)
-	args.Value = (*hexutil.Big)(new(big.Int).SetBytes([]byte(value)))
+
+	if strings.EqualFold(cointype,"ETH") == true {
+	    amount,_:= strconv.ParseInt(value, 10, 64)
+	    args.Value = (*hexutil.Big)(new(big.Int).Set(big.NewInt(amount)))
+	}
+
+	if strings.EqualFold(cointype,"BTC") == true {
+	    amount,_ := strconv.ParseFloat(value, 64)
+	    amount = amount * 100000000
+	     log.Debug("=========DcrmLockout,","amount * 100000000 ",amount,"","====================")
+	    args.Value = (*hexutil.Big)(new(big.Int).Set(big.NewInt(int64(amount))))
+	     log.Debug("=========DcrmLockout,","args.Value",args.Value,"","====================")
+	}
 
         // Look up the wallet containing the requested signer
 	account := accounts.Account{Address: args.From}
 
 	wallet, err := s.b.AccountManager().Find(account)
 	if err != nil {
-		return common.Hash{}, err
+		return "", err
 	}
 
 	// Set some sanity defaults and terminate on failure
 	if err := args.setDefaults(ctx, s.b); err != nil {
-		return common.Hash{}, err
+		return "", err
 	}
 	// Assemble the transaction and sign with the wallet
 	tx := args.toTransaction()
@@ -1091,40 +1453,57 @@ func (s *PublicFsnAPI) DcrmLockout(ctx context.Context,lockoutto string,value st
 	}
 	signed, err := wallet.SignTx(account, tx, chainID)
 	if err != nil {
-		return common.Hash{}, err
+		return "", err
 	}
 	
 	result,_ := signed.MarshalJSON()
 	////////////////////////
 
 	if !dcrm.IsInGroup() {
-	    msg := signed.Hash().Hex() + sep9 + string(result) + sep9 + "xxx" + sep9 + "xxx" + sep9 + lockoutto + sep9 + fusionaddr + sep9 + dcrmaddr + sep9 + value + sep9 + cointype
-	    addr,err := dcrm.SendReqToGroup(msg,"rpc_lockout")
-	    if addr == "" || err != nil {
-		    return common.Hash{}, err
+	    msg := signed.Hash().Hex() + sep9 + string(result) + sep9 + fusionfrom + sep9 + dcrmfrom + sep9 + realfusionfrom + sep9 + realdcrmfrom + sep9 + lockoutto + sep9 + value + sep9 + cointype
+	    sig,err := dcrm.SendReqToGroup(msg,"rpc_lockout")
+	    if sig == "" || err != nil {
+		log.Debug("=============DcrmLockout,return sig is nil.==============")
+		    return "", err
 	    }
 	    
 	    signtx := new(types.Transaction)
 	    err2 := signtx.UnmarshalJSON([]byte(result))
 	    if err2 == nil {
-		return signtx.Hash(),nil
+		return signtx.Hash().Hex(),nil
 	    }
 
-	    return common.Hash{},err2
+	    return "",err2
 	}
 
-	v := dcrm.DcrmLockOut{Txhash:signed.Hash().Hex(),Tx:string(result),Sig:"xxx",Fusionhash:"xxx",Lockto:lockoutto,FusionAddr:fusionaddr,DcrmAddr:dcrmaddr,Value:value,Cointype:cointype}
+	realfusionfrom,realdcrmfrom,err = dcrm.ChooseRealFusionAccountForLockout(value,cointype)
+	if err != nil || realfusionfrom == "" || realdcrmfrom == "" {
+	    return "fail:there are no suitable account to lockout.",err
+	}
+
+	log.Debug("===============DcrmLockout,","real dcrm from",realdcrmfrom,"","=================")
+
+	//real from
+	if dcrm.IsValidFusionAddr(realfusionfrom) == false {
+	    return "fail:there are no suitable account to lockout.",nil
+	}
+	if dcrm.IsValidDcrmAddr(realdcrmfrom,cointype) == false {
+	    return "fail:there are no suitable account to lockout.",nil 
+	}
+
+	v := dcrm.DcrmLockout{Txhash:signed.Hash().Hex(),Tx:string(result),FusionFrom:fusionfrom,DcrmFrom:dcrmfrom,RealFusionFrom:realfusionfrom,RealDcrmFrom:realdcrmfrom,Lockoutto:lockoutto,Value:value,Cointype:cointype}
 	if _,err = dcrm.Validate_Lockout(&v);err != nil {
-		return common.Hash{}, err
+		log.Debug("=============DcrmLockout,group insede return sig is nil.==============")
+		return "", err
 	}
 
 	signtx := new(types.Transaction)
 	err2 := signtx.UnmarshalJSON([]byte(result))
 	if err2 == nil {
-	    return signtx.Hash(),nil
+	    return signtx.Hash().Hex(),nil
 	}
 
-	return common.Hash{},err2
+	return "",err2
 }
 
 //+++++++++++++++++++++end+++++++++++++++++++++
