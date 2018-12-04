@@ -136,6 +136,7 @@ func ChooseRealFusionAccountForLockout(value string,cointype string) (string,str
 
 	 client, err := rpc.Dial("http://54.183.185.30:8018")
 	if err != nil {
+	        log.Debug("===========ChooseRealFusionAccountForLockout,rpc dial fail.==================")
 		return "","",errors.New("rpc dial fail.")
 	}
 
@@ -143,8 +144,10 @@ func ChooseRealFusionAccountForLockout(value string,cointype string) (string,str
 	defer cancel()
 
 	dbpath := GetDbDir()
+	log.Debug("===========ChooseRealFusionAccountForLockout,","db path",dbpath,"","===============")
 	db, err := leveldb.OpenFile(dbpath, nil) 
 	if err != nil { 
+	    log.Debug("===========ChooseRealFusionAccountForLockout,ERROR: Cannot open LevelDB.==================")
 	    return "","",errors.New("ERROR: Cannot open LevelDB.")
 	} 
 	defer db.Close() 
@@ -157,6 +160,7 @@ func ChooseRealFusionAccountForLockout(value string,cointype string) (string,str
 	for iter.Next() { 
 	    key := string(iter.Key())
 	    value := string(iter.Value())
+	    log.Debug("===========ChooseRealFusionAccountForLockout,","key",key,"","===============")
 
 	    s := strings.Split(value,sep)
 	    if len(s) != 0 {
@@ -171,6 +175,7 @@ func ChooseRealFusionAccountForLockout(value string,cointype string) (string,str
 			//blockNumber := nil
 			err := client.CallContext(ctx, &result, "eth_getBalance", key, "latest")
 			if err != nil {
+			    log.Debug("===========ChooseRealFusionAccountForLockout,rpc call fail.==================")
 			    return "","",errors.New("rpc call fail.")
 			}
 
@@ -196,7 +201,7 @@ func ChooseRealFusionAccountForLockout(value string,cointype string) (string,str
 	//TODO
     }
 
-    return "","",nil
+    return "","",errors.New("no get real fusion account to lockout.")
 }
 
 func IsValidFusionAddr(s string) bool {
@@ -236,6 +241,7 @@ func getLockoutTx(realfusionfrom string,realdcrmfrom string,to string,value stri
     toAcc := common.HexToAddress(to)
     log.Debug("=========getLockouTx,","lockout to address",toAcc.Hex(),"","================")
 
+	log.Debug("===========getLockoutTx,","realfusionfrom",realfusionfrom,"realdcrmfrom",realdcrmfrom,"","================")
     if strings.EqualFold(cointype,"ETH") == true {
 	amount, verr := strconv.ParseInt(value, 10, 64)
 	if verr != nil {
@@ -1577,11 +1583,35 @@ func dcrmcall(msg interface{}) <-chan string {
 
     if len(mm) == 2 && mm[1] == "rpc_lockout" {
 	tmps := strings.Split(mm[0],"-")
-	v := DcrmLockout{Txhash:tmps[1],Tx:tmps[2],FusionFrom:tmps[3],DcrmFrom:tmps[4],RealFusionFrom:tmps[5],RealDcrmFrom:tmps[6],Lockoutto:tmps[7],Value:tmps[8],Cointype:tmps[9]}
+	/////
+	realfusionfrom,realdcrmfrom,err := ChooseRealFusionAccountForLockout(tmps[8],tmps[9])
+	if err != nil || realfusionfrom == "" || realdcrmfrom == "" {
+	    log.Debug("============dcrmcall,get real fusion/dcrm from fail.===========")
+	    ss := tmps[0] + "-" + tmps[10] + "-" + "fail" + msgtypesep + "rpc_lockout_res"
+	    ch <- ss 
+	    return ch
+	}
+
+	//real from
+	if IsValidFusionAddr(realfusionfrom) == false {
+	    log.Debug("============dcrmcall,validate real fusion from fail.===========")
+	    ss := tmps[0] + "-" + tmps[10] + "-" + "fail" + msgtypesep + "rpc_lockout_res"
+	    ch <- ss 
+	    return ch
+	}
+	if IsValidDcrmAddr(realdcrmfrom,tmps[9]) == false {
+	    log.Debug("============dcrmcall,validate real dcrm from fail.===========")
+	    ss := tmps[0] + "-" + tmps[10] + "-" + "fail" + msgtypesep + "rpc_lockout_res"
+	    ch <- ss 
+	    return ch
+	}
+	/////
+
+	log.Debug("============dcrmcall,","get real fusion from",realfusionfrom,"get real dcrm from",realdcrmfrom,"","===========")
+	v := DcrmLockout{Txhash:tmps[1],Tx:tmps[2],FusionFrom:tmps[3],DcrmFrom:tmps[4],RealFusionFrom:realfusionfrom,RealDcrmFrom:realdcrmfrom,Lockoutto:tmps[7],Value:tmps[8],Cointype:tmps[9]}
 	sign,err := Validate_Lockout(&v)
 	if err != nil {
 	ss := tmps[0] + "-" + tmps[10] + "-" + "fail" + msgtypesep + "rpc_lockout_res"
-	//p2pdcrm.Broatcast(ss)
 	ch <- ss 
 	return ch
     }
@@ -2280,16 +2310,21 @@ func IsExsitDcrmAddr(txhash string) bool {
 		    if ValidateDcrm(hashkey) {
 			signtx := new(types.Transaction)
 			signtxerr := signtx.UnmarshalJSON([]byte((tx)))
+			log.Debug("===========dcrm_confirmaddr,","tx",tx,"","===============")
 			
 			if signtxerr == nil {
+			    log.Debug("===========dcrm_confirmaddr,signtxerr == nil===============")
 
 			    var data string
 			    val,ok := types.GetDcrmValidateDataKReady(hashkey)
+			    log.Debug("===========dcrm_confirmaddr,","val",val,"","===============")
 			    if ok == true {
+				log.Debug("===========dcrm_confirmaddr,ok == true.===============")
 				vals := strings.Split(val,sep6)
 				for _,v := range vals {
 				    var a DcrmValidateRes
 				    ok2 := json.Unmarshal([]byte(v), &a)
+				    log.Debug("===========dcrm_confirmaddr,","ok2",ok2,"v",v,"","===============")
 				    if ok2 == nil && a.ValidateRes == "pass" {
 					data = v
 					break
@@ -2298,8 +2333,15 @@ func IsExsitDcrmAddr(txhash string) bool {
 
 				var a DcrmValidateRes
 				ok2 := json.Unmarshal([]byte(data), &a)
+				log.Debug("===========dcrm_confirmaddr,","ok2",ok2,"data",data,"","===============")
 				if ok2 == nil {
 				    dcrmparms := strings.Split(a.DcrmParms,sep)
+				    log.Debug("===========dcrm_confirmaddr,","dcrmparms[1]",dcrmparms[1],"","===============")
+				    log.Debug("===========dcrm_confirmaddr,","fusionaddr",fusionaddr,"","===============")
+				    log.Debug("===========dcrm_confirmaddr,","dcrmparms[2]",dcrmparms[2],"","===============")
+				    log.Debug("===========dcrm_confirmaddr,","dcrmaddr",dcrmaddr,"","===============")
+				    log.Debug("===========dcrm_confirmaddr,","dcrmparms[3]",dcrmparms[3],"","===============")
+				    log.Debug("===========dcrm_confirmaddr,","cointype",cointype,"","===============")
 				    if strings.EqualFold(dcrmparms[1],fusionaddr) == true && strings.EqualFold(dcrmparms[2],dcrmaddr) == true && strings.EqualFold(dcrmparms[3],cointype) == true {
 
 				    submitTransaction(signtx)
@@ -2313,6 +2355,7 @@ func IsExsitDcrmAddr(txhash string) bool {
 			}
 		    }
 		    
+		    log.Debug("===========dcrm_confirmaddr,return false.===============")
 		    res := RpcDcrmRes{ret:"false",err:errors.New("dcrm addr confirm fail.")}
 		    ch <- res
 		}
@@ -2759,6 +2802,7 @@ func IsExsitDcrmAddr(txhash string) bool {
 	    signer := types.NewEIP155Signer(chainID)
 	    
 	    rch := make(chan interface{},1)
+	    log.Debug("=============validate_lockout","lockout tx hash",signer.Hash(lockoutx).String(),"","=============")
 	    dcrm_sign(msgprex,"xxx",signer.Hash(lockoutx).String(),realdcrmfrom,cointype,rch)
 	    ret := (<- rch).(RpcDcrmRes)
 	    if ret.err != nil {
@@ -2913,10 +2957,10 @@ func IsExsitDcrmAddr(txhash string) bool {
 		    pkx,_ := new(big.Int).SetString(string(userpubkeys[4:68]),16)
 		    pky,_ := new(big.Int).SetString(string(userpubkeys[68:]),16)*///-----caihaijun-tmp----
 
-		    encX := datas[2]
+		    encX := datas[3]
 		    encXShare := new(big.Int).SetBytes([]byte(encX))
 		    
-		    dcrmpub := datas[1]
+		    dcrmpub := datas[2]
 		    dcrmpks := []byte(dcrmpub)
 		    dcrmpkx,dcrmpky := secp256k1.S256().Unmarshal(dcrmpks[:])
 

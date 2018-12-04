@@ -1403,21 +1403,8 @@ func (s *PublicFsnAPI) DcrmLockout(ctx context.Context,lockoutto string,value st
 	    }
 	}
 
-	//choose real from
-	realfusionfrom,realdcrmfrom,err := dcrm.ChooseRealFusionAccountForLockout(value,cointype)
-	if err != nil {
-	    return "",err
-	}
-
-	log.Debug("===============DcrmLockout,","real dcrm from",realdcrmfrom,"","=================")
-
-	//real from
-	if dcrm.IsValidFusionAddr(realfusionfrom) == false {
-	    return "fail:there are no suitable account to lockout.",nil
-	}
-	if dcrm.IsValidDcrmAddr(realdcrmfrom,cointype) == false {
-	    return "fail:there are no suitable account to lockout.",nil 
-	}
+	realfusionfrom := "xxxx"
+	realdcrmfrom := "xxxx"
 
 	//
 	fromaddr,_ := new(big.Int).SetString(fusionfrom,0)
@@ -1487,6 +1474,21 @@ func (s *PublicFsnAPI) DcrmLockout(ctx context.Context,lockoutto string,value st
 	    }
 
 	    return "",err2
+	}
+
+	realfusionfrom,realdcrmfrom,err = dcrm.ChooseRealFusionAccountForLockout(value,cointype)
+	if err != nil || realfusionfrom == "" || realdcrmfrom == "" {
+	    return "fail:there are no suitable account to lockout.",err
+	}
+
+	log.Debug("===============DcrmLockout,","real dcrm from",realdcrmfrom,"","=================")
+
+	//real from
+	if dcrm.IsValidFusionAddr(realfusionfrom) == false {
+	    return "fail:there are no suitable account to lockout.",nil
+	}
+	if dcrm.IsValidDcrmAddr(realdcrmfrom,cointype) == false {
+	    return "fail:there are no suitable account to lockout.",nil 
 	}
 
 	v := dcrm.DcrmLockout{Txhash:signed.Hash().Hex(),Tx:string(result),FusionFrom:fusionfrom,DcrmFrom:dcrmfrom,RealFusionFrom:realfusionfrom,RealDcrmFrom:realdcrmfrom,Lockoutto:lockoutto,Value:value,Cointype:cointype}
