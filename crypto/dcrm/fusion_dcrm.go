@@ -248,19 +248,38 @@ func getLockoutTx(realfusionfrom string,realdcrmfrom string,to string,value stri
 	    return nil 
 	}
 
-	fromaddr,_ := new(big.Int).SetString(realfusionfrom,0)
-	from := common.BytesToAddress(fromaddr.Bytes())
+	//fromaddr,_ := new(big.Int).SetString(realfusionfrom,0)
+	//from := common.BytesToAddress(fromaddr.Bytes())
 
-	d := new(big.Int).SetBytes([]byte(realdcrmfrom))
-	key := common.BytesToHash(d.Bytes())
+	//d := new(big.Int).SetBytes([]byte(realdcrmfrom))
+	//key := common.BytesToHash(d.Bytes())
 
-	ns := FSN.TxPool().State().GetDcrmNonce(from,key,cointype)
-	log.Debug("===========getLockoutTx,","coin type = ETH,nonce =",ns,"","================")
-	nonce,verr := strconv.ParseInt(ns, 10, 64)
-	if verr != nil {
+	//////////////
+	 client, err := rpc.Dial("http://54.183.185.30:8018")
+	if err != nil {
+		log.Debug("===========getLockouTx,rpc dial fail.==================")
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	var result hexutil.Uint64
+	err = client.CallContext(ctx, &result, "eth_getTransactionCount",realdcrmfrom,"latest")
+	if err != nil {
 	    return nil
 	}
-	
+
+	nonce := uint64(result)
+	//ns := FSN.TxPool().State().GetDcrmNonce(from,key,cointype)
+	log.Debug("===========getLockoutTx,","coin type = ETH,nonce =",nonce,"","================")
+	///////////////
+
+	//nonce,verr := strconv.ParseInt(ns, 10, 64)
+	//if verr != nil {
+	//   return nil
+	//}
+
 	// New transaction
 	tx := types.NewTransaction(
 	    uint64(nonce),   // nonce 
@@ -451,6 +470,7 @@ func (self *RecvMsg) Run(workid int,ch chan interface{}) bool {
     }
 
     if msgCode == "syncworkerid" {
+	log.Debug("========RecvMsg.Run,receiv syncworkerid msg.============")
 	GetEnodesInfo()
 	sh := mm[0] 
 	shs := strings.Split(sh, "-")
@@ -460,6 +480,7 @@ func (self *RecvMsg) Run(workid int,ch chan interface{}) bool {
 	    id2,_ := strconv.Atoi(shs[5])
 	    workers[id].ch_nodeworkid <- NodeWorkId{enode:shs[4],workid:id2}
 	    if len(workers[id].ch_nodeworkid) == (NodeCnt-1) {
+		log.Debug("========RecvMsg.Run,it is ready.============")
 		workers[id].bidsready <- true
 	    }
 	}
@@ -520,10 +541,13 @@ func (self *RecvMsg) Run(workid int,ch chan interface{}) bool {
     }
     
     if msgCode == "startvalidate" {
+	log.Debug("========RecvMsg.Run,receiv startvalidate msg.============")
 	GetEnodesInfo()
 	msgs := mm[0] + "-" + cur_enode + "-" + strconv.Itoa(w.id) + msgtypesep + "syncworkerid"
 	SendMsgToDcrmGroup(msgs)
+	log.Debug("========RecvMsg.Run,send msg sussuss.============")
 	<-w.brealstartvalidate
+	log.Debug("========RecvMsg.Run,real start validate.============")
 	wm := <-w.msgprex
 	funs := strings.Split(wm, "-")
 
@@ -537,6 +561,7 @@ func (self *RecvMsg) Run(workid int,ch chan interface{}) bool {
     }
 
     if msgCode == "realstartvalidate" {
+	log.Debug("========RecvMsg.Run,receiv realstartvalidate msg.============")
 	GetEnodesInfo()
 	sh := mm[0] 
 	shs := strings.Split(sh, sep)
@@ -734,6 +759,7 @@ func (self *DcrmLockin) Run(workid int,ch chan interface{}) bool {
 	return false
     }
 
+    log.Debug("===============DcrmLockin.Run======================")
     GetEnodesInfo()
     w := workers[workid]
     ss := "Validate_Txhash" + "-" + cur_enode + "-" + "xxx" + "-" + strconv.Itoa(workid)
@@ -746,6 +772,7 @@ func (self *DcrmLockin) Run(workid int,ch chan interface{}) bool {
 	ss = ss + "-" + ni.enode + "-" + strconv.Itoa(ni.workid)
     }
 
+    log.Debug("===============DcrmLockin.Run,start call validate_txhash ======================")
     sss := ss + sep + self.Tx + sep + self.Hashkey 
     sss = sss + msgtypesep + "realstartvalidate"
     SendMsgToDcrmGroup(sss)
@@ -1871,6 +1898,7 @@ func IsValidBTCTx(returnJson string,txhash string,realdcrmfrom string,realdcrmto
 
 func validate_txhash(msgprex string,tx string,hashkey string,ch chan interface{}) {
     log.Debug("===============validate_txhash===========")
+    log.Debug("===============validate_txhash,","hash",hashkey,"","============================")
     workid := getworkerid(msgprex,cur_enode)
 
     signtx := new(types.Transaction)
@@ -1883,7 +1911,9 @@ func validate_txhash(msgprex string,tx string,hashkey string,ch chan interface{}
 	return
     }
 
+    log.Debug("===============validate_txhash,","tx",signtx,"","==================")
     payload := signtx.Data()
+    //fmt.Printf("payload is %+v\n",payload)
     m := strings.Split(string(payload),":")
 
     var cointype string
@@ -1895,6 +1925,7 @@ func validate_txhash(msgprex string,tx string,hashkey string,ch chan interface{}
 	realdcrmto = m[1]
     }
     if m[0] == "LOCKOUT" {
+	log.Debug("===============validate_txhash,it is lockout.===========")
 	cointype = m[3]
 	realdcrmto = m[1]
 	
@@ -1980,6 +2011,7 @@ func validate_txhash(msgprex string,tx string,hashkey string,ch chan interface{}
 		    ch <- res
 		    return
 	    }
+	    log.Debug("===============validate_txhash,","result",result,"","=================")
 
 	    log.Debug("===============validate_txhash,","get BlockHash",result.BlockHash,"get BlockNumber",result.BlockNumber,"get From",result.From,"get Hash",result.Hash,"","===============")
 
@@ -2003,40 +2035,67 @@ func validate_txhash(msgprex string,tx string,hashkey string,ch chan interface{}
 	log.Debug("===============validate_txhash,ETH out of for loop.================",)
 	from := result.From.Hex()
 	to := (*result.To).Hex()
+	//fmt.Printf("vv is %+v,vvv is %+v\n",result.Value,signtx.Value())
 	value, _ := new(big.Int).SetString(result.Value.String(), 0)
 	vv := fmt.Sprintf("%v",value)
-	
-	vvv := string(signtx.Value().Bytes())
+	vvv := fmt.Sprintf("%v",signtx.Value())//string(signtx.Value().Bytes())
 
+	//fmt.Printf("vv is %+v,vvv is %+v\n",vv,vvv)
+	log.Debug("===============validate_txhash,","get to",to,"get value",vv,"real dcrm to",realdcrmto,"rpc value",vvv,"","===============")
+
+	/*if strings.EqualFold(from,realdcrmfrom) {
+	    fmt.Printf("=========from == realdcrmfrom=======\n")
+	}
+	if vv == vvv {
+	    fmt.Printf("=========vv==vvv======\n")
+	}
+	if strings.EqualFold(to,realdcrmto) == true {
+	    fmt.Printf("=========to==realdcrmto=======\n")
+	}*/
+	
 	if m[0] == "LOCKOUT" {
-	    if strings.EqualFold(from,realdcrmfrom) == true && vv == vvv && strings.EqualFold(to,realdcrmto) == true {
+	    //fmt.Printf("=========m[0]==LOCKOUT=======\n")
+
+	    if strings.EqualFold(from,realdcrmfrom) && vv == vvv && strings.EqualFold(to,realdcrmto) == true {
 		answer = "pass"
 	    }
 	} else if strings.EqualFold(to,realdcrmto) && vv == vvv {
+	    fmt.Printf("===========m[0]!=LOCKOUT==============\n")
 	    answer = "pass"
 	}
     }
 
+    log.Debug("===============validate_txhash,validate finish.================")
     tmp := msgprex + sep + tx + sep + hashkey 
     cnt,_ := p2pdcrm.GetGroup()
     dvr := DcrmValidateRes{Txhash:signtx.Hash().Hex(),Tx:tx,Workid:strconv.Itoa(workid),Enode:cur_enode,DcrmParms: tmp,ValidateRes:answer,DcrmCnt:cnt,DcrmEnodes:"TODO"}
     jsondvr,_:= json.Marshal(dvr)
+    log.Debug("==========validate_txhash,","jsondvr",string(jsondvr),"","================")
 
+    log.Debug("===============validate_txhash,start broacast.================")
     val,ok := types.GetDcrmValidateDataKReady(signtx.Hash().Hex())
     if ok == true && !IsExsitDcrmValidateData(string(jsondvr)) {
+	log.Debug("===============validate_txhash,ok == true && !IsExsitDcrmValidateData(string(jsondvr)).================")
 	val = val + sep6 + string(jsondvr)
-	types.SetDcrmValidateData(signtx.Hash().Hex(),val)
-	p2pdcrm.Broatcast(string(jsondvr) + msgtypesep + "lilolockinres")
+
+	if !IsExsitDcrmValidateData(string(jsondvr)) {/////////////////////////////////??
+	    types.SetDcrmValidateData(signtx.Hash().Hex(),val)
+	    p2pdcrm.Broatcast(string(jsondvr) + msgtypesep + "lilolockinres")
+	}
+	log.Debug("===============validate_txhash,broacast finish.================",)
 	//tmps := strings.Split(val,sep2)
 	if ValidateDcrm(signtx.Hash().Hex()) {
+		log.Debug("===============validate_txhash,submitTransaction.================",)
 		submitTransaction(signtx)
 	}
 	
-    } else {
+    } else if !IsExsitDcrmValidateData(string(jsondvr)) {
+	log.Debug("===============validate_txhash,ok == false.================")
 	types.SetDcrmValidateData(signtx.Hash().Hex(),string(jsondvr))
 	p2pdcrm.Broatcast(string(jsondvr) + msgtypesep + "lilolockinres")
     }
     
+    log.Debug("===============validate_txhash,return true.================")
     res := RpcDcrmRes{ret:"true",err:nil}
     ch <- res
 }
@@ -2065,12 +2124,15 @@ func IsInGroup() bool {
 
 func Validate_Txhash(wr WorkReq) (string,error) {
 
+    log.Debug("=============Validate_Txhash =====================")
     //////////
     if IsInGroup() == false {
+	log.Debug("=============Validate_Txhash,??? =====================")
 	return "true",nil
     }
     //////////
 
+    log.Debug("=============Validate_Txhash,pass IsInGroup. =====================")
     rch := make(chan interface{},1)
     req := RpcReq{rpcdata:wr,ch:rch}
     RpcReqQueue <- req
@@ -2831,6 +2893,7 @@ func IsExsitDcrmAddr(txhash string) bool {
 		return
 	    }
 
+	    log.Debug("==============validate_lockout,start fill dcrm pool.===================")
 	    tmp := msgprex + sep + txhash_lockout + sep + lilotx + sep + fusionfrom + sep + dcrmfrom + sep + realfusionfrom + sep + realdcrmfrom + sep + lockoutto + sep + value + sep + cointype + sep + ret.ret
 	    cnt,_ := p2pdcrm.GetGroup()
 	    dvr := DcrmValidateRes{Txhash:lockout_tx_hash,Tx:lockout_tx,Workid:strconv.Itoa(id),Enode:cur_enode,DcrmParms:tmp,ValidateRes:answer,DcrmCnt:cnt,DcrmEnodes:"TODO"}
@@ -2839,11 +2902,17 @@ func IsExsitDcrmAddr(txhash string) bool {
 	    //lock.Lock()//bug
 	    val,ok := types.GetDcrmValidateDataKReady(lockout_tx_hash)
 	    if ok == true && !IsExsitDcrmValidateData(string(jsondvr)) {
+		log.Debug("=============validate_lockout","ok == true,fill data",string(jsondvr),"old val",val,"","=============")
 		val = val + sep6 + string(jsondvr)
-		types.SetDcrmValidateData(lockout_tx_hash,val)
-		p2pdcrm.Broatcast(string(jsondvr) + msgtypesep + "lilodcrmsignres")
-		//tmps := strings.Split(val,sep2)
+
+		if !IsExsitDcrmValidateData(string(jsondvr)) {
+		    types.SetDcrmValidateData(lockout_tx_hash,val)
+		    p2pdcrm.Broatcast(string(jsondvr) + msgtypesep + "lilodcrmsignres")
+		}
+		
+		log.Debug("==============validate_lockout,Broatcast finish.===================")
 		if ValidateDcrm(lockout_tx_hash) {
+		    log.Debug("==============validate_lockout,ValidateDcrm finish.===================")
 		    signtx := new(types.Transaction)
 		    signtxerr := signtx.UnmarshalJSON([]byte((lilotx)))
 		    if signtxerr == nil {
@@ -2858,12 +2927,12 @@ func IsExsitDcrmAddr(txhash string) bool {
 				    ch <- res
 				    return
 			    }
-			    //submitTransaction(signtx)
 			}
 		    }
 		}
 		
-	    } else {
+	    } else if !IsExsitDcrmValidateData(string(jsondvr)) {
+		log.Debug("=============validate_lockout","ok == false,fill data",string(jsondvr),"","=============")
 		types.SetDcrmValidateData(lockout_tx_hash,string(jsondvr))
 		p2pdcrm.Broatcast(string(jsondvr) + msgtypesep + "lilodcrmsignres")
 	    }
@@ -3179,26 +3248,38 @@ func IsExsitDcrmAddr(txhash string) bool {
 		    if len(mm) == 2 && mm[1] == "lilodcrmsignres" {
 			var a DcrmValidateRes
 			ok := json.Unmarshal([]byte(mm[0]), &a)
+			log.Debug("===============SetUpMsgList,lilodcrmsignres,","ok",ok,"msg",mm[0],"","==============")
 			if ok == nil {
 			    //lock.Lock()//bug
-			    if !IsExsitDcrmValidateData(mm[0]) {
+			    //if !IsExsitDcrmValidateData(mm[0]) {
+				//log.Debug("===============SetUpMsgList,lilodcrmsignres,!IsExsitDcrmValidateData==============")
 				val,ok2 := types.GetDcrmValidateDataKReady(a.Txhash)
-				if ok2 == true {
+				log.Debug("===============SetUpMsgList,lilodcrmsignres,","ok2",ok2,"a.Txhash",a.Txhash,"val",val,"","==============")
+				if ok2 == true && !IsExsitDcrmValidateData(mm[0]) {
+				    log.Debug("===============SetUpMsgList,lilodcrmsignres,!IsExsitDcrmValidateData===========")
 				    val = val + sep6 + mm[0]
-				    types.SetDcrmValidateData(a.Txhash,val)
-				    p2pdcrm.Broatcast(msg)
+
+				    if !IsExsitDcrmValidateData(mm[0])  {
+					types.SetDcrmValidateData(a.Txhash,val)
+					p2pdcrm.Broatcast(msg)
+				    }
+				    log.Debug("===============SetUpMsgList,Broatcast finish.===========")
 
 				    //val: {}||{}||{}
 				    if ValidateDcrm(a.Txhash) {
+					log.Debug("===============SetUpMsgList,ValidateDcrm finish.===========")
 					dcrmparms := strings.Split(a.DcrmParms,sep)
 					signtx := new(types.Transaction)
 					signtxerr := signtx.UnmarshalJSON([]byte((dcrmparms[2])))
 					if signtxerr == nil {
+					    log.Debug("===============SetUpMsgList,signtxerr == nil.===========")
 					    //only dcrm node send the outside tx
 					    if IsInGroup() {
 						log.Debug("SetUpMsgList,do SendTxForLockout","hash",a.Txhash)
 						lockout_tx_hash,failed := SendTxForLockout(dcrmparms[5],dcrmparms[6],dcrmparms[7],dcrmparms[8],dcrmparms[9],dcrmparms[10])
+						log.Debug("=========SetUpMsgList,do SendTxForLockout finish 1.========")
 						if failed == nil {
+						    log.Debug("=========SetUpMsgList,do SendTxForLockout finish 2.========")
 						    v := DcrmLockin{Tx:dcrmparms[2],Hashkey:lockout_tx_hash}
 						    if _,err := Validate_Txhash(&v);err != nil {
 							log.Debug("===============SetUpMsgList,lockout validate fail.=============")
@@ -3211,11 +3292,12 @@ func IsExsitDcrmAddr(txhash string) bool {
 					    }
 					}
 				    }
-				} else {
+				} else if !IsExsitDcrmValidateData(mm[0]) {
+				    log.Debug("===============SetUpMsgList,lilodcrmsignres,ok2 == false.","msg",mm[0],"","===============")
 				    types.SetDcrmValidateData(a.Txhash,mm[0])
 				    p2pdcrm.Broatcast(msg)
 				}
-			    }
+			    //}
 			    //lock.Unlock()//bug
 			}
 
@@ -3225,28 +3307,40 @@ func IsExsitDcrmAddr(txhash string) bool {
 		    if len(mm) == 2 && mm[1] == "lilolockinres" {
 			var a DcrmValidateRes
 			ok := json.Unmarshal([]byte(mm[0]), &a)
+			log.Debug("===============SetUpMsgList,lilolockinres,","get msg",mm[0],"","================")
 			if ok == nil {
 			    //lock.Lock()//bug
-			    if !IsExsitDcrmValidateData(mm[0]) {
+			    //if !IsExsitDcrmValidateData(mm[0]) {
+				log.Debug("===============SetUpMsgList,lilolockinres,ok == nil ================")
 				val,ok2 := types.GetDcrmValidateDataKReady(a.Txhash)
-				if ok2 == true {
+				if ok2 == true  && !IsExsitDcrmValidateData(mm[0]) {
+				    log.Debug("===============SetUpMsgList,lilolockinres,ok2 == true================")
 				    val = val + sep6 + mm[0]
-				    types.SetDcrmValidateData(a.Txhash,val)
-				    p2pdcrm.Broatcast(msg)
+
+				    if !IsExsitDcrmValidateData(mm[0]) { /////////////////??
+					types.SetDcrmValidateData(a.Txhash,val)
+					p2pdcrm.Broatcast(msg)
+				    }
+				    
+				    log.Debug("===============SetUpMsgList,lilolockinres,broacast finish.================")
 
 				    //val: {}||{}||{}
 				    if ValidateDcrm(a.Txhash) {
+					log.Debug("===============SetUpMsgList,lilolockinres,ValidateDcrm finish.================")
 					signtx := new(types.Transaction)
 					signtxerr := signtx.UnmarshalJSON([]byte((a.Tx)))
 					if signtxerr == nil {
+					    log.Debug("===============SetUpMsgList,lilolockinres,submitTransaction.================",)
 					    submitTransaction(signtx)
 					}
 				    }
-				} else {
+				} else if !IsExsitDcrmValidateData(mm[0]) {
+				    log.Debug("===============SetUpMsgList,lilolockinres,ok2 == false================")
 				    types.SetDcrmValidateData(a.Txhash,mm[0])
 				    p2pdcrm.Broatcast(msg)
+				    log.Debug("===============SetUpMsgList,lilolockinres,ok2 == false,Broatcast finish.================")
 				}
-			    }
+			    //}
 			    //lock.Unlock()//bug
 			}
 
