@@ -685,8 +685,8 @@ web3._extend({
 		new web3._extend.Method({
 			name: 'dcrmReqAddr',
 			call: 'lilo_dcrmReqAddr',
-			params: 2,
-			inputFormatter: [null,null]
+			params: 1,
+			inputFormatter: [null]
 		}),
 		new web3._extend.Method({
 			name: 'dcrmGetAddr',
