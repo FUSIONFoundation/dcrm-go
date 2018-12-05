@@ -2046,8 +2046,6 @@ func validate_txhash(msgprex string,tx string,hashkey string,ch chan interface{}
 	} else {
 	    vvv = string(signtx.Value().Bytes())
 	}
-
-
 	//fmt.Printf("vv is %+v,vvv is %+v\n",vv,vvv)
 	log.Debug("===============validate_txhash,","get to",to,"get value",vv,"real dcrm to",realdcrmto,"rpc value",vvv,"","===============")
 

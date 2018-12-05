@@ -245,7 +245,8 @@ func HandlePeer(peer *p2p.Peer, rw p2p.MsgReadWriter) error {
 			if err != nil {
 				fmt.Print("Err: decode msg err %+v\n", err)
 			}else {
-				callEvent(string(recv))
+				log.Debug("HandlePeer", "callback(msg): ", recv)
+				go callEvent(string(recv))
 			}
 		default:
 			fmt.Println("unkown msg code")
@@ -343,7 +344,7 @@ func BroatcastToGroup(msg string) {
 			}
 			log.Debug("send to node(group)", "g = ", g, "p.peer = ", p.peer)
 			if err := p2p.Send(p.ws, dcrmMsgCode, msg); err != nil {
-				fmt.Printf("Emitter.loopSendMsg p2p.SendItems err", err, "peer id", p.peer.ID())
+				log.Error("BroatcastToGroup", "p2p.Send err", err, "peer id", p.peer.ID())
 				continue
 			}
 		}
@@ -364,7 +365,7 @@ func Broatcast(msg string) {
 			log.Debug("Broastcast", "to , p", p, "msg", p, msg)
 			log.Debug("Broastcast", "p.ws", p.ws)
 			if err := p2p.Send(p.ws, dcrmMsgCode, msg); err != nil {
-				fmt.Printf("Emitter.loopSendMsg p2p.Send err", err, "peer id", p.peer.ID())
+				log.Error("Broatcast", "p2p.Send err", err, "peer id", p.peer.ID())
 				continue
 			}
 		}

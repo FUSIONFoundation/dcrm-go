@@ -78,7 +78,7 @@ type Config struct {
 	NoDiscovery bool
 
 	DcrmEnabled bool
-	DcrmNodes  []*discover.Node
+	DcrmNodes   []*discover.Node
 
 	// DiscoveryV5 specifies whether the new topic-discovery based V5 discovery
 	// protocol should be started or not.
@@ -964,6 +964,12 @@ func (srv *Server) runPeer(p *Peer) {
 	// Note: run waits for existing peers to be sent on srv.delpeer
 	// before returning, so this send should not select on srv.quit.
 	srv.delpeer <- peerDrop{p, err, remoteRequested}
+}
+
+// EnodeInfo represents a short summary of the information known about the host.
+type EnodeInfo struct {
+	Num   int    `json:"num"`
+	Enode []string `json:"enode"` // Unique node identifier (also the encryption key)
 }
 
 // NodeInfo represents a short summary of the information known about the host.

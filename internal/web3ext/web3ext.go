@@ -210,6 +210,10 @@ web3._extend({
 			getter: 'admin_peers'
 		}),
 		new web3._extend.Property({
+			name: 'dcrmGroup',
+			getter: 'admin_dcrmGroup'
+		}),
+		new web3._extend.Property({
 			name: 'datadir',
 			getter: 'admin_datadir'
 		}),
