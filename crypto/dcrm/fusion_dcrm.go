@@ -2038,8 +2038,14 @@ func validate_txhash(msgprex string,tx string,hashkey string,ch chan interface{}
 	//fmt.Printf("vv is %+v,vvv is %+v\n",result.Value,signtx.Value())
 	value, _ := new(big.Int).SetString(result.Value.String(), 0)
 	vv := fmt.Sprintf("%v",value)
-	vvv := fmt.Sprintf("%v",signtx.Value())//string(signtx.Value().Bytes())
 
+	////bug
+	var vvv string
+	if m[0] == "LOCKOUT" {
+	    vvv = fmt.Sprintf("%v",signtx.Value())//string(signtx.Value().Bytes())
+	} else {
+	    vvv = string(signtx.Value().Bytes())
+	}
 	//fmt.Printf("vv is %+v,vvv is %+v\n",vv,vvv)
 	log.Debug("===============validate_txhash,","get to",to,"get value",vv,"real dcrm to",realdcrmto,"rpc value",vvv,"","===============")
 
