@@ -866,7 +866,7 @@ func (s *PublicFsnAPI) DcrmGetAddr(ctx context.Context,fusionaddr string,cointyp
 
     state, _, err := s.b.StateAndHeaderByNumber(ctx,rpc.LatestBlockNumber)
     if state == nil || err != nil {
-	    return "", err
+	    return "db is not ready.", err
     }
     
     fromaddr,_ := new(big.Int).SetString(fusionaddr,0)
@@ -893,12 +893,12 @@ func (s *PublicFsnAPI) DcrmGetHashKey(ctx context.Context,fusionaddr string,coin
 
     state, _, err := s.b.StateAndHeaderByNumber(ctx,rpc.LatestBlockNumber)
     if state == nil || err != nil {
-	    return "", err
+	    return "db is not ready.", err
     }
     
     dcrmaddr,e := s.DcrmGetAddr(ctx,fusionaddr,cointype)
     if dcrmaddr == "" || e != nil {
-	return "",e 
+	return "fail: hash key is not exist.",e 
     }
 
     fromaddr,_ := new(big.Int).SetString(fusionaddr,0)
@@ -929,12 +929,12 @@ func (s *PublicFsnAPI) DcrmGetNonce(ctx context.Context,fusionaddr string,cointy
 
     state, _, err := s.b.StateAndHeaderByNumber(ctx,rpc.LatestBlockNumber)
     if state == nil || err != nil {
-	    return "", err
+	    return "db is not ready.", err
     }
     
     dcrmaddr,e := s.DcrmGetAddr(ctx,fusionaddr,cointype)
     if dcrmaddr == "" || e != nil {
-	return "",e 
+	return "get nonce error.",e 
     }
 
     fromaddr,_ := new(big.Int).SetString(fusionaddr,0)
