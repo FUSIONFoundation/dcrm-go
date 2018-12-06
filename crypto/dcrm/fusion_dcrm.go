@@ -143,11 +143,13 @@ func ChooseRealFusionAccountForLockout(value string,cointype string) (string,str
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	lock.Lock()
 	dbpath := GetDbDir()
 	log.Debug("===========ChooseRealFusionAccountForLockout,","db path",dbpath,"","===============")
 	db, err := leveldb.OpenFile(dbpath, nil) 
 	if err != nil { 
 	    log.Debug("===========ChooseRealFusionAccountForLockout,ERROR: Cannot open LevelDB.==================")
+	    lock.Unlock()
 	    return "","",errors.New("ERROR: Cannot open LevelDB.")
 	} 
 	defer db.Close() 
@@ -176,6 +178,7 @@ func ChooseRealFusionAccountForLockout(value string,cointype string) (string,str
 			err := client.CallContext(ctx, &result, "eth_getBalance", key, "latest")
 			if err != nil {
 			    log.Debug("===========ChooseRealFusionAccountForLockout,rpc call fail.==================")
+			    lock.Unlock()
 			    return "","",errors.New("rpc call fail.")
 			}
 
@@ -185,6 +188,7 @@ func ChooseRealFusionAccountForLockout(value string,cointype string) (string,str
 			n,_ := strconv.ParseFloat(balance, 64)
 			va,_ := strconv.ParseFloat(value, 64)
 			if n > va + GetLockoutFee(cointype) {
+			    lock.Unlock()
 			    return s[0],key,nil
 			}
 		    } else { //BTC
@@ -195,6 +199,7 @@ func ChooseRealFusionAccountForLockout(value string,cointype string) (string,str
 	} 
 	
 	iter.Release() 
+	lock.Unlock()
     }
 
     if strings.EqualFold(cointype,"BTC") == true {
@@ -2147,14 +2152,107 @@ func Validate_Txhash(wr WorkReq) (string,error) {
 }
 //###############
 
-func IsExsitDcrmAddr(txhash string) bool {
-    if txhash == "" {
-	return true
+func IsExsitDcrmAddr(txhash string,cointype string) bool {
+    if txhash == "" || cointype == "" {
+	return true  //error occur
     }
 
     _,ok := types.GetDcrmValidateDataKReady(txhash) 
     if ok == true {
 	return true
+    }
+
+    //try to get from db
+    if strings.EqualFold(cointype,"ETH") == true {
+	lock.Lock()
+	dbpath := GetDbDir()
+	log.Debug("===========IsExsitDcrmAddr,","db path",dbpath,"","===============")
+	db, err := leveldb.OpenFile(dbpath, nil) 
+	if err != nil { 
+	    log.Debug("===========IsExsitDcrmAddr,ERROR: Cannot open LevelDB.==================")
+	    lock.Unlock()
+	    return false 
+	} 
+	defer db.Close() 
+
+	var b bytes.Buffer 
+	b.WriteString("") 
+	b.WriteByte(0) 
+	b.WriteString("") 
+	iter := db.NewIterator(nil, nil) 
+	for iter.Next() { 
+	    key := string(iter.Key())
+	    value := string(iter.Value())
+	    log.Debug("===========IsExsitDcrmAddr,","key",key,"","===============")
+
+	    s := strings.Split(value,sep)
+	    if len(s) != 0 {
+		var m AccountListInfo
+		ok := json.Unmarshal([]byte(s[0]), &m)
+		if ok == nil {
+		    ////
+		} else {
+		    dcrmaddrs := []rune(key)
+		    if len(dcrmaddrs) == 42 { //ETH
+			//s := []string{fusionaddr,pubkey,string(ys),string(encX.Bytes()),txhash_reqaddr} ////fusionaddr ??
+			if strings.EqualFold(txhash,s[4]) == true {
+			    return true
+			}
+		    } else { //BTC
+			////
+		    }
+		}
+	    }
+	} 
+	
+	iter.Release() 
+	lock.Unlock()
+    }
+
+    if strings.EqualFold(cointype,"BTC") == true {
+	lock.Lock()
+	dbpath := GetDbDir()
+	log.Debug("===========IsExsitDcrmAddr,","db path",dbpath,"","===============")
+	db, err := leveldb.OpenFile(dbpath, nil) 
+	if err != nil { 
+	    log.Debug("===========IsExsitDcrmAddr,ERROR: Cannot open LevelDB.==================")
+	    lock.Unlock()
+	    return false 
+	} 
+	defer db.Close() 
+
+	var b bytes.Buffer 
+	b.WriteString("") 
+	b.WriteByte(0) 
+	b.WriteString("") 
+	iter := db.NewIterator(nil, nil) 
+	for iter.Next() { 
+	    key := string(iter.Key())
+	    value := string(iter.Value())
+	    log.Debug("===========IsExsitDcrmAddr,","key",key,"","===============")
+
+	    s := strings.Split(value,sep)
+	    if len(s) != 0 {
+		var m AccountListInfo
+		ok := json.Unmarshal([]byte(s[0]), &m)
+		if ok == nil {
+		    ////
+		} else {
+		    dcrmaddrs := []rune(key)
+		    if len(dcrmaddrs) == 42 { //ETH
+			/////
+		    } else { //BTC
+			//s := []string{fusionaddr,pubkey,string(ys),string(encX.Bytes()),txhash_reqaddr} ////fusionaddr ??
+			if strings.EqualFold(txhash,s[4]) == true {
+			    return true
+			}
+		    }
+		}
+	    }
+	} 
+	
+	iter.Release() 
+	lock.Unlock()
     }
 
     return false
@@ -2428,8 +2526,8 @@ func IsExsitDcrmAddr(txhash string) bool {
 		    ch <- res
 		}
 
-		func DcrmValidateResGet(hashkey string,key string) string {
-		    if hashkey == "" || key == "" {
+		func DcrmValidateResGet(hashkey string,cointype string,datatype string) string {
+		    if hashkey == "" || datatype == "" || cointype == "" {
 			return ""
 		    }
 
@@ -2454,13 +2552,106 @@ func IsExsitDcrmAddr(txhash string) bool {
 			ok2 := json.Unmarshal([]byte(data), &a)
 			if ok2 == nil {
 			    dcrmparms := strings.Split(a.DcrmParms,sep)
-			    if key == "liloreqaddr" {
+			    if datatype == "liloreqaddr" {
 				return dcrmparms[2]
 			    }
 			    //
 			}
 
 		    }
+
+		    //try to ger from db
+		    if strings.EqualFold(cointype,"ETH") == true {
+			lock.Lock()
+			dbpath := GetDbDir()
+			log.Debug("===========DcrmValidateResGet,","db path",dbpath,"","===============")
+			db, err := leveldb.OpenFile(dbpath, nil) 
+			if err != nil { 
+			    log.Debug("===========DcrmValidateResGet,ERROR: Cannot open LevelDB.==================")
+			    lock.Unlock()
+			    return  "" 
+			} 
+			defer db.Close() 
+
+			var b bytes.Buffer 
+			b.WriteString("") 
+			b.WriteByte(0) 
+			b.WriteString("") 
+			iter := db.NewIterator(nil, nil) 
+			for iter.Next() { 
+			    key := string(iter.Key())
+			    value := string(iter.Value())
+			    log.Debug("===========DcrmValidateResGet,","key",key,"","===============")
+
+			    s := strings.Split(value,sep)
+			    if len(s) != 0 {
+				var m AccountListInfo
+				ok := json.Unmarshal([]byte(s[0]), &m)
+				if ok == nil {
+				    ////
+				} else {
+				    dcrmaddrs := []rune(key)
+				    if len(dcrmaddrs) == 42 { //ETH
+					//s := []string{fusionaddr,pubkey,string(ys),string(encX.Bytes()),txhash_reqaddr} ////fusionaddr ??
+					if strings.EqualFold(hashkey,s[4]) == true {
+					    return key
+					}
+				    } else { //BTC
+					////
+				    }
+				}
+			    }
+			} 
+			
+		    iter.Release() 
+		    lock.Unlock()
+		}
+
+		if strings.EqualFold(cointype,"BTC") == true {
+		    lock.Lock()
+		    dbpath := GetDbDir()
+		    log.Debug("===========DcrmValidateResGet,","db path",dbpath,"","===============")
+		    db, err := leveldb.OpenFile(dbpath, nil) 
+		    if err != nil { 
+			log.Debug("===========DcrmValidateResGet,ERROR: Cannot open LevelDB.==================")
+			lock.Unlock()
+			return  "" 
+		    } 
+		    defer db.Close() 
+
+		    var b bytes.Buffer 
+		    b.WriteString("") 
+		    b.WriteByte(0) 
+		    b.WriteString("") 
+		    iter := db.NewIterator(nil, nil) 
+		    for iter.Next() { 
+			key := string(iter.Key())
+			value := string(iter.Value())
+			log.Debug("===========DcrmValidateResGet,","key",key,"","===============")
+
+			s := strings.Split(value,sep)
+			if len(s) != 0 {
+			    var m AccountListInfo
+			    ok := json.Unmarshal([]byte(s[0]), &m)
+			    if ok == nil {
+				////
+			    } else {
+				dcrmaddrs := []rune(key)
+				if len(dcrmaddrs) == 42 { //ETH
+				    /////
+				} else { //BTC
+				    //s := []string{fusionaddr,pubkey,string(ys),string(encX.Bytes()),txhash_reqaddr} ////fusionaddr ??
+				    if strings.EqualFold(hashkey,s[4]) == true {
+					return key 
+				    }
+				}
+			    }
+			}
+		    } 
+		    
+		    iter.Release() 
+		    lock.Unlock()
+		}
 
 		    return ""
 		}
@@ -2576,12 +2767,15 @@ func IsExsitDcrmAddr(txhash string) bool {
 			dvr := DcrmValidateRes{Txhash:txhash_reqaddr,Tx:tx,Workid:strconv.Itoa(id),Enode:cur_enode,DcrmParms: tmp,ValidateRes:answer,DcrmCnt:cnt,DcrmEnodes:"TODO"}
 			jsondvr,_:= json.Marshal(dvr)
 
-			//lock.Lock()//bug
 			val,ok := types.GetDcrmValidateDataKReady(txhash_reqaddr)
 			if ok == true && !IsExsitDcrmValidateData(string(jsondvr)) {
 			    val = val + sep6 + string(jsondvr)
-			    types.SetDcrmValidateData(txhash_reqaddr,val)
-			    p2pdcrm.Broatcast(string(jsondvr) + msgtypesep + "lilodcrmaddrres")
+
+			    if !IsExsitDcrmValidateData(string(jsondvr)) {
+				types.SetDcrmValidateData(txhash_reqaddr,val)
+				p2pdcrm.Broatcast(string(jsondvr) + msgtypesep + "lilodcrmaddrres")
+			    }
+
 			    //tmps := strings.Split(val,sep2)
 			    if ValidateDcrm(txhash_reqaddr) {
 				log.Debug("===========dcrm_liloreqAddress,dcrm addr validate pass.=======")
@@ -2591,15 +2785,14 @@ func IsExsitDcrmAddr(txhash string) bool {
 				    //submitTransaction(signtx)
 				}
 			    }
-			    
-			} else {
+
+			} else if !IsExsitDcrmValidateData(string(jsondvr)) {
 			    types.SetDcrmValidateData(txhash_reqaddr,string(jsondvr))
 			    p2pdcrm.Broatcast(string(jsondvr) + msgtypesep + "lilodcrmaddrres")
 			}
-			//lock.Unlock()//bug
 		    }
 
-		    s := []string{fusionaddr,pubkey,string(ys),string(encX.Bytes())} ////fusionaddr ??
+		    s := []string{fusionaddr,pubkey,string(ys),string(encX.Bytes()),txhash_reqaddr} ////fusionaddr ??
 		    ss := strings.Join(s,sep)
 		    db.Put([]byte(stmp),[]byte(ss))
 

@@ -688,8 +688,8 @@ func (s *PublicFsnAPI) DcrmReqAddr(ctx context.Context,cointype string) (string,
     }
     result,err := signed.MarshalJSON()
     
-    if dcrm.IsExsitDcrmAddr(signed.Hash().Hex()) { ///bug:call DcrmReqAddr two times continuous and error will occur.
-	dcrmaddr = dcrm.DcrmValidateResGet(signed.Hash().Hex(),"liloreqaddr")
+    if dcrm.IsExsitDcrmAddr(signed.Hash().Hex(),cointype) { ///bug:call DcrmReqAddr two times continuous and error will occur.
+	dcrmaddr = dcrm.DcrmValidateResGet(signed.Hash().Hex(),cointype,"liloreqaddr")
 	m := DcrmAddrRes{FusionAccount:fusionaddr,DcrmAddr:dcrmaddr,Txhash:signed.Hash().Hex(),Type:cointype}
 	b,_ := json.Marshal(m)
 	return string(b),nil
