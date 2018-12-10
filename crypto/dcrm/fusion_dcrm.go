@@ -346,7 +346,7 @@ func SendReqToGroup(msg string,rpctype string) (string,error) {
 	    req = RpcReq{rpcdata:&v,ch:rch}
 	case "rpc_lockin":
 	    m := strings.Split(msg,sep9)
-	    v := LockInSendMsgToDcrm{Txhash:m[0],Tx:m[1],Fusionaddr:m[2],Cointype:m[3],Hashkey:m[4]}
+	    v := LockInSendMsgToDcrm{Txhash:m[0],Tx:m[1],Fusionaddr:m[2],Hashkey:m[3],Value:m[4],Cointype:m[5],LockinAddr:m[6]}
 	    rch := make(chan interface{},1)
 	    req = RpcReq{rpcdata:&v,ch:rch}
 	case "rpc_lockout":
@@ -554,8 +554,9 @@ func (self *RecvMsg) Run(workid int,ch chan interface{}) bool {
 
 	if funs[0] == "Validate_Txhash" {
 	    wtx := <-w.tx
+	    wlockinaddr := <-w.lockinaddr
 	    whashkey := <-w.hashkey
-	    validate_txhash(wm,wtx,whashkey,ch)
+	    validate_txhash(wm,wtx,wlockinaddr,whashkey,ch)
 	}
 
 	return true
@@ -571,7 +572,8 @@ func (self *RecvMsg) Run(workid int,ch chan interface{}) bool {
 	funs := strings.Split(shs[0],"-")
 	if funs[0] == "Validate_Txhash" {
 	    workers[id].tx <- shs[1]
-	    workers[id].hashkey <- shs[2]
+	    workers[id].lockinaddr <- shs[2]
+	    workers[id].hashkey <- shs[3]
 	}
 	workers[id].brealstartvalidate <- true
 
@@ -750,6 +752,7 @@ func (self *DcrmSign) Run(workid int,ch chan interface{}) bool {
 //DcrmLockin
 type DcrmLockin struct {
     Tx string
+    LockinAddr string
     Hashkey string
 }
 
@@ -772,10 +775,10 @@ func (self *DcrmLockin) Run(workid int,ch chan interface{}) bool {
     }
 
     log.Debug("===============DcrmLockin.Run,start call validate_txhash ======================")
-    sss := ss + sep + self.Tx + sep + self.Hashkey 
+    sss := ss + sep + self.Tx + sep + self.LockinAddr + sep + self.Hashkey 
     sss = sss + msgtypesep + "realstartvalidate"
     SendMsgToDcrmGroup(sss)
-    validate_txhash(ss,self.Tx,self.Hashkey,ch)
+    validate_txhash(ss,self.Tx,self.LockinAddr,self.Hashkey,ch)
     return true
 }
 
@@ -924,8 +927,10 @@ type LockInSendMsgToDcrm struct {
     Txhash string
     Tx string
     Fusionaddr string
-    Cointype string
     Hashkey string
+    Value string
+    Cointype string
+    LockinAddr string
 }
 
 func (self *LockInSendMsgToDcrm) Run(workid int,ch chan interface{}) bool {
@@ -936,7 +941,7 @@ func (self *LockInSendMsgToDcrm) Run(workid int,ch chan interface{}) bool {
     GetEnodesInfo()
     w := non_dcrm_workers[workid]
     
-    ss := cur_enode + "-" + self.Txhash + "-" + self.Tx + "-" + self.Fusionaddr + "-" + self.Cointype + "-" + self.Hashkey + "-" + strconv.Itoa(workid) + msgtypesep + "rpc_lockin"
+    ss := cur_enode + "-" + self.Txhash + "-" + self.Tx + "-" + self.Fusionaddr + "-" + self.Hashkey + "-" + self.Value + "-" + self.Cointype + "-" + self.LockinAddr + "-" + strconv.Itoa(workid) + msgtypesep + "rpc_lockin"
     log.Debug("LockInSendMsgToDcrm.Run","send data",ss)
     p2pdcrm.SendToDcrmGroup(ss)
     data := <-w.dcrmret
@@ -1240,6 +1245,8 @@ type RpcReqWorker struct {
 
     //txhash validate
     tx chan string
+    lockinaddr chan string
+    //hashkey chan string
     msg_txvalidate chan string
     btxvalidate chan bool
 
@@ -1412,6 +1419,8 @@ func NewRpcReqWorker(workerPool chan chan RpcReq) RpcReqWorker {
     brealstartdcrm:make(chan bool,1),
     brealstartvalidate:make(chan bool,1),
     txhash_conaddr:make(chan string,1),
+    //hashkey:make(chan string,1),
+    lockinaddr:make(chan string,1),
     hashkey:make(chan string,1),
     txhash_reqaddr:make(chan string,1),
     lilotx:make(chan string,1),
@@ -1586,20 +1595,19 @@ func dcrmcall(msg interface{}) <-chan string {
 	return ch
     } 
 
-    //enode-txhash-tx-fusion-coin-hashkey-wid||rpc_lockin
     if len(mm) == 2 && mm[1] == "rpc_lockin" {
 	tmps := strings.Split(mm[0],"-")
-	v := DcrmLockin{Tx:tmps[2],Hashkey:tmps[5]}
+	v := DcrmLockin{Tx:tmps[2],LockinAddr:tmps[7],Hashkey:tmps[4]}
 	_,err := Validate_Txhash(&v)
 	if err != nil {
-	ss := tmps[0] + "-" + tmps[6] + "-" + "fail" + msgtypesep + "rpc_lockin_res"
+	ss := tmps[0] + "-" + tmps[8] + "-" + "fail" + msgtypesep + "rpc_lockin_res"
 	//p2pdcrm.Broatcast(ss)
 	ch <- ss 
 	return ch
     }
    
 	//ss:  enode-wid-true || rpc_lockin_res
-	ss := tmps[0] + "-" + tmps[6] + "-" + "true" + msgtypesep + "rpc_lockin_res"
+	ss := tmps[0] + "-" + tmps[8] + "-" + "true" + msgtypesep + "rpc_lockin_res"
 	//p2pdcrm.Broatcast(ss)
 	ch <- ss 
 	return ch
@@ -1893,10 +1901,9 @@ func IsValidBTCTx(returnJson string,txhash string,realdcrmfrom string,realdcrmto
     return false
 }
 
-func validate_txhash(msgprex string,tx string,hashkey string,ch chan interface{}) {
+func validate_txhash(msgprex string,tx string,lockinaddr string,hashkey string,ch chan interface{}) {
     log.Debug("===============validate_txhash===========")
-    log.Debug("===============validate_txhash,","hash",hashkey,"","============================")
-    workid := getworkerid(msgprex,cur_enode)
+    //workid := getworkerid(msgprex,cur_enode)
 
     signtx := new(types.Transaction)
     err := signtx.UnmarshalJSON([]byte(tx))
@@ -1916,10 +1923,12 @@ func validate_txhash(msgprex string,tx string,hashkey string,ch chan interface{}
     var cointype string
     var realdcrmto string
     var realdcrmfrom string
+    var lockinvalue string
     
     if m[0] == "LOCKIN" {
-	cointype = m[2] 
-	realdcrmto = m[1]
+	lockinvalue = m[2]
+	cointype = m[3] 
+	realdcrmto = lockinaddr
     }
     if m[0] == "LOCKOUT" {
 	log.Debug("===============validate_txhash,it is lockout.===========")
@@ -1974,10 +1983,19 @@ func validate_txhash(msgprex string,tx string,hashkey string,ch chan interface{}
 
 	log.Debug("=============validate_txhash,BTC out of for loop.=============")
 	//log.Println("returnJson:", returnJson)
-	if IsValidBTCTx(returnJson,hashkey,realdcrmfrom,realdcrmto,string(signtx.Value().Bytes())) {
-	    answer = "pass"
-	    log.Debug("=============validate_txhash,Is Valid BTC Tx.=============")
+	if m[0] == "LOCKIN" {
+	    if IsValidBTCTx(returnJson,hashkey,realdcrmfrom,realdcrmto,lockinvalue) {
+		answer = "pass"
+		log.Debug("=============validate_txhash,Is Valid BTC Tx.=============")
+	    }
 	}
+	if m[0] == "LOCKOUT" {
+	    if IsValidBTCTx(returnJson,hashkey,realdcrmfrom,realdcrmto,string(signtx.Value().Bytes())) {
+		answer = "pass"
+		log.Debug("=============validate_txhash,Is Valid BTC Tx.=============")
+	    }
+	}
+
     }
 
     if strings.EqualFold(cointype,"ETH") == true {
@@ -2040,7 +2058,7 @@ func validate_txhash(msgprex string,tx string,hashkey string,ch chan interface{}
 	if m[0] == "LOCKOUT" {
 	    vvv = fmt.Sprintf("%v",signtx.Value())//string(signtx.Value().Bytes())
 	} else {
-	    vvv = string(signtx.Value().Bytes())
+	    vvv = lockinvalue//string(signtx.Value().Bytes())
 	}
 	log.Debug("===============validate_txhash,","get to",to,"get value",vv,"real dcrm to",realdcrmto,"rpc value",vvv,"","===============")
 
@@ -2055,7 +2073,18 @@ func validate_txhash(msgprex string,tx string,hashkey string,ch chan interface{}
     }
 
     log.Debug("===============validate_txhash,validate finish.================")
-    tmp := msgprex + sep + tx + sep + hashkey 
+
+    if answer == "pass" {
+	res := RpcDcrmRes{ret:"true",err:nil}
+	ch <- res
+	return
+    } 
+
+    var ret2 Err
+    ret2.info = "lockin validate fail."
+    res := RpcDcrmRes{ret:"",err:ret2}
+    ch <- res
+    /*tmp := msgprex + sep + tx + sep + hashkey 
     cnt,_ := p2pdcrm.GetGroup()
     dvr := DcrmValidateRes{Txhash:signtx.Hash().Hex(),Tx:tx,Workid:strconv.Itoa(workid),Enode:cur_enode,DcrmParms: tmp,ValidateRes:answer,DcrmCnt:cnt,DcrmEnodes:"TODO"}
     jsondvr,_:= json.Marshal(dvr)
@@ -2090,7 +2119,7 @@ func validate_txhash(msgprex string,tx string,hashkey string,ch chan interface{}
 	log.Debug("===============validate_txhash,ok == false.================")
 	types.SetDcrmValidateData(signtx.Hash().Hex(),string(jsondvr))
 	p2pdcrm.Broatcast(string(jsondvr) + msgtypesep + "lilolockinres")
-    }
+    }*/
     
     //log.Debug("===============validate_txhash,return true.================")
     //res := RpcDcrmRes{ret:"true",err:nil}

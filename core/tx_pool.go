@@ -24,7 +24,7 @@ import (
 	"sort"
 	"sync"
 	"time"
-	"github.com/fusion/go-fusion/core/vm"//caihaijun
+	//"github.com/fusion/go-fusion/core/vm"//caihaijun
 	"strings"//caihaijun
 	"github.com/fusion/go-fusion/common"
 	"github.com/fusion/go-fusion/common/prque"
@@ -36,6 +36,7 @@ import (
 	"github.com/fusion/go-fusion/params"
 	"github.com/fusion/go-fusion/crypto/dcrm"//caihaijun
 	"github.com/fusion/go-fusion/crypto" //caihaijun
+	"strconv"//caihaijun
 )
 
 const (
@@ -637,7 +638,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 
 	//+++++++++++++++++caihaijun++++++++++++++++++
 	// Check precompile contracts transactions validation
-	if  tx.To() != nil && !types.IsDcrmTransaction(tx.Data()) {
+	/*if  tx.To() != nil && !types.IsDcrmTransaction(tx.Data()) {
 	log.Debug("=============validateTx,step 9==========")//caihaijun
 		precompiles := vm.PrecompiledContractsHomestead
 		if pool.homestead == false {
@@ -646,9 +647,6 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 		
 		log.Debug("=============validateTx,step 10===========")//caihaijun
 		if p := precompiles[*tx.To()]; p != nil {
-		    /*if err = p.ValidTx(pool.currentState, pool.signer, tx); err != nil {
-			    return err
-		    }*/
 
 		log.Debug("=============validateTx,step 11.===========")//caihaijun
 		if types.IsDcrmConfirmAddr(tx.Data()) {
@@ -662,7 +660,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 			return errors.New("Dcrm Validate fail.")
 		    }
 		}
- 	}
+ 	}*/
 	//+++++++++++++++++++++end++++++++++++++++++++
 
 	log.Debug("===============validateTx=============finish.")//caihaijun
@@ -670,6 +668,105 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 }
 
 //+++++++++++++caihaijun+++++++++++++++
+
+//lockin
+func (pool *TxPool) checkLockin(tx *types.Transaction) (bool,error) {
+    inputs := strings.Split(string(tx.Data()),":")
+    if len(inputs) == 0 {
+	return false,errors.New("tx input data is empty.")
+    }
+
+    hashkey := inputs[1]
+    value := inputs[2]
+    cointype := inputs[3]
+
+    if len(inputs) < 4 || hashkey == "" || value == "" || cointype == "" {
+	return false,errors.New("tx input data param error.")
+    }
+
+    if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false {
+	    return false,errors.New("coin type is not supported.")
+    }
+
+    if strings.EqualFold(cointype,"ETH") == true {
+	_, verr := strconv.ParseInt(value, 10, 64)
+	 if verr != nil {
+	    return false,errors.New("params error:value is not the right format,it must be xxx wei ")
+	 }
+    }
+
+    if strings.EqualFold(cointype,"BTC") == true {
+	amount,verr := strconv.ParseFloat(value, 64)
+	if verr != nil {
+	    return false,errors.New("params error:value is not the right format.")
+	}
+
+	if amount < 0.00000001 {
+	    return false,errors.New("value is less than 0.00000001 BTC.")
+	}
+    }
+
+    hashkeys := []rune(hashkey)
+    if  string(hashkeys[0:2]) != "0x" {
+	return false,errors.New("params error:tx hash must be start with 0x.")
+    }
+
+    from, err := types.Sender(pool.signer, tx)
+    if err != nil {
+	log.Debug("==========pool,fail:from is nil.=================")//caihaijun
+	    return false,ErrInvalidSender
+    }
+
+    ret := pool.currentState.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(cointype)),cointype)
+    if ret == "" {
+	return false,errors.New("the account has not request dcrm addr before.")
+    }
+
+    dcrmaddrs := []rune(ret)
+    if strings.EqualFold(cointype,"ETH") == true && len(dcrmaddrs) != 42 { //42 = 2 + 20*2 =====>0x + addr
+	return false,errors.New("ETH addr must start with 0x and len = 42.")
+    }
+    if strings.EqualFold(cointype,"BTC") == true && dcrm.ValidateAddress(1,ret) == false {
+	return false,errors.New("BTC dcrm addr is not the right format.")
+    }
+
+    return true,nil
+}
+
+func (pool *TxPool) validateLockin(tx *types.Transaction) (bool,error) {
+    inputs := strings.Split(string(tx.Data()),":")
+    
+    hashkey := inputs[1]
+    value := inputs[2]
+    cointype := inputs[3]
+    
+    from, err := types.Sender(pool.signer, tx)
+    if err != nil {
+	log.Debug("==========pool,fail:from is nil.=================")//caihaijun
+	    return false,ErrInvalidSender
+    }
+
+    ret := pool.currentState.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(cointype)),cointype)
+    result,err := tx.MarshalJSON()
+
+    if !dcrm.IsInGroup() {
+	msg := tx.Hash().Hex() + sep9 + string(result) + sep9 + from.Hex() + sep9 + hashkey + sep9 + value + sep9 + cointype + sep9 + ret
+	
+	_,err := dcrm.SendReqToGroup(msg,"rpc_lockin")
+	if err != nil {
+	    return false, err
+	}
+    }
+
+    v := dcrm.DcrmLockin{Tx:string(result),LockinAddr:ret,Hashkey:hashkey}
+    if _,err = dcrm.Validate_Txhash(&v);err != nil {
+	    return false, err
+    }
+
+    return true,nil 
+}
+
+//confirmaddr
 func (pool *TxPool) checkConfirmAddr(tx *types.Transaction) (bool,error) {
     inputs := strings.Split(string(tx.Data()),":")
     if len(inputs) == 0 {
@@ -751,6 +848,7 @@ func (pool *TxPool) validateConfirmAddr(tx *types.Transaction) (bool,error) {
     return true,nil 
 }
 
+///////
 func (pool *TxPool) validateDcrm(tx *types.Transaction) (bool,error) {
     inputs := strings.Split(string(tx.Data()),":")
     if len(inputs) == 0 {
@@ -771,6 +869,20 @@ func (pool *TxPool) validateDcrm(tx *types.Transaction) (bool,error) {
 	}
     }
 	
+    if inputs[0] == "LOCKIN" {
+	b,err := pool.checkLockin(tx)
+	if b == false || err != nil {
+	    log.Debug("check lockin fail.")
+	    return false,errors.New("check lockin fail.")
+	}
+
+	b,err = pool.validateLockin(tx)
+	if b == false || err != nil {
+	    log.Debug("validate lockin fail.")
+	    return false,errors.New("validate lockin fail.")
+	}
+    }
+    
     return true,nil
 }
 //++++++++++++++++++end++++++++++++++++
