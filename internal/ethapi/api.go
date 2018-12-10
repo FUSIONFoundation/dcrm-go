@@ -1352,29 +1352,29 @@ func (s *PublicFsnAPI) DcrmSendTransaction(ctx context.Context,fusionto string,v
 	return "", err2
 }
 
-func (s *PublicFsnAPI) DcrmLockout(ctx context.Context,lockoutto string,value string,cointype string) (string, error) {
+func (s *PublicFsnAPI) DcrmLockout(ctx context.Context,lockoutto string,value string,cointype string) (common.Hash, error) {
 
 	log.Debug("=========================DcrmLockout=========================")
 
-	if lockoutto == "" || value == "" || cointype == "" {
+	/*if lockoutto == "" || value == "" || cointype == "" {
 	    return "param error.",nil
 	}
 
 	if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false {
 	    return "coin type is not supported.",nil
-	}
+	}*/
 
 	//from
 	cb,e := dcrm.Coinbase()
 	if e != nil {
-	    return "please create account.",nil
+	    return common.Hash{},errors.New("please create account.")
 	}
 	fusionfrom := cb.Hex()
 	if dcrm.IsValidFusionAddr(fusionfrom) == false {
-	    return "param error.fusion addr must start with 0x and len = 42.",nil
+	    return common.Hash{},errors.New("param error.fusion addr must start with 0x and len = 42.")
 	}
 
-	dcrmfrom,e := s.DcrmGetAddr(ctx,fusionfrom,cointype)
+	/*dcrmfrom,e := s.DcrmGetAddr(ctx,fusionfrom,cointype)
 	if e != nil || dcrmfrom == "" {
 	    return "the coinbase account has not request dcrm addr before.",nil
 	}
@@ -1468,7 +1468,7 @@ func (s *PublicFsnAPI) DcrmLockout(ctx context.Context,lockoutto string,value st
 	}
 
 	realfusionfrom := "xxxx"
-	realdcrmfrom := "xxxx"
+	realdcrmfrom := "xxxx"*/
 
 	//
 	fromaddr,_ := new(big.Int).SetString(fusionfrom,0)
@@ -1501,12 +1501,12 @@ func (s *PublicFsnAPI) DcrmLockout(ctx context.Context,lockoutto string,value st
 
 	wallet, err := s.b.AccountManager().Find(account)
 	if err != nil {
-		return "", err
+		return common.Hash{}, err
 	}
 
 	// Set some sanity defaults and terminate on failure
 	if err := args.setDefaults(ctx, s.b); err != nil {
-		return "", err
+		return common.Hash{}, err
 	}
 	// Assemble the transaction and sign with the wallet
 	tx := args.toTransaction()
@@ -1517,10 +1517,11 @@ func (s *PublicFsnAPI) DcrmLockout(ctx context.Context,lockoutto string,value st
 	}
 	signed, err := wallet.SignTx(account, tx, chainID)
 	if err != nil {
-		return "", err
+		return common.Hash{}, err
 	}
 	
-	result,_ := signed.MarshalJSON()
+	return submitTransaction(ctx, s.b, signed)
+	/*result,_ := signed.MarshalJSON()
 	////////////////////////
 
 	if !dcrm.IsInGroup() {
@@ -1567,7 +1568,7 @@ func (s *PublicFsnAPI) DcrmLockout(ctx context.Context,lockoutto string,value st
 	    return signtx.Hash().Hex(),nil
 	}
 
-	return "",err2
+	return "",err2*/
 }
 
 //+++++++++++++++++++++end+++++++++++++++++++++

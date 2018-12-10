@@ -594,11 +594,11 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 		    ba2,_ := new(big.Int).SetString(m[2],10)
 		    b := new(big.Int).Sub(ba,ba2)
 		    bb := fmt.Sprintf("%v",b)
-		    nonce,_:= strconv.ParseInt(a.NONCE, 10, 64)
-		    nonce = nonce + 1
-		    nc := fmt.Sprintf("%v",nonce)
-		    log.Debug("==========dcrmTransaction.Run,","lockout nonce",nc,"","===============")
-		    aa := DcrmAccountData{COINTYPE:m[3],BALANCE:bb,HASHKEY:"",NONCE:nc}
+		    //nonce,_:= strconv.ParseInt(a.NONCE, 10, 64)
+		    //nonce = nonce + 1
+		    //nc := fmt.Sprintf("%v",nonce)
+		    //log.Debug("==========dcrmTransaction.Run,","lockout nonce",nc,"","===============")
+		    aa := DcrmAccountData{COINTYPE:m[3],BALANCE:bb,HASHKEY:"",NONCE:"0"}
 		    result, err := json.Marshal(&aa)
 		    if err == nil {
 			evm.StateDB.SetStateDcrmAccountData(from,key,result)
@@ -610,11 +610,11 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 		    ba2,_ := strconv.ParseFloat(m[2], 64)
 		    b := ba - ba2
 		    bb := strconv.FormatFloat(b, 'f', -1, 64)
-		    nonce,_:= strconv.ParseInt(a.NONCE, 10, 64)
-		    nonce = nonce + 1
-		    nc := fmt.Sprintf("%v",nonce)
-		    log.Debug("==========dcrmTransaction.Run,","lockout nonce",nc,"","===============")
-		    aa := DcrmAccountData{COINTYPE:m[3],BALANCE:bb,HASHKEY:"",NONCE:nc}
+		    //nonce,_:= strconv.ParseInt(a.NONCE, 10, 64)
+		    //nonce = nonce + 1
+		    //nc := fmt.Sprintf("%v",nonce)
+		    //log.Debug("==========dcrmTransaction.Run,","lockout nonce",nc,"","===============")
+		    aa := DcrmAccountData{COINTYPE:m[3],BALANCE:bb,HASHKEY:"",NONCE:"0"}
 		    result, err := json.Marshal(&aa)
 		    if err == nil {
 			evm.StateDB.SetStateDcrmAccountData(from,key,result)

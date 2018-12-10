@@ -25,6 +25,7 @@ import (
 	"github.com/fusion/go-fusion/common"
 	"github.com/fusion/go-fusion/core/types"
 	"github.com/fusion/go-fusion/log"
+	"github.com/fusion/go-fusion/crypto/dcrm"//caihaijun
 )
 
 //+++++++++++++caihaijun++++++++++++++
@@ -215,7 +216,7 @@ func (m *txSortedMap) Ready(pool *TxPool,start uint64) types.Transactions {  //+
 	for next := (*m.index)[0]; m.index.Len() > 0 && (*m.index)[0] == next; next++ {
 
 	    tx := m.items[next]
-	    from, err := types.Sender(pool.signer,tx)
+	    _, err := types.Sender(pool.signer,tx)
 	    if err != nil {
 		    continue
 	    }
@@ -223,10 +224,20 @@ func (m *txSortedMap) Ready(pool *TxPool,start uint64) types.Transactions {  //+
 	    input := tx.Data()
 	    data := string(input)
 	    mm := strings.Split(data,":")
+	    val,ok := types.GetDcrmValidateDataKReady(tx.Hash().Hex())
 
-	    if mm[0] == "LOCKOUT" {
-		dcrmdata := types.DcrmLockOutData{From:from,Tx:*tx}
-		_,err = callDcrmLockOut(dcrmdata)
+	    if mm[0] == "LOCKIN" {
+		_,err := pool.ValidateLockin(tx)
+		if err == nil {
+		    ready = append(ready, m.items[next])
+		    m.Remove(next)
+		}
+	    } else if mm[0] == "LOCKOUT" && ok == true && val != "" {
+		result,err := tx.MarshalJSON()
+		v := dcrm.DcrmLockin{Tx:string(result),LockinAddr:mm[1],Hashkey:val}
+		_,err = dcrm.Validate_Txhash(&v)
+		//dcrmdata := types.DcrmLockOutData{From:from,Tx:*tx}
+		//_,err = callDcrmLockOut(dcrmdata)
 		if err == nil {
 		    ready = append(ready, m.items[next])
 		    m.Remove(next)

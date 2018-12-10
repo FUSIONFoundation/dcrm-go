@@ -997,7 +997,6 @@ func (self *LockoutSendMsgToDcrm) Run(workid int,ch chan interface{}) bool {
     GetEnodesInfo()
     w := non_dcrm_workers[workid]
     
-    //ss:  enode-txhash-tx-fusionfrom-dcrmfrom-realfusionfrom-realdcrmfrom-lockoutto-value-cointype-wid||rpc_lockout
     ss := cur_enode + "-" + self.Txhash + "-" + self.Tx + "-" + self.FusionFrom + "-" + self.DcrmFrom + "-" + self.RealFusionFrom + "-" + self.RealDcrmFrom + "-" + self.Lockoutto + "-" + self.Value + "-" + self.Cointype + "-" + strconv.Itoa(workid) + msgtypesep + "rpc_lockout"
     log.Debug("==========LockoutSendMsgToDcrm.run,","send data",ss,"","===============")
     p2pdcrm.SendToDcrmGroup(ss)
@@ -3081,6 +3080,14 @@ func GetDcrmAddr(hash string,cointype string) string {
 
 	    func validate_lockout(msgprex string,txhash_lockout string,lilotx string,fusionfrom string,dcrmfrom string,realfusionfrom string,realdcrmfrom string,lockoutto string,value string,cointype string,ch chan interface{}) {
 	    log.Debug("=============validate_lockout============")
+	    
+	    val,ok := types.GetDcrmValidateDataKReady(txhash_lockout)
+	    if ok == true && val != "" {
+		res := RpcDcrmRes{ret:"xxx",err:nil}
+		ch <- res
+		return
+	    }
+
 	    lockoutx := getLockoutTx(realfusionfrom,realdcrmfrom,lockoutto,value,cointype)
 	    
 	    chainID := big.NewInt(int64(CHAIN_ID))
@@ -3096,7 +3103,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 		return
 	    }
 
-	    id := getworkerid(msgprex,cur_enode)
+	    /*id := getworkerid(msgprex,cur_enode)
 	    SendMsgToDcrmGroup(msgprex + sep + ret.ret + msgtypesep + "lilodcrmsign")
 	    <-workers[id].lockout_bdcrmres
 	    answer := "pass"
@@ -3107,16 +3114,24 @@ func GetDcrmAddr(hash string,cointype string) string {
 		    answer = "no_pass"
 		    break
 		}
-	    }
+	    }*/
 
-	    lockout_tx_hash,lockout_tx,outerr := GetTxHashForLockout(realfusionfrom,realdcrmfrom,lockoutto,value,cointype,ret.ret)
+	    lockout_tx_hash,_,outerr := GetTxHashForLockout(realfusionfrom,realdcrmfrom,lockoutto,value,cointype,ret.ret)
 	    if outerr != nil {
 		res := RpcDcrmRes{ret:"",err:outerr}
 		ch <- res
 		return
 	    }
 
-	    log.Debug("==============validate_lockout,start fill dcrm pool.===================")
+	    _,failed := SendTxForLockout(realfusionfrom,realdcrmfrom,lockoutto,value,cointype,ret.ret)
+	    if failed != nil {
+		res := RpcDcrmRes{ret:"",err:failed}
+		ch <- res
+		return
+	    }
+
+	    types.SetDcrmValidateData(txhash_lockout,lockout_tx_hash)
+	    /*log.Debug("==============validate_lockout,start fill dcrm pool.===================")
 	    tmp := msgprex + sep + txhash_lockout + sep + lilotx + sep + fusionfrom + sep + dcrmfrom + sep + realfusionfrom + sep + realdcrmfrom + sep + lockoutto + sep + value + sep + cointype + sep + ret.ret
 	    cnt,_ := p2pdcrm.GetGroup()
 	    dvr := DcrmValidateRes{Txhash:lockout_tx_hash,Tx:lockout_tx,Workid:strconv.Itoa(id),Enode:cur_enode,DcrmParms:tmp,ValidateRes:answer,DcrmCnt:cnt,DcrmEnodes:"TODO"}
@@ -3158,7 +3173,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 		log.Debug("=============validate_lockout","ok == false,fill data",string(jsondvr),"","=============")
 		types.SetDcrmValidateData(lockout_tx_hash,string(jsondvr))
 		p2pdcrm.Broatcast(string(jsondvr) + msgtypesep + "lilodcrmsignres")
-	    }
+	    }*/
 	    //lock.Unlock()//bug
 
 	    res := RpcDcrmRes{ret:ret.ret,err:nil}

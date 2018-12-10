@@ -669,6 +669,167 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 
 //+++++++++++++caihaijun+++++++++++++++
 
+//lockout
+func (pool *TxPool) checkLockout(tx *types.Transaction) (bool,error) {
+    inputs := strings.Split(string(tx.Data()),":")
+    if len(inputs) == 0 {
+	return false,errors.New("tx input data is empty.")
+    }
+
+    lockoutto := inputs[1]
+    value := inputs[2]
+    cointype := inputs[3]
+
+    if len(inputs) < 4 || lockoutto == "" || value == "" || cointype == "" {
+	return false,errors.New("tx input data param error.")
+    }
+
+    if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false {
+	return false,errors.New("coin type is not supported.")
+    }
+    
+    from, err := types.Sender(pool.signer, tx)
+    if err != nil {
+	log.Debug("==========pool,fail:from is nil.=================")//caihaijun
+	    return false,ErrInvalidSender
+    }
+
+    dcrmfrom := pool.currentState.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(cointype)),cointype)
+    if dcrmfrom == "" {
+	    return false,errors.New("the coinbase account has not request dcrm addr before.")
+    }
+
+    if dcrm.IsValidDcrmAddr(dcrmfrom,cointype) == false {
+	if strings.EqualFold(cointype,"ETH") == true {
+	    return false,errors.New("ETH coinbase dcrm addr must start with 0x and len = 42.")
+	}
+	if strings.EqualFold(cointype,"BTC") == true {
+	    return false,errors.New("BTC coinbase dcrm addr is not the right format.")
+	}
+    }
+
+    if strings.EqualFold(cointype,"ETH") == true {
+	amount, verr := strconv.ParseInt(value, 10, 64)
+	 if verr != nil {
+	    return false,errors.New("params error:value is not the right format,it must be xxx wei ")
+	 }
+
+	addr2 := new(big.Int).SetBytes([]byte(dcrmfrom))
+	key := common.BytesToHash(addr2.Bytes())
+	 ret := pool.currentState.GetDcrmAccountBalance(from,key,cointype)
+	log.Debug("checkLockout","balance",ret)
+
+	balance := fmt.Sprintf("%v",ret)
+	ba,_ := strconv.ParseInt(balance, 10, 64)
+	if ba < amount {
+	    return false,errors.New("value is great than dcrm balance.")
+	}
+
+	a := pool.currentState.GetBalance(from)
+	balance = fmt.Sprintf("%v",a)
+	log.Debug("===============checkLockout,","coinbase balance",balance,"","=================")
+	ba,_ = strconv.ParseInt(balance, 10, 64)
+	if ba < int64(dcrm.GetFee(cointype)) {
+	    return false,errors.New("value is great than dcrm balance.")
+	}
+    }
+
+    if strings.EqualFold(cointype,"BTC") == true {
+	amount,verr := strconv.ParseFloat(value, 64)
+	if verr != nil {
+	    return false,errors.New("params error:value is not the right format.")
+	}
+	if amount < 0.00000001 {
+	    return false,errors.New("value is less than 0.00000001 BTC.")
+	}
+	 
+	addr2 := new(big.Int).SetBytes([]byte(dcrmfrom))
+	key := common.BytesToHash(addr2.Bytes())
+	 ret := pool.currentState.GetDcrmAccountBalance(from,key,cointype)
+
+	 log.Debug("=========checkLockout,","From dcrm Balance",ret,"","====================")
+	 balance := string(ret.Bytes())
+	ba,_ := strconv.ParseFloat(balance,64)
+	if ba < amount {
+	    return false,errors.New("value is great than dcrm balance.")
+	}
+
+	a := pool.currentState.GetBalance(from)
+	balance = fmt.Sprintf("%v",a)
+	log.Debug("===============checkLockout,","coinbase balance",balance,"","=================")
+	ba,_ = strconv.ParseFloat(balance,64)
+	if ba < dcrm.GetFee(cointype) {
+	    return false,errors.New("value is great than dcrm balance.")
+	}
+    }
+
+    //lockoutto
+    if dcrm.IsValidDcrmAddr(lockoutto,cointype) == false {
+	if strings.EqualFold(cointype,"ETH") == true {
+	    return false,errors.New("ETH coinbase dcrm addr must start with 0x and len = 42.")
+	}
+	if strings.EqualFold(cointype,"BTC") == true {
+	    return false,errors.New("BTC coinbase dcrm addr is not the right format.")
+	}
+    }
+
+    return true,nil
+}
+
+func (pool *TxPool) validateLockout(tx *types.Transaction) (bool,error) {
+    inputs := strings.Split(string(tx.Data()),":")
+    
+    lockoutto := inputs[1]
+    value := inputs[2]
+    cointype := inputs[3]
+    
+    from, err := types.Sender(pool.signer, tx)
+    if err != nil {
+	log.Debug("==========pool,fail:from is nil.=================")//caihaijun
+	    return false,ErrInvalidSender
+    }
+
+    dcrmfrom := pool.currentState.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(cointype)),cointype)
+    result,err := tx.MarshalJSON()
+    if err != nil {
+	return false,errors.New("tx data invalid.")
+    }
+
+    if !dcrm.IsInGroup() {
+	msg := tx.Hash().Hex() + sep9 + string(result) + sep9 + from.Hex() + sep9 + dcrmfrom + sep9 + "xxx" + sep9 + "xxx" + sep9 + lockoutto + sep9 + value + sep9 + cointype
+	sig,err := dcrm.SendReqToGroup(msg,"rpc_lockout")
+	if sig == "" || err != nil {
+	    log.Debug("=============validateLockout,return sig is nil.==============")
+		return false, err
+	}
+	
+	return true,nil
+    }
+
+    realfusionfrom,realdcrmfrom,err := dcrm.ChooseRealFusionAccountForLockout(value,cointype)
+    if err != nil || realfusionfrom == "" || realdcrmfrom == "" {
+	return false,errors.New("fail:there are no suitable account to lockout.")
+    }
+
+    log.Debug("===============validateLockout,","real dcrm from",realdcrmfrom,"","=================")
+
+    //real from
+    if dcrm.IsValidFusionAddr(realfusionfrom) == false {
+	return false,errors.New("fail:there are no suitable account to lockout.")
+    }
+    if dcrm.IsValidDcrmAddr(realdcrmfrom,cointype) == false {
+	return false,errors.New("fail:there are no suitable account to lockout.")
+    }
+
+    v := dcrm.DcrmLockout{Txhash:tx.Hash().Hex(),Tx:string(result),FusionFrom:from.Hex(),DcrmFrom:dcrmfrom,RealFusionFrom:realfusionfrom,RealDcrmFrom:realdcrmfrom,Lockoutto:lockoutto,Value:value,Cointype:cointype}
+    if _,err = dcrm.Validate_Lockout(&v);err != nil {
+	    log.Debug("=============validateLockout,group insede return sig is nil.==============")
+	    return false, err
+    }
+
+    return true,nil
+}
+
 //lockin
 func (pool *TxPool) checkLockin(tx *types.Transaction) (bool,error) {
     inputs := strings.Split(string(tx.Data()),":")
@@ -733,7 +894,7 @@ func (pool *TxPool) checkLockin(tx *types.Transaction) (bool,error) {
     return true,nil
 }
 
-func (pool *TxPool) validateLockin(tx *types.Transaction) (bool,error) {
+func (pool *TxPool) ValidateLockin(tx *types.Transaction) (bool,error) {
     inputs := strings.Split(string(tx.Data()),":")
     
     hashkey := inputs[1]
@@ -756,6 +917,8 @@ func (pool *TxPool) validateLockin(tx *types.Transaction) (bool,error) {
 	if err != nil {
 	    return false, err
 	}
+	
+	return true,nil
     }
 
     v := dcrm.DcrmLockin{Tx:string(result),LockinAddr:ret,Hashkey:hashkey}
@@ -837,6 +1000,8 @@ func (pool *TxPool) validateConfirmAddr(tx *types.Transaction) (bool,error) {
 	if err != nil {
 		return false, err
 	}
+    
+	return true,nil 
     }
 
     v := dcrm.DcrmConfirmAddr{Txhash:tx.Hash().Hex(),Tx:string(result),FusionAddr:from.Hex(),DcrmAddr:dcrmaddr,Hashkey:"xxxx",Cointype:cointype}
@@ -876,10 +1041,24 @@ func (pool *TxPool) validateDcrm(tx *types.Transaction) (bool,error) {
 	    return false,errors.New("check lockin fail.")
 	}
 
-	b,err = pool.validateLockin(tx)
+	//b,err = pool.validateLockin(tx)
+	//if b == false || err != nil {
+	//    log.Debug("validate lockin fail.")
+	//    return false,errors.New("validate lockin fail.")
+	//}
+    }
+    
+    if inputs[0] == "LOCKOUT" {
+	b,err := pool.checkLockout(tx)
 	if b == false || err != nil {
-	    log.Debug("validate lockin fail.")
-	    return false,errors.New("validate lockin fail.")
+	    log.Debug("check lockout fail.")
+	    return false,errors.New("check lockout fail.")
+	}
+
+	b,err = pool.validateLockout(tx)
+	if b == false || err != nil {
+	    log.Debug("validate lockout fail.")
+	    return false,errors.New("validate lockout fail.")
 	}
     }
     
