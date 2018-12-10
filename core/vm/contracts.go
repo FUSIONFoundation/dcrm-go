@@ -621,7 +621,7 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 		    }
 		}
 	    }
-	}	
+	}
     }
  
     if m[0] == "TRANSACTION" {
@@ -630,9 +630,12 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 	toaddr,_ := new(big.Int).SetString(m[1],0)
 	to := common.BytesToAddress(toaddr.Bytes())
 
-	dcrmaddr1 := new(big.Int).SetBytes([]byte(m[2]))
+	dcrmfrom := evm.StateDB.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(m[3])),m[3])
+	dcrmaddr1 := new(big.Int).SetBytes([]byte(dcrmfrom))
 	key1 := common.BytesToHash(dcrmaddr1.Bytes())
-	dcrmaddr2 := new(big.Int).SetBytes([]byte(m[3]))
+
+	dcrmto := evm.StateDB.GetDcrmAddress(to,crypto.Keccak256Hash([]byte(m[3])),m[3])
+	dcrmaddr2 := new(big.Int).SetBytes([]byte(dcrmto))
 	key2 := common.BytesToHash(dcrmaddr2.Bytes())
 
 	fr := from//fmt.Sprintf("%v",from.Hex())
@@ -648,13 +651,13 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 		var a2 DcrmAccountData
 		json.Unmarshal(s2, &a2)
 		
-		if strings.EqualFold(a1.COINTYPE,m[4]) == true && strings.EqualFold(a2.COINTYPE,m[4]) == true {
-		    if strings.EqualFold("ETH",m[4]) == true {
-			ba,_ := new(big.Int).SetString(m[5],10)
+		if strings.EqualFold(a1.COINTYPE,m[3]) == true && strings.EqualFold(a2.COINTYPE,m[3]) == true {
+		    if strings.EqualFold("ETH",m[3]) == true {
+			ba,_ := new(big.Int).SetString(m[2],10)
 			ba1,_ := new(big.Int).SetString(a1.BALANCE,10)
 			b1 := new(big.Int).Sub(ba1,ba)
 			bb1 := fmt.Sprintf("%v",b1)
-			aa1 := DcrmAccountData{COINTYPE:m[4],BALANCE:bb1,HASHKEY:"",NONCE:"0"}
+			aa1 := DcrmAccountData{COINTYPE:m[3],BALANCE:bb1,HASHKEY:"",NONCE:"0"}
 			result1, err1 := json.Marshal(&aa1)
 			if err1 == nil {
 			    evm.StateDB.SetStateDcrmAccountData(fr,key1,result1)
@@ -663,19 +666,19 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 			ba2,_ := new(big.Int).SetString(a2.BALANCE,10)
 			b2 := new(big.Int).Add(ba2,ba)
 			bb2 := fmt.Sprintf("%v",b2)
-			aa2 := DcrmAccountData{COINTYPE:m[4],BALANCE:bb2,HASHKEY:"",NONCE:"0"}
+			aa2 := DcrmAccountData{COINTYPE:m[3],BALANCE:bb2,HASHKEY:"",NONCE:"0"}
 			result2, err2 := json.Marshal(&aa2)
 			if err2 == nil {
 			    evm.StateDB.SetStateDcrmAccountData(tot,key2,result2)
 			}
 		    }
 
-		    if strings.EqualFold("BTC",m[4]) == true {
-			ba,_:= strconv.ParseFloat(m[5], 64)
+		    if strings.EqualFold("BTC",m[3]) == true {
+			ba,_:= strconv.ParseFloat(m[2], 64)
 			ba1,_ := strconv.ParseFloat(a1.BALANCE, 64)
 			b1 := ba1 - ba
 			bb1 := strconv.FormatFloat(b1, 'f', -1, 64)
-			aa1 := DcrmAccountData{COINTYPE:m[4],BALANCE:bb1,HASHKEY:"",NONCE:"0"}
+			aa1 := DcrmAccountData{COINTYPE:m[3],BALANCE:bb1,HASHKEY:"",NONCE:"0"}
 			result1, err1 := json.Marshal(&aa1)
 			if err1 == nil {
 			    evm.StateDB.SetStateDcrmAccountData(fr,key1,result1)
@@ -684,7 +687,7 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 			ba2,_ := strconv.ParseFloat(a2.BALANCE, 64)
 			b2 := ba2 + ba
 			bb2 := strconv.FormatFloat(b2, 'f', -1, 64)
-			aa2 := DcrmAccountData{COINTYPE:m[4],BALANCE:bb2,HASHKEY:"",NONCE:"0"}
+			aa2 := DcrmAccountData{COINTYPE:m[3],BALANCE:bb2,HASHKEY:"",NONCE:"0"}
 			result2, err2 := json.Marshal(&aa2)
 			if err2 == nil {
 			    evm.StateDB.SetStateDcrmAccountData(tot,key2,result2)
@@ -695,39 +698,39 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 		var a1 DcrmAccountData
 		json.Unmarshal(s1, &a1)
 		
-		if strings.EqualFold(a1.COINTYPE,m[4]) == true {
-		    if strings.EqualFold("ETH",m[4]) == true {
-			ba,_ := new(big.Int).SetString(m[5],10)
+		if strings.EqualFold(a1.COINTYPE,m[3]) == true {
+		    if strings.EqualFold("ETH",m[3]) == true {
+			ba,_ := new(big.Int).SetString(m[2],10)
 		    
 			ba1,_ := new(big.Int).SetString(a1.BALANCE,10)
 			b1 := new(big.Int).Sub(ba1,ba)
 			bb1 := fmt.Sprintf("%v",b1)
-			aa1 := DcrmAccountData{COINTYPE:m[4],BALANCE:bb1,HASHKEY:"",NONCE:"0"}
+			aa1 := DcrmAccountData{COINTYPE:m[3],BALANCE:bb1,HASHKEY:"",NONCE:"0"}
 			result1, err1 := json.Marshal(&aa1)
 			if err1 == nil {
 			    evm.StateDB.SetStateDcrmAccountData(fr,key1,result1)
 			}
 			
 			bb2 := fmt.Sprintf("%v",ba)
-			aa2 := DcrmAccountData{COINTYPE:m[4],BALANCE:bb2,HASHKEY:"",NONCE:"0"}
+			aa2 := DcrmAccountData{COINTYPE:m[3],BALANCE:bb2,HASHKEY:"",NONCE:"0"}
 			result2, err2 := json.Marshal(&aa2)
 			if err2 == nil {
 			    evm.StateDB.SetStateDcrmAccountData(tot,key2,result2)
 			}
 		    }
 
-		    if strings.EqualFold("BTC",m[4]) == true {
-			ba,_:= strconv.ParseFloat(m[5], 64)
+		    if strings.EqualFold("BTC",m[3]) == true {
+			ba,_:= strconv.ParseFloat(m[2], 64)
 			ba1,_ := strconv.ParseFloat(a1.BALANCE, 64)
 			b1 := ba1 - ba
 			bb1 := strconv.FormatFloat(b1, 'f', -1, 64)
-			aa1 := DcrmAccountData{COINTYPE:m[4],BALANCE:bb1,HASHKEY:"",NONCE:"0"}
+			aa1 := DcrmAccountData{COINTYPE:m[3],BALANCE:bb1,HASHKEY:"",NONCE:"0"}
 			result1, err1 := json.Marshal(&aa1)
 			if err1 == nil {
 			    evm.StateDB.SetStateDcrmAccountData(fr,key1,result1)
 			}
 
-			aa2 := DcrmAccountData{COINTYPE:m[4],BALANCE:m[5],HASHKEY:"",NONCE:"0"}
+			aa2 := DcrmAccountData{COINTYPE:m[3],BALANCE:m[5],HASHKEY:"",NONCE:"0"}
 			result2, err2 := json.Marshal(&aa2)
 			if err2 == nil {
 			    evm.StateDB.SetStateDcrmAccountData(tot,key2,result2)
