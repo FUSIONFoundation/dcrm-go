@@ -34,11 +34,14 @@ import (
 	"github.com/fusion/go-fusion/log"
 	"github.com/fusion/go-fusion/metrics"
 	"github.com/fusion/go-fusion/params"
+	"github.com/fusion/go-fusion/crypto/dcrm"//caihaijun
+	"github.com/fusion/go-fusion/crypto" //caihaijun
 )
 
 const (
 	// chainHeadChanSize is the size of channel listening to ChainHeadEvent.
 	chainHeadChanSize = 10
+	sep9 = "dcrmsep9" //caihaijun
 )
 
 var (
@@ -666,6 +669,112 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	return nil
 }
 
+//+++++++++++++caihaijun+++++++++++++++
+func (pool *TxPool) checkConfirmAddr(tx *types.Transaction) (bool,error) {
+    inputs := strings.Split(string(tx.Data()),":")
+    if len(inputs) == 0 {
+	return false,errors.New("tx input data is empty.")
+    }
+
+    dcrmaddr := inputs[1]
+    cointype := inputs[2]
+
+    if len(inputs) < 3 || dcrmaddr == "" || cointype == "" {
+	return false,errors.New("tx input data param error.")
+    }
+
+    if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false {
+	return false,errors.New("coin type is not supported.")
+    }
+
+    if strings.EqualFold(cointype,"BTC") == true && dcrm.ValidateAddress(1,dcrmaddr) == false {
+	return false,errors.New("dcrm addr is not the right format.")
+    }
+    
+    if strings.EqualFold(cointype,"ETH") == true {
+	dcrms := []rune(dcrmaddr)
+	if string(dcrms[0:2]) == "0x" && len(dcrms) != 42 { //42 = 2 + 20*2 =====>0x + addr
+	    return false,errors.New("param error.ETH dcrm addr must start with 0x and len = 42.")
+	}
+	if string(dcrms[0:2]) != "0x" {
+	    return false,errors.New("param error.ETH dcrm addr must start with 0x and len = 42.")
+	}
+    }
+    
+    _,ok := types.GetDcrmValidateDataKReady(dcrmaddr)
+    if ok == false {
+	    return false,errors.New("tx hash is not right or the dcrm addr is not exsit.")
+    }
+    
+    from, err := types.Sender(pool.signer, tx)
+    if err != nil {
+	log.Debug("==========pool,fail:from is nil.=================")//caihaijun
+	    return false,ErrInvalidSender
+    }
+
+    ret := pool.currentState.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(cointype)),cointype)
+    if ret != "" {
+	return false,errors.New("the account has confirmed dcrm address.")
+    }
+
+    return true,nil
+}
+
+func (pool *TxPool) validateConfirmAddr(tx *types.Transaction) (bool,error) {
+    inputs := strings.Split(string(tx.Data()),":")
+
+    dcrmaddr := inputs[1]
+    cointype := inputs[2]
+    
+    from, err := types.Sender(pool.signer, tx)
+    if err != nil {
+	log.Debug("==========pool,fail:from is nil.=================")//caihaijun
+	    return false,ErrInvalidSender
+    }
+
+    result,err := tx.MarshalJSON()
+
+    if !dcrm.IsInGroup() {
+	msg := tx.Hash().Hex() + sep9 + string(result) + sep9 + from.Hex() + sep9 + dcrmaddr + sep9 + "xxxx" + sep9 + cointype 
+	_,err = dcrm.SendReqToGroup(msg,"rpc_confirm_dcrmaddr")
+	if err != nil {
+		return false, err
+	}
+    }
+
+    v := dcrm.DcrmConfirmAddr{Txhash:tx.Hash().Hex(),Tx:string(result),FusionAddr:from.Hex(),DcrmAddr:dcrmaddr,Hashkey:"xxxx",Cointype:cointype}
+    _,err = dcrm.Dcrm_ConfirmAddr(&v)
+    if err != nil {
+	    return false, err
+    }
+
+    return true,nil 
+}
+
+func (pool *TxPool) validateDcrm(tx *types.Transaction) (bool,error) {
+    inputs := strings.Split(string(tx.Data()),":")
+    if len(inputs) == 0 {
+	return false,errors.New("tx input data is empty.")
+    }
+
+    if inputs[0] == "DCRMCONFIRMADDR" {
+	b,err := pool.checkConfirmAddr(tx)
+	if b == false || err != nil {
+	    log.Debug("check confirm addr fail.")
+	    return false,errors.New("check confirm addr fail.")
+	}
+
+	b,err = pool.validateConfirmAddr(tx)
+	if b == false || err != nil {
+	    log.Debug("validate confirm addr fail.")
+	    return false,errors.New("validate confirm addr fail.")
+	}
+    }
+	
+    return true,nil
+}
+//++++++++++++++++++end++++++++++++++++
+
 // add validates a transaction and inserts it into the non-executable queue for
 // later pending promotion and execution. If the transaction is a replacement for
 // an already pending or queued one, it overwrites the previous and returns this
@@ -683,6 +792,14 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (bool, error) {
 		log.Trace("Discarding already known transaction", "hash", hash)
 		return false, fmt.Errorf("known transaction: %x", hash)
 	}
+
+	//+++++++++++caihaijun+++++++++++++
+	if ok,verr := pool.validateDcrm(tx);ok == false || verr != nil {
+	    log.Debug("================pool.add,validate dcrm fail.==================")
+	    return false,verr
+	}
+	//++++++++++++++end++++++++++++++++
+
 	// If the transaction fails basic validation, discard it
 	if err := pool.validateTx(tx, local); err != nil {
 	    log.Debug("===========pool.add,fail: invalid transaction============")//caihaijun

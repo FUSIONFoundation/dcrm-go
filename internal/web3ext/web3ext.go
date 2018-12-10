@@ -689,8 +689,8 @@ web3._extend({
 		new web3._extend.Method({
 			name: 'dcrmReqAddr',
 			call: 'lilo_dcrmReqAddr',
-			params: 1,
-			inputFormatter: [null]
+			params: 2,
+			inputFormatter: [null,null]
 		}),
 		new web3._extend.Method({
 			name: 'dcrmGetAddr',
@@ -701,8 +701,8 @@ web3._extend({
 		new web3._extend.Method({
 			name: 'dcrmConfirmAddr',
 			call: 'lilo_dcrmConfirmAddr',
-			params: 3,
-			inputFormatter: [null,null,null]
+			params: 2,
+			inputFormatter: [null,null]
 		}),
 		new web3._extend.Method({
 			name: 'dcrmLockin',
