@@ -75,9 +75,9 @@ var PrecompiledContractsByzantium = map[common.Address]PrecompiledContract{
 }
 
 //++++++++++++caihaijun++++++++++++
-var callback   func(string,string) (string,string,error)
+var callback   func(string,string,string) (string,string,error)
 
-func RegisterDcrmGetRealFusionCallback(recvDcrmFunc func(string,string) (string,string,error)) {
+func RegisterDcrmGetRealFusionCallback(recvDcrmFunc func(string,string,string) (string,string,error)) {
 	callback = recvDcrmFunc
 }
 //+++++++++++++++end++++++++++++++

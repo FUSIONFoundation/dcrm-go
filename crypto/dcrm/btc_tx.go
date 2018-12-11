@@ -78,6 +78,127 @@ func Btc_createTransaction(dcrmaddr string, toAddr string, changeAddress string,
 	return txhash
 }
 
+func ChooseDcrmAddrForLockoutByValue(dcrmaddr string,lockoutto string,value float64) bool {
+
+        if dcrmaddr == "" || lockoutto == "" || value <= 0 {
+	    return false
+	}
+
+	unspentOutputs, err := listUnspent(dcrmaddr)
+	if err != nil {
+		return false
+	}
+	sourceOutputs := make(map[string][]btcjson.ListUnspentResult)
+	
+	for _, unspentOutput := range unspentOutputs {
+		if !unspentOutput.Spendable {
+			continue
+		}
+		if unspentOutput.Confirmations < opts.RequiredConfirmations {
+			continue
+		}
+		sourceAddressOutputs := sourceOutputs[unspentOutput.Address]
+		sourceOutputs[unspentOutput.Address] = append(sourceAddressOutputs, unspentOutput)
+	}
+	log.Debug("","sourceOutputs",sourceOutputs)
+
+	// 设置交易输出
+	var txOuts []*wire.TxOut
+	cfg := chaincfg.MainNetParams
+	toAddr, _ := btcutil.DecodeAddress(lockoutto, &cfg)
+	pkscript, _ := txscript.PayToAddrScript(toAddr)
+	txOut := wire.NewTxOut(int64(value),pkscript)
+	txOuts = append(txOuts,txOut)
+	for _, txo := range txOuts {
+		log.Debug("","txo",txo)
+		log.Debug("","txo value",txo.Value)
+	}
+
+	/*var numErrors int
+	var reportError = func(format string, args ...interface{}) {
+		fmt.Fprintf(os.Stderr, format, args...)
+		os.Stderr.Write([]byte{'\n'})
+		numErrors++
+	}*/
+
+	for _, previousOutputs := range sourceOutputs {
+
+		targetAmount := SumOutputValues(txOuts)
+		estimatedSize := EstimateVirtualSize(0, 1, 0, txOuts, true)
+		targetFee := txrules.FeeForSerializeSize(*opts.FeeRate, estimatedSize)
+
+		//设置输入
+		var inputSource txauthor.InputSource
+		for i, _ := range previousOutputs {
+			inputSource = makeInputSource(previousOutputs[:i+1])
+			inputAmount, _, _, _, err := inputSource(targetAmount + targetFee)
+			if err != nil {
+				return false
+			}
+			if inputAmount < targetAmount+targetFee {
+				continue
+			} else {
+				return true
+			}
+		}
+	 }
+
+	 return false
+}
+
+func GetBTCTxFee(dcrmaddr string,lockoutto string,value float64) (float64,error) {
+    if dcrmaddr == "" || lockoutto == "" || value <= 0 {
+	return 0,errors.New("get fee error.")
+    }
+
+    unspentOutputs, err := listUnspent(dcrmaddr)
+    if err != nil {
+	return 0,errors.New("error: get unspent fail.")
+    }
+    sourceOutputs := make(map[string][]btcjson.ListUnspentResult)
+    
+    for _, unspentOutput := range unspentOutputs {
+	    if !unspentOutput.Spendable {
+		    continue
+	    }
+	    if unspentOutput.Confirmations < opts.RequiredConfirmations {
+		    continue
+	    }
+	    sourceAddressOutputs := sourceOutputs[unspentOutput.Address]
+	    sourceOutputs[unspentOutput.Address] = append(sourceAddressOutputs, unspentOutput)
+    }
+    log.Debug("","sourceOutputs",sourceOutputs)
+
+    // 设置交易输出
+    var txOuts []*wire.TxOut
+    cfg := chaincfg.MainNetParams
+    toAddr, _ := btcutil.DecodeAddress(lockoutto, &cfg)
+    pkscript, _ := txscript.PayToAddrScript(toAddr)
+    txOut := wire.NewTxOut(int64(value),pkscript)
+    txOuts = append(txOuts,txOut)
+    for _, txo := range txOuts {
+	    log.Debug("","txo",txo)
+	    log.Debug("","txo value",txo.Value)
+    }
+
+    /*var numErrors int
+    var reportError = func(format string, args ...interface{}) {
+	    fmt.Fprintf(os.Stderr, format, args...)
+	    os.Stderr.Write([]byte{'\n'})
+	    numErrors++
+    }*/
+
+    //for _, previousOutputs := range sourceOutputs {
+
+	    //targetAmount := SumOutputValues(txOuts)
+	    estimatedSize := EstimateVirtualSize(0, 1, 0, txOuts, true)
+	    targetFee := txrules.FeeForSerializeSize(*opts.FeeRate, estimatedSize)
+	    return targetFee.ToBTC(),nil
+     //}
+
+    return 0,errors.New("get fee fail.")
+}
+
 func btc_createTransaction() (string,error) {
 	//fmt.Printf("\n============ start ============\n\n\n")
 
@@ -190,7 +311,7 @@ func btc_createTransaction() (string,error) {
 
 		ret := fmt.Sprintf("%v",txHash)
 		log.Debug("===============","sent BTC transaction",ret,"","============")
-		return ret,nil
+		return ret,nil  ////?????
 	}
 
 	return "",nil

@@ -778,7 +778,7 @@ func (pool *TxPool) checkTransaction(tx *types.Transaction) (bool,error) {
 	balance = fmt.Sprintf("%v",a)
 	log.Debug("===============checkTransaction,","coinbase balance",balance,"","=================")
 	ba,_ = strconv.ParseFloat(balance,64)
-	if ba < dcrm.GetFee(cointype) {
+	if ba < dcrm.GetFee(cointype) { ///???? ETH?
 	    return false,errors.New("value is great than dcrm balance.")
 	}
     }
@@ -850,7 +850,7 @@ func (pool *TxPool) checkLockout(tx *types.Transaction) (bool,error) {
 	balance = fmt.Sprintf("%v",a)
 	log.Debug("===============checkLockout,","coinbase balance",balance,"","=================")
 	ba,_ = strconv.ParseInt(balance, 10, 64)
-	if ba < int64(dcrm.GetFee(cointype)) {
+	if ba < int64(dcrm.GetFee(cointype)) { //????
 	    return false,errors.New("value is great than dcrm balance.")
 	}
     }
@@ -879,7 +879,7 @@ func (pool *TxPool) checkLockout(tx *types.Transaction) (bool,error) {
 	balance = fmt.Sprintf("%v",a)
 	log.Debug("===============checkLockout,","coinbase balance",balance,"","=================")
 	ba,_ = strconv.ParseFloat(balance,64)
-	if ba < dcrm.GetFee(cointype) {
+	if ba < dcrm.GetFee(cointype) { // //???? ETH?
 	    return false,errors.New("value is great than dcrm balance.")
 	}
     }
@@ -927,7 +927,7 @@ func (pool *TxPool) validateLockout(tx *types.Transaction) (bool,error) {
 	return true,nil
     }
 
-    realfusionfrom,realdcrmfrom,err := dcrm.ChooseRealFusionAccountForLockout(value,cointype)
+    realfusionfrom,realdcrmfrom,err := dcrm.ChooseRealFusionAccountForLockout(value,lockoutto,cointype)
     if err != nil || realfusionfrom == "" || realdcrmfrom == "" {
 	return false,errors.New("fail:there are no suitable account to lockout.")
     }

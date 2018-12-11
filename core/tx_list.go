@@ -22,6 +22,7 @@ import (
 	"math/big"
 	"sort"
 	"strings" //caihaijun
+	"time" //caihaijun
 	"github.com/fusion/go-fusion/common"
 	"github.com/fusion/go-fusion/core/types"
 	"github.com/fusion/go-fusion/log"
@@ -232,6 +233,10 @@ func (m *txSortedMap) Ready(pool *TxPool,start uint64) types.Transactions {  //+
 		    ready = append(ready, m.items[next])
 		    m.Remove(next)
 		}
+
+		///////////////////
+		time.Sleep(time.Duration(20)*time.Second)//tmp
+		///////////////////
 	    } else if mm[0] == "LOCKOUT" && ok == true && val != "" {
 		result,err := tx.MarshalJSON()
 		v := dcrm.DcrmLockin{Tx:string(result),LockinAddr:mm[1],Hashkey:val}
@@ -242,6 +247,10 @@ func (m *txSortedMap) Ready(pool *TxPool,start uint64) types.Transactions {  //+
 		    ready = append(ready, m.items[next])
 		    m.Remove(next)
 		}
+
+		//////////////
+		time.Sleep(time.Duration(20)*time.Second)//tmp
+		//////////////
 	    } else {
 		ready = append(ready, m.items[next])
 		m.Remove(next)
