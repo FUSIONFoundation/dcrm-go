@@ -629,10 +629,8 @@ var (
 	}
 )
 
-//gaozhengxin
 func SetDatadir (ctx *cli.Context) {
 	if path := ctx.GlobalString(DataDirFlag.Name); path != "" {
-		fmt.Printf("======================================================= gaozhengxin cmd/utils flags.go : setdatadir is %s \n=======================================================\n", path)
 	cdcrm.SetDatadir(path)
 	}
 }
