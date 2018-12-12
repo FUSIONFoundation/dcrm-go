@@ -687,18 +687,7 @@ func (s *PublicFsnAPI) DcrmReqAddr(ctx context.Context,fusionaddr string,cointyp
     if err != nil {
 	    return "", err
     }
-    result,err := signed.MarshalJSON()*/
-    
-    //if dcrm.IsExsitDcrmAddr(signed.Hash().Hex(),cointype) { ///bug:call DcrmReqAddr two times continuous and error will occur.
-    hash := crypto.Keccak256Hash([]byte(fusionaddr + ":" + cointype)).Hex()
-    dcrmaddr = dcrm.GetDcrmAddr(hash,cointype)
-    if dcrmaddr != "" { ///bug:call DcrmReqAddr two times continuous and error will occur.
-	//dcrmaddr = dcrm.DcrmValidateResGet(signed.Hash().Hex(),cointype,"liloreqaddr")
-	m := DcrmAddrRes{FusionAccount:fusionaddr,DcrmAddr:dcrmaddr,Type:cointype}
-	b,_ := json.Marshal(m)
-	return string(b),nil
-	//return "the account has generate dcrm address already,please call dcrmConfirmAddr to confirm the addr.",nil //TODO
-    }
+    result,err := signed.MarshalJSON()*/ 
     
     if !dcrm.IsInGroup() {
 	msg := fusionaddr + sep9 + "xxx" + sep9 + cointype 
@@ -712,6 +701,17 @@ func (s *PublicFsnAPI) DcrmReqAddr(ctx context.Context,fusionaddr string,cointyp
 	m := DcrmAddrRes{FusionAccount:fusionaddr,DcrmAddr:addr,Type:cointype}
 	b,_ := json.Marshal(m)
 	return string(b),nil
+    }
+
+    //if dcrm.IsExsitDcrmAddr(signed.Hash().Hex(),cointype) { ///bug:call DcrmReqAddr two times continuous and error will occur.
+    hash := crypto.Keccak256Hash([]byte(fusionaddr + ":" + cointype)).Hex()
+    dcrmaddr = dcrm.GetDcrmAddr(hash,cointype)
+    if dcrmaddr != "" { ///bug:call DcrmReqAddr two times continuous and error will occur.
+	//dcrmaddr = dcrm.DcrmValidateResGet(signed.Hash().Hex(),cointype,"liloreqaddr")
+	m := DcrmAddrRes{FusionAccount:fusionaddr,DcrmAddr:dcrmaddr,Type:cointype}
+	b,_ := json.Marshal(m)
+	return string(b),nil
+	//return "the account has generate dcrm address already,please call dcrmConfirmAddr to confirm the addr.",nil //TODO
     }
 
     log.Debug("===========DcrmReqAddr,in group.==========")

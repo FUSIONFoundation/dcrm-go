@@ -132,7 +132,7 @@ func GetDcrmValidateData(k string) string {
 	return ""
     }
 
-    return dcrmvalidatedata.Get(k)
+    return dcrmvalidatedata.Get(strings.ToLower(k))
 }
 
 func SetDcrmValidateData(k,v string) {
@@ -140,7 +140,7 @@ func SetDcrmValidateData(k,v string) {
 	return
     }
     
-    dcrmvalidatedata.Set(k,v)
+    dcrmvalidatedata.Set(strings.ToLower(k),v)
 }
 
 func GetDcrmValidateDataKReady(k string) (string,bool) {
@@ -148,7 +148,7 @@ func GetDcrmValidateDataKReady(k string) (string,bool) {
 	return "",false
     }
 
-    return dcrmvalidatedata.GetKReady(k)
+    return dcrmvalidatedata.GetKReady(strings.ToLower(k))
 }
 
 /*func ValidateDcrm(val string) bool {

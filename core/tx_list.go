@@ -237,19 +237,19 @@ func (m *txSortedMap) Ready(pool *TxPool,start uint64) types.Transactions {  //+
 		///////////////////
 		time.Sleep(time.Duration(20)*time.Second)//tmp
 		///////////////////
-	    } else if mm[0] == "LOCKOUT" && ok == true && val != "" {
-		result,err := tx.MarshalJSON()
-		v := dcrm.DcrmLockin{Tx:string(result),LockinAddr:mm[1],Hashkey:val}
-		_,err = dcrm.Validate_Txhash(&v)
-		//dcrmdata := types.DcrmLockOutData{From:from,Tx:*tx}
-		//_,err = callDcrmLockOut(dcrmdata)
-		if err == nil {
-		    ready = append(ready, m.items[next])
-		    m.Remove(next)
+	    } else if mm[0] == "LOCKOUT" {
+		if ok == true && val != "" {
+		    result,err := tx.MarshalJSON()
+		    v := dcrm.DcrmLockin{Tx:string(result),LockinAddr:mm[1],Hashkey:val}
+		    _,err = dcrm.Validate_Txhash(&v)
+		    if err == nil {
+			ready = append(ready, m.items[next])
+			m.Remove(next)
+		    }
 		}
 
 		//////////////
-		time.Sleep(time.Duration(20)*time.Second)//tmp
+		time.Sleep(time.Duration(3)*time.Second)//tmp
 		//////////////
 	    } else {
 		ready = append(ready, m.items[next])

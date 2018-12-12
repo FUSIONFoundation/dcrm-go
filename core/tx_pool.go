@@ -918,12 +918,13 @@ func (pool *TxPool) validateLockout(tx *types.Transaction) (bool,error) {
 
     if !dcrm.IsInGroup() {
 	msg := tx.Hash().Hex() + sep9 + string(result) + sep9 + from.Hex() + sep9 + dcrmfrom + sep9 + "xxx" + sep9 + "xxx" + sep9 + lockoutto + sep9 + value + sep9 + cointype
-	sig,err := dcrm.SendReqToGroup(msg,"rpc_lockout")
-	if sig == "" || err != nil {
-	    log.Debug("=============validateLockout,return sig is nil.==============")
+	lockout_hash,err := dcrm.SendReqToGroup(msg,"rpc_lockout")
+	if err != nil {
+	    log.Debug("=============validateLockout,send tx fail.==============")
 		return false, err
 	}
 	
+	types.SetDcrmValidateData(tx.Hash().Hex(),lockout_hash)//bug
 	return true,nil
     }
 
@@ -943,11 +944,13 @@ func (pool *TxPool) validateLockout(tx *types.Transaction) (bool,error) {
     }
 
     v := dcrm.DcrmLockout{Txhash:tx.Hash().Hex(),Tx:string(result),FusionFrom:from.Hex(),DcrmFrom:dcrmfrom,RealFusionFrom:realfusionfrom,RealDcrmFrom:realdcrmfrom,Lockoutto:lockoutto,Value:value,Cointype:cointype}
-    if _,err = dcrm.Validate_Lockout(&v);err != nil {
-	    log.Debug("=============validateLockout,group insede return sig is nil.==============")
+    lockout_hash,err := dcrm.Validate_Lockout(&v)
+    if err != nil {
+	    log.Debug("=============validateLockout,send tx fail.==============")
 	    return false, err
     }
 
+    types.SetDcrmValidateData(tx.Hash().Hex(),lockout_hash)//bug
     return true,nil
 }
 
@@ -1054,6 +1057,7 @@ func (pool *TxPool) ValidateLockin(tx *types.Transaction) (bool,error) {
 func (pool *TxPool) checkConfirmAddr(tx *types.Transaction) (bool,error) {
     inputs := strings.Split(string(tx.Data()),":")
     if len(inputs) == 0 {
+	log.Debug("tx input data is empty.")
 	return false,errors.New("tx input data is empty.")
     }
 
@@ -1061,31 +1065,39 @@ func (pool *TxPool) checkConfirmAddr(tx *types.Transaction) (bool,error) {
     cointype := inputs[2]
 
     if len(inputs) < 3 || dcrmaddr == "" || cointype == "" {
+	log.Debug("tx input data param error.")
 	return false,errors.New("tx input data param error.")
     }
 
     if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false {
+	log.Debug("coin type is not supported.")
 	return false,errors.New("coin type is not supported.")
     }
 
     if strings.EqualFold(cointype,"BTC") == true && dcrm.ValidateAddress(1,dcrmaddr) == false {
+	log.Debug("dcrm addr is not the right format.")
 	return false,errors.New("dcrm addr is not the right format.")
     }
     
     if strings.EqualFold(cointype,"ETH") == true {
 	dcrms := []rune(dcrmaddr)
 	if string(dcrms[0:2]) == "0x" && len(dcrms) != 42 { //42 = 2 + 20*2 =====>0x + addr
+	    log.Debug("param error.ETH dcrm addr must start with 0x and len = 42.")
 	    return false,errors.New("param error.ETH dcrm addr must start with 0x and len = 42.")
 	}
 	if string(dcrms[0:2]) != "0x" {
+	    log.Debug("param error.ETH dcrm addr must start with 0x and len = 42.")
 	    return false,errors.New("param error.ETH dcrm addr must start with 0x and len = 42.")
 	}
     }
-    
-    _,ok := types.GetDcrmValidateDataKReady(dcrmaddr)
-    if ok == false {
+   
+    log.Debug("=============","dcrmaddr",dcrmaddr,"lower",strings.ToLower(dcrmaddr),"","=============")
+    /*if dcrm.IsExsitInDb(dcrmaddr) == false {
+    //_,ok := types.GetDcrmValidateDataKReady(strings.ToLower(dcrmaddr))
+    //if ok == false {
+	    log.Debug("tx hash is not right or the dcrm addr is not exsit.")
 	    return false,errors.New("tx hash is not right or the dcrm addr is not exsit.")
-    }
+    }*/
     
     from, err := types.Sender(pool.signer, tx)
     if err != nil {
@@ -1095,6 +1107,7 @@ func (pool *TxPool) checkConfirmAddr(tx *types.Transaction) (bool,error) {
 
     ret := pool.currentState.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(cointype)),cointype)
     if ret != "" {
+	log.Debug("the account has confirmed dcrm address.")
 	return false,errors.New("the account has confirmed dcrm address.")
     }
 
@@ -1142,24 +1155,24 @@ func (pool *TxPool) validateDcrm(tx *types.Transaction) (bool,error) {
     }
 
     if inputs[0] == "DCRMCONFIRMADDR" {
-	b,err := pool.checkConfirmAddr(tx)
-	if b == false || err != nil {
+	_,err := pool.checkConfirmAddr(tx)
+	if err != nil {
 	    log.Debug("check confirm addr fail.")
-	    return false,errors.New("check confirm addr fail.")
+	    return false,err
 	}
 
-	b,err = pool.validateConfirmAddr(tx)
-	if b == false || err != nil {
+	_,err = pool.validateConfirmAddr(tx)
+	if err != nil {
 	    log.Debug("validate confirm addr fail.")
-	    return false,errors.New("validate confirm addr fail.")
+	    return false,err
 	}
     }
 	
     if inputs[0] == "LOCKIN" {
-	b,err := pool.checkLockin(tx)
-	if b == false || err != nil {
+	_,err := pool.checkLockin(tx)
+	if err != nil {
 	    log.Debug("check lockin fail.")
-	    return false,errors.New("check lockin fail.")
+	    return false,err
 	}
 
 	//b,err = pool.validateLockin(tx)
@@ -1170,30 +1183,30 @@ func (pool *TxPool) validateDcrm(tx *types.Transaction) (bool,error) {
     }
     
     if inputs[0] == "LOCKOUT" {
-	b,err := pool.checkLockout(tx)
-	if b == false || err != nil {
+	_,err := pool.checkLockout(tx)
+	if err != nil {
 	    log.Debug("check lockout fail.")
-	    return false,errors.New("check lockout fail.")
+	    return false,err
 	}
 
-	b,err = pool.validateLockout(tx)
-	if b == false || err != nil {
+	_,err = pool.validateLockout(tx)
+	if err != nil {
 	    log.Debug("validate lockout fail.")
-	    return false,errors.New("validate lockout fail.")
+	    return false,err
 	}
     }
    
     if inputs[0] == "TRANSACTION" {
-	b,err := pool.checkTransaction(tx)
-	if b == false || err != nil {
+	_,err := pool.checkTransaction(tx)
+	if err != nil {
 	    log.Debug("check transaction fail.")
-	    return false,errors.New("check transaction fail.")
+	    return false,err
 	}
 
-	b,err = pool.validateTransaction(tx)
-	if b == false || err != nil {
+	_,err = pool.validateTransaction(tx)
+	if err != nil {
 	    log.Debug("validate transaction fail.")
-	    return false,errors.New("validate transaction fail.")
+	    return false,err
 	}
     }
 
