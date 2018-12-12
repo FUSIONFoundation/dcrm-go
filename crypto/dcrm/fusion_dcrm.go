@@ -174,10 +174,12 @@ func IsExsitInDb(addr string) bool {
 		dcrmaddrs := []rune(key)
 		if len(dcrmaddrs) == 42 { //ETH
 		    if strings.EqualFold(addr,key) == true {
+			lock.Unlock()
 			return true
 		    }
 		} else { //BTC
 		    if strings.EqualFold(addr,key) == true {
+			lock.Unlock()
 			return true
 		    }
 		}
@@ -2263,6 +2265,7 @@ func IsInGroup() bool {
 	return false
     }
 
+    log.Debug("================IsInGroup start================")
     nodes := strings.Split(enode,sep2)
     for _,node := range nodes {
 	node2, _ := discover.ParseNode(node)
@@ -2271,6 +2274,7 @@ func IsInGroup() bool {
 	}
     }
 
+    log.Debug("================IsInGroup end================")
     return false
 }
 
@@ -2294,13 +2298,16 @@ func Validate_Txhash(wr WorkReq) (string,error) {
 //###############
 
 func GetDcrmAddr(hash string,cointype string) string {
+    log.Debug("================GetDcrmAddr===============")
     if hash == "" || cointype == "" {
 	return "" //error occur
     }
 
     //try to get from db
     if strings.EqualFold(cointype,"ETH") == true {
+	log.Debug("================GetDcrmAddr read db===============")
 	lock.Lock()
+	log.Debug("================GetDcrmAddr get db dir ===============")
 	dbpath := GetDbDir()
 	log.Debug("===========GetDcrmAddr,","db path",dbpath,"","===============")
 	db, err := leveldb.OpenFile(dbpath, nil) 
@@ -2332,6 +2339,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 		    if len(dcrmaddrs) == 42 { //ETH
 			//s := []string{fusionaddr,pubkey,string(ys),string(encX.Bytes()),txhash_reqaddr} ////fusionaddr ??
 			if strings.EqualFold(hash,s[4]) == true {
+			    lock.Unlock()
 			    return key
 			}
 		    } else { //BTC
@@ -2380,6 +2388,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 		    } else { //BTC
 			//s := []string{fusionaddr,pubkey,string(ys),string(encX.Bytes()),txhash_reqaddr} ////fusionaddr ??
 			if strings.EqualFold(hash,s[4]) == true {
+			    lock.Unlock()
 			    return key 
 			}
 		    }
@@ -2756,6 +2765,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 				    if len(dcrmaddrs) == 42 { //ETH
 					//s := []string{fusionaddr,pubkey,string(ys),string(encX.Bytes()),txhash_reqaddr} ////fusionaddr ??
 					if strings.EqualFold(hashkey,s[4]) == true {
+					    lock.Unlock()
 					    return key
 					}
 				    } else { //BTC
@@ -2804,6 +2814,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 				} else { //BTC
 				    //s := []string{fusionaddr,pubkey,string(ys),string(encX.Bytes()),txhash_reqaddr} ////fusionaddr ??
 				    if strings.EqualFold(hashkey,s[4]) == true {
+					lock.Unlock()
 					return key 
 				    }
 				}

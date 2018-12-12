@@ -643,9 +643,10 @@ func (s *PublicFsnAPI) DcrmReqAddr(ctx context.Context,fusionaddr string,cointyp
 	    //hashkey,e := s.DcrmGetHashKey(ctx,fusionaddr,cointype)
 	    //if hashkey != "" && e == nil {
 		//m := DcrmAddrRes{FusionAccount:fusionaddr,DcrmAddr:dcrmaddr,Txhash:hashkey,Type:cointype}
-		m := DcrmAddrRes{FusionAccount:fusionaddr,DcrmAddr:dcrmaddr,Type:cointype}
-		b,_ := json.Marshal(m)
-		return string(b),nil
+		return "the account has confirm dcrm address already.",nil
+		//m := DcrmAddrRes{FusionAccount:fusionaddr,DcrmAddr:dcrmaddr,Type:cointype}
+		//b,_ := json.Marshal(m)
+		//return string(b),nil
 	    //}
 	
 	    //return "fusion addr must start with 0x and len = 42.",nil  ???
@@ -690,6 +691,7 @@ func (s *PublicFsnAPI) DcrmReqAddr(ctx context.Context,fusionaddr string,cointyp
     result,err := signed.MarshalJSON()*/ 
     
     if !dcrm.IsInGroup() {
+	log.Debug("================DcrmReqAddr !dcrm.IsInGroup()================")
 	msg := fusionaddr + sep9 + "xxx" + sep9 + cointype 
 	addr,err := dcrm.SendReqToGroup(msg,"rpc_req_dcrmaddr")
 	if addr == "" || err != nil {
@@ -705,13 +707,15 @@ func (s *PublicFsnAPI) DcrmReqAddr(ctx context.Context,fusionaddr string,cointyp
 
     //if dcrm.IsExsitDcrmAddr(signed.Hash().Hex(),cointype) { ///bug:call DcrmReqAddr two times continuous and error will occur.
     hash := crypto.Keccak256Hash([]byte(fusionaddr + ":" + cointype)).Hex()
+    log.Debug("================DcrmReqAddr Keccak256Hash================")
     dcrmaddr = dcrm.GetDcrmAddr(hash,cointype)
+    log.Debug("================DcrmReqAddr GetDcrmAddr================")
     if dcrmaddr != "" { ///bug:call DcrmReqAddr two times continuous and error will occur.
 	//dcrmaddr = dcrm.DcrmValidateResGet(signed.Hash().Hex(),cointype,"liloreqaddr")
-	m := DcrmAddrRes{FusionAccount:fusionaddr,DcrmAddr:dcrmaddr,Type:cointype}
-	b,_ := json.Marshal(m)
-	return string(b),nil
-	//return "the account has generate dcrm address already,please call dcrmConfirmAddr to confirm the addr.",nil //TODO
+	//m := DcrmAddrRes{FusionAccount:fusionaddr,DcrmAddr:dcrmaddr,Type:cointype}
+	//b,_ := json.Marshal(m)
+	//return string(b),nil
+	return "the account has request dcrm address already.",nil //TODO
     }
 
     log.Debug("===========DcrmReqAddr,in group.==========")

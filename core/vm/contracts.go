@@ -513,7 +513,7 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 	if s == nil {
 	    log.Debug("s == nil,dcrmTransaction.Run","contract.value",contract.value)
 	    log.Debug("s == nil,dcrmTransaction.Run","BALANCE",string(contract.value.Bytes()))
-	    aa := DcrmAccountData{COINTYPE:m[3],BALANCE:m[2],HASHKEY:"",NONCE:"0"} // 1??
+	    aa := DcrmAccountData{COINTYPE:m[3],BALANCE:m[2],HASHKEY:m[1],NONCE:"0"} // 1??
 	    result, err := json.Marshal(&aa)
 	    if err == nil {
 		log.Debug("dcrmTransaction.Run","from",from,"key",key,"result",result)
@@ -537,7 +537,7 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 		    //nonce = nonce + 1
 		    //nc := fmt.Sprintf("%v",nonce)
 		    //log.Debug("==========dcrmTransaction.Run,","lockin nonce",nc,"","===============")
-		    aa := DcrmAccountData{COINTYPE:m[3],BALANCE:bb,HASHKEY:"",NONCE:"0"}
+		    aa := DcrmAccountData{COINTYPE:m[3],BALANCE:bb,HASHKEY:m[1],NONCE:"0"}
 		    result, err := json.Marshal(&aa)
 		    if err == nil {
 			evm.StateDB.SetStateDcrmAccountData(from,key,result)
@@ -553,7 +553,7 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 		    //nonce = nonce + 1
 		    //nc := fmt.Sprintf("%v",nonce)
 		    //log.Debug("==========dcrmTransaction.Run,","lockin nonce",nc,"","===============")
-		    aa := DcrmAccountData{COINTYPE:m[3],BALANCE:bb,HASHKEY:"",NONCE:"0"}
+		    aa := DcrmAccountData{COINTYPE:m[3],BALANCE:bb,HASHKEY:m[1],NONCE:"0"}
 		    result, err := json.Marshal(&aa)
 		    if err == nil {
 			evm.StateDB.SetStateDcrmAccountData(from,key,result)

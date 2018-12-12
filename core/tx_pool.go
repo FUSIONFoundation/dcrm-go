@@ -1015,6 +1015,14 @@ func (pool *TxPool) checkLockin(tx *types.Transaction) (bool,error) {
 	return false,errors.New("BTC dcrm addr is not the right format.")
     }
 
+    d := new(big.Int).SetBytes([]byte(ret))
+    key := common.BytesToHash(d.Bytes())
+
+    hk := pool.currentState.GetDcrmHashKey(from,key,cointype)
+    if strings.EqualFold(hashkey,hk) == true {
+	return false,errors.New("error: the dcrmaddr has lockin already.")
+    }
+
     return true,nil
 }
 
