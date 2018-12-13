@@ -1788,8 +1788,8 @@ func receiveSplitKey(msg interface{}){
 		tmp2 = a[0]
 		body = a[1]
 	}
-	p, _ := strconv.Atoi(strings.Split(head, "gaozhengxin")[0])
-	total, _ := strconv.Atoi(strings.Split(head, "gaozhengxin")[1])
+	p, _ := strconv.Atoi(strings.Split(head, "dcrmslash")[0])
+	total, _ := strconv.Atoi(strings.Split(head, "dcrmslash")[1])
 	parts[p] = body
 	if len(parts) == total {
 		var c string = ""
@@ -3612,7 +3612,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 		func SetUpMsgList(msg string) {
 
 		    log.Debug("==========SetUpMsgList,","receiv msg",msg,"","===================")
-		    mm := strings.Split(msg,"gaozhengxin")
+		    mm := strings.Split(msg,"dcrmslash")
 		    if len(mm) >= 2 {
 			receiveSplitKey(msg)
 			return

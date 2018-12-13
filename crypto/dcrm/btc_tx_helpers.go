@@ -4,10 +4,6 @@
 
 // Package helpers provides convenience functions to simplify wallet code.  This
 // package is intended for internal wallet use only.
-
-// Copyright 2018 The fusion-dcrm 
-//Author: gaozhengxin@fusion.org
-
 package dcrm 
 
 import (
