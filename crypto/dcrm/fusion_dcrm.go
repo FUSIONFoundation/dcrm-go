@@ -133,11 +133,16 @@ func GetChannelValue(obj interface{} ) (string,error) {
 		     ret,ok := v.(RpcDcrmRes)
 		     if ok == true {
 			     log.Debug("==========GetChannelValue,get RpcDcrmRes.ret.==============")
-			    return ret.ret,nil 
+			    //return ret.ret,nil
+			    if ret.ret != "" {
+				return ret.ret,nil
+			    } else {
+				return "",ret.err
+			    }
 		     }
 		 case <- timeout :
 		     log.Debug("==========GetChannelValue,get channel value time out.==============")
-		     return "",errors.New("get channel value time out")
+		     return "",errors.New("get rpc result time out")
 	     }
 	 case chan NodeWorkId:
 	     ch := obj.(chan NodeWorkId)
@@ -145,7 +150,7 @@ func GetChannelValue(obj interface{} ) (string,error) {
 		 case v := <- ch :
 			 return v.enode + "-" + strconv.Itoa(v.workid),nil
 		 case <- timeout :
-		     return "",errors.New("get channel value time out")
+		     return "",errors.New("get other nodes's enode and workid time out")
 	     }
 	 case chan string:
 	     ch := obj.(chan string)
@@ -1259,6 +1264,10 @@ func (self *ConfirmAddrSendMsgToDcrm) Run(workid int,ch chan interface{}) bool {
     data,cherr := GetChannelValue(w.dcrmret)
     if cherr != nil {
 	log.Debug("get w.dcrmret timeout.")
+	var ret2 Err
+	ret2.info = "get dcrm return result timeout." 
+	res := RpcDcrmRes{ret:"",err:ret2}
+	ch <- res
 	return false
     }
     log.Debug("ConfirmAddrSendMsgToDcrm.Run","dcrm return data",data)
@@ -1270,7 +1279,7 @@ func (self *ConfirmAddrSendMsgToDcrm) Run(workid int,ch chan interface{}) bool {
 	if cur_enode == tmps[0] {
 	    if tmps[1] == "fail" {
 		var ret2 Err
-		ret2.info = "confirm addr fail."
+		ret2.info = tmps[3] 
 		res := RpcDcrmRes{ret:"",err:ret2}
 		ch <- res
 	    }
@@ -1308,6 +1317,10 @@ func (self *ReqAddrSendMsgToDcrm) Run(workid int,ch chan interface{}) bool {
     data,cherr := GetChannelValue(w.dcrmret)
     if cherr != nil {
 	log.Debug("get w.dcrmret timeout.")
+	var ret2 Err
+	ret2.info = "get dcrm return result timeout." 
+	res := RpcDcrmRes{ret:"",err:ret2}
+	ch <- res
 	return false
     }
     log.Debug("ReqAddrSendMsgToDcrm.Run","dcrm return data",data)
@@ -1321,18 +1334,14 @@ func (self *ReqAddrSendMsgToDcrm) Run(workid int,ch chan interface{}) bool {
 	    if tmps[2] == "fail" {
 		log.Debug("==========ReqAddrSendMsgToDcrm.Run,req addr fail========")
 		var ret2 Err
-		ret2.info = "req addr fail."
+		ret2.info = tmps[3] 
 		res := RpcDcrmRes{ret:"",err:ret2}
-		//wid,_ := strconv.Atoi(tmps[1])
-		//non_dcrm_workers[wid].ch <- res
 		ch <- res
 	    }
 	    
 	    if tmps[2] != "fail" {
 		log.Debug("ReqAddrSendMsgToDcrm.Run,req addr success","addr",tmps[2])
 		res := RpcDcrmRes{ret:tmps[2],err:nil}
-		//wid,_ := strconv.Atoi(tmps[1])
-		//non_dcrm_workers[wid].ch <- res
 		ch <- res
 	    }
 	} else {
@@ -1989,12 +1998,13 @@ func dcrmcall(msg interface{}) <-chan string {
     ch := make(chan string, 1)
     data := fmt.Sprintf("%s",msg)
     mm := strings.Split(data,msgtypesep)
+
     if len(mm) == 2 && mm[1] == "rpc_confirm_dcrmaddr" {
 	tmps := strings.Split(mm[0],"-")
 	v := DcrmConfirmAddr{Txhash:tmps[1],Tx:tmps[2],FusionAddr:tmps[3],DcrmAddr:tmps[4],Hashkey:tmps[5],Cointype:tmps[6]}
 	_,err := Dcrm_ConfirmAddr(&v)
 	if err != nil {
-	ss := tmps[0] + "-" + tmps[7] + "-" + "fail" + msgtypesep + "rpc_confirm_dcrmaddr_res"
+	ss := tmps[0] + "-" + tmps[7] + "-" + "fail" + "-" + err.Error() + msgtypesep + "rpc_confirm_dcrmaddr_res"
 
 	ch <- ss 
 	return ch
@@ -2012,9 +2022,9 @@ func dcrmcall(msg interface{}) <-chan string {
 	v := DcrmLiLoReqAddress{Fusionaddr:tmps[1],Pub:tmps[2],Cointype:tmps[3]}
 	addr,err := Dcrm_LiLoReqAddress(&v)
 	log.Debug("================dcrmcall,","ret addr",addr,"","==================")
-	if addr == "" || err != nil {
+	if err != nil {
 	    log.Debug("==========dcrmcall,req add fail.========")
-	    ss := tmps[0] + "-" + tmps[4] + "-" + "fail" + msgtypesep + "rpc_req_dcrmaddr_res"
+	    ss := tmps[0] + "-" + tmps[4] + "-" + "fail" + "-" + err.Error() + msgtypesep + "rpc_req_dcrmaddr_res"  //???? "-" == error
 
 	    ch <- ss 
 	    return ch
