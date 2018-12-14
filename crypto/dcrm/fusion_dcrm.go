@@ -4198,13 +4198,15 @@ func GetDcrmAddr(hash string,cointype string) string {
 			s,cherr := GetChannelValue(w.msg_pai1)
 			if cherr != nil {
 			    log.Debug("get w.msg_pai1 timeout.")
-			    //var ret2 Err
-			    //ret2.info = "get w.msg_pai1 timeout."
-			    //res := RpcDcrmRes{ret:"",err:ret2}
-			    //ch <- res
 			    return false
 			}
 			pai1 := strings.Split(s, sep)
+			//bug
+			if len(pai1) < 13 {
+			    log.Debug("get pai1 error.")
+			    return false
+			}
+			//bug
 			zkpz := new(big.Int).SetBytes([]byte(pai1[2]))
 			zkpu1x := new(big.Int).SetBytes([]byte(pai1[3]))
 			zkpu1y := new(big.Int).SetBytes([]byte(pai1[4]))
@@ -4231,6 +4233,12 @@ func GetDcrmAddr(hash string,cointype string) string {
 			zkpKG.s5 = zkps5
 			s = findds(s,ds[:])
 			d11 := strings.Split(s, sep)
+			//bug
+			if len(d11) < 6 {
+			    log.Debug("get d11 error.")
+			    return false
+			}
+			//bug
 			enc := new(big.Int).SetBytes([]byte(d11[3]))
 			kx := new(big.Int).SetBytes([]byte(d11[4]))
 			ky := new(big.Int).SetBytes([]byte(d11[5]))
@@ -4258,10 +4266,6 @@ func GetDcrmAddr(hash string,cointype string) string {
 			v,cherr := GetChannelValue(worker.msg_d11_4)
 			if cherr != nil {
 			    log.Debug("get worker.msg_d11_4 timeout.")
-			    //var ret2 Err
-			    //ret2.info = "get worker.msg_d11_4 timeout."
-			    //res := RpcDcrmRes{ret:"",err:ret2}
-			    //ch <- res
 			    return false
 			}
 			ds[i] = v
@@ -4272,14 +4276,16 @@ func GetDcrmAddr(hash string,cointype string) string {
 			s,cherr := GetChannelValue(worker.msg_pai11)
 			if cherr != nil {
 			    log.Debug("get worker.msg_pai11 timeout.")
-			    //var ret2 Err
-			    //ret2.info = "get worker.msg_pai11 timeout."
-			    //res := RpcDcrmRes{ret:"",err:ret2}
-			    //ch <- res
 			    return false
 			}
 			
 			pai11 := strings.Split(s, sep)
+			//bug
+			if len(pai11) < 10 {
+			    log.Debug("get pai11 error.")
+			    return false
+			}
+			//
 			zkpe := new(big.Int).SetBytes([]byte(pai11[2]))
 			zkps1 := new(big.Int).SetBytes([]byte(pai11[3]))
 			zkps2 := new(big.Int).SetBytes([]byte(pai11[4]))
@@ -4300,6 +4306,12 @@ func GetDcrmAddr(hash string,cointype string) string {
 			zkpKG.z = zkpz
 			s = findds(s,ds[:])
 			d11 := strings.Split(s, sep)
+			//bug
+			if len(d11) < 5 {
+			    log.Debug("get d11 error.")
+			    return false
+			}
+			//
 			ui := new(big.Int).SetBytes([]byte(d11[3]))
 			vi := new(big.Int).SetBytes([]byte(d11[4]))
 			//
@@ -4338,6 +4350,12 @@ func GetDcrmAddr(hash string,cointype string) string {
 			    return false
 			}
 			pai21 := strings.Split(s, sep)
+			//bug
+			if len(pai21) < 18 {
+			    log.Debug("get pai21 error.")
+			    return false
+			}
+			//
 			zkpu1_x := new(big.Int).SetBytes([]byte(pai21[2]))
 			zkpu1_y := new(big.Int).SetBytes([]byte(pai21[3]))
 			zkpu2 := new(big.Int).SetBytes([]byte(pai21[4]))
@@ -4375,6 +4393,12 @@ func GetDcrmAddr(hash string,cointype string) string {
 
 			s = findds(s,ds[:])
 			d11 := strings.Split(s, sep)
+			//bug
+			if len(d11) < 6 {
+			    log.Debug("get d11 error.")
+			    return false
+			}
+			//
 			ui := new(big.Int).SetBytes([]byte(d11[3]))
 			vi := new(big.Int).SetBytes([]byte(d11[4]))
 			wi := new(big.Int).SetBytes([]byte(d11[5]))
@@ -4432,12 +4456,24 @@ func GetDcrmAddr(hash string,cointype string) string {
 			}
 
 			c11 := strings.Split(s, sep)
+			//bug
+			if len(c11) < 4 {
+			    log.Debug("get c11 error.")
+			    return false
+			}
+			//bug
 			comm := strToPoint(c11[2]) 
 			pub := toZn(c11[3]) 
 			commitment := new(Commitment)
 			commitment.New(pub,comm)
 			s = findds(s,ds[:])
 			d11 := strings.Split(s, sep)
+			//bug
+			if len(d11) < 6 {
+			    log.Debug("get d11 error.")
+			    return false
+			}
+			//bug
 			r := toZn(d11[2])
 			aph := new(big.Int).SetBytes([]byte(d11[3]))
 			kx := new(big.Int).SetBytes([]byte(d11[4]))
@@ -4483,12 +4519,24 @@ func GetDcrmAddr(hash string,cointype string) string {
 			}
 
 			c11 := strings.Split(s, sep)
+			//bug
+			if len(c11) < 4 {
+			    log.Debug("get c11 error.")
+			    return false
+			}
+			//
 			comm := strToPoint(c11[2]) 
 			pub := toZn(c11[3]) 
 			commitment := new(Commitment)
 			commitment.New(pub,comm)
 			s = findds(s,ds[:])
 			d11 := strings.Split(s, sep)
+			//bug
+			if len(d11) < 5 {
+			    log.Debug("get d11 error.")
+			    return false
+			}
+			//
 			r := toZn(d11[2])
 			ui := new(big.Int).SetBytes([]byte(d11[3]))
 			vi := new(big.Int).SetBytes([]byte(d11[4]))
@@ -4531,12 +4579,24 @@ func CheckCmt3(msgprex string,id int) bool {
 	}
 
 	c11 := strings.Split(s, sep)
+	//bug
+	if len(c11) < 4 {
+	    log.Debug("get c11 error.")
+	    return false
+	}
+	//
 	comm := strToPoint(c11[2]) 
 	pub := toZn(c11[3]) 
 	commitment := new(Commitment)
 	commitment.New(pub,comm)
 	s = findds(s,ds[:])
 	d11 := strings.Split(s, sep)
+	//bug
+	if len(d11) < 6 {
+	    log.Debug("get d11 error.")
+	    return false
+	}
+	//
 	r := toZn(d11[2])
 	kx := new(big.Int).SetBytes([]byte(d11[3]))
 	ky := new(big.Int).SetBytes([]byte(d11[4]))
@@ -4786,7 +4846,7 @@ func KeyGenerate(msgprex string,ch chan interface{},id int) bool {
     if cherr != nil {
 	log.Debug("get w.bc1 timeout.")
 	var ret2 Err
-	ret2.info = "get w.bc1 timeout."
+	ret2.info = "get C1 timeout."
 	res := RpcDcrmRes{ret:"",err:ret2}
 	ch <- res
 	return false 
@@ -4814,7 +4874,7 @@ func KeyGenerate(msgprex string,ch chan interface{},id int) bool {
     if cherr != nil {
 	log.Debug("get w.bd1_1 timeout.")
 	var ret2 Err
-	ret2.info = "get w.bd1_1 timeout."
+	ret2.info = "get D1 timeout."
 	res := RpcDcrmRes{ret:"",err:ret2}
 	ch <- res
 	return false 
@@ -4823,7 +4883,7 @@ func KeyGenerate(msgprex string,ch chan interface{},id int) bool {
     if cherr != nil {
 	log.Debug("get w.bd1_2 timeout.")
 	var ret2 Err
-	ret2.info = "get w.bd1_2 timeout."
+	ret2.info = "get D1 timeout."
 	res := RpcDcrmRes{ret:"",err:ret2}
 	ch <- res
 	return false 
@@ -4832,7 +4892,7 @@ func KeyGenerate(msgprex string,ch chan interface{},id int) bool {
     if cherr != nil {
 	log.Debug("get w.bd1_3 timeout.")
 	var ret2 Err
-	ret2.info = "get w.bd1_3 timeout."
+	ret2.info = "get D1 timeout."
 	res := RpcDcrmRes{ret:"",err:ret2}
 	ch <- res
 	return false 
@@ -4841,7 +4901,7 @@ func KeyGenerate(msgprex string,ch chan interface{},id int) bool {
     if cherr != nil {
 	log.Debug("get w.bd1_4 timeout.")
 	var ret2 Err
-	ret2.info = "get w.bd1_4 timeout."
+	ret2.info = "get D1 timeout."
 	res := RpcDcrmRes{ret:"",err:ret2}
 	ch <- res
 	return false 
@@ -4868,7 +4928,7 @@ func KeyGenerate(msgprex string,ch chan interface{},id int) bool {
     if cherr != nil {
 	log.Debug("get w.bpai1 timeout.")
 	var ret2 Err
-	ret2.info = "get w.bpai1 timeout."
+	ret2.info = "get PAI1 timeout."
 	res := RpcDcrmRes{ret:"",err:ret2}
 	ch <- res
 	return false 
@@ -4918,7 +4978,7 @@ func KeyGenerate(msgprex string,ch chan interface{},id int) bool {
 		}
 	     case <- timeout :
 		var ret2 Err
-		ret2.info = "get channel value time out!"
+		ret2.info = "get channel value time out in KG round 3!"
 		res := RpcDcrmRes{ret:"",err:ret2}
 		ch <- res
 		return false
@@ -4942,10 +5002,6 @@ func calcPubKey(msgprex string,ys_x *big.Int,ys_y *big.Int,id int) (*big.Int,*bi
 	s,cherr := GetChannelValue(w.msg_d1_2)
 	if cherr != nil {
 	    log.Debug("get w.msg_d1_2 timeout.")
-	    //var ret2 Err
-	    //ret2.info = "get w.msg_d1_2 timeout."
-	    //res := RpcDcrmRes{ret:"",err:ret2}
-	    //ch <- res
 	    break
 	}
 	d11 := strings.Split(s, sep)
@@ -5172,7 +5228,7 @@ func Sign(msgprex string,encX *big.Int,message string,tokenType string,pkx *big.
     if cherr != nil {
 	log.Debug("get worker.bc11 timeout.")
 	var ret2 Err
-	ret2.info = "get worker.bc11 timeout."
+	ret2.info = "get C11 timeout."
 	res := RpcDcrmRes{ret:"",err:ret2}
 	ch <- res
 	return	
@@ -5202,7 +5258,7 @@ func Sign(msgprex string,encX *big.Int,message string,tokenType string,pkx *big.
     if cherr != nil {
 	log.Debug("get worker.bd11_1 timeout.")
 	var ret2 Err
-	ret2.info = "get worker.bd11_1 timeout."
+	ret2.info = "get D11 timeout."
 	res := RpcDcrmRes{ret:"",err:ret2}
 	ch <- res
 	return	
@@ -5211,7 +5267,7 @@ func Sign(msgprex string,encX *big.Int,message string,tokenType string,pkx *big.
     if cherr != nil {
 	log.Debug("get worker.bd11_2 timeout.")
 	var ret2 Err
-	ret2.info = "get worker.bd11_2 timeout."
+	ret2.info = "get D11 timeout."
 	res := RpcDcrmRes{ret:"",err:ret2}
 	ch <- res
 	return	
@@ -5220,7 +5276,7 @@ func Sign(msgprex string,encX *big.Int,message string,tokenType string,pkx *big.
     if cherr != nil {
 	log.Debug("get worker.bd11_3 timeout.")
 	var ret2 Err
-	ret2.info = "get worker.bd11_3 timeout."
+	ret2.info = "get D11 timeout."
 	res := RpcDcrmRes{ret:"",err:ret2}
 	ch <- res
 	return	
@@ -5229,7 +5285,7 @@ func Sign(msgprex string,encX *big.Int,message string,tokenType string,pkx *big.
     if cherr != nil {
 	log.Debug("get worker.bd11_4 timeout.")
 	var ret2 Err
-	ret2.info = "get worker.bd11_4 timeout."
+	ret2.info = "get D11 timeout."
 	res := RpcDcrmRes{ret:"",err:ret2}
 	ch <- res
 	return	
@@ -5238,7 +5294,7 @@ func Sign(msgprex string,encX *big.Int,message string,tokenType string,pkx *big.
     if cherr != nil {
 	log.Debug("get worker.bd11_5 timeout.")
 	var ret2 Err
-	ret2.info = "get worker.bd11_5 timeout."
+	ret2.info = "get D11 timeout."
 	res := RpcDcrmRes{ret:"",err:ret2}
 	ch <- res
 	return	
@@ -5247,7 +5303,7 @@ func Sign(msgprex string,encX *big.Int,message string,tokenType string,pkx *big.
     if cherr != nil {
 	log.Debug("get worker.bd11_6 timeout.")
 	var ret2 Err
-	ret2.info = "get worker.bd11_6 timeout."
+	ret2.info = "get D11 timeout."
 	res := RpcDcrmRes{ret:"",err:ret2}
 	ch <- res
 	return	
@@ -5271,7 +5327,7 @@ func Sign(msgprex string,encX *big.Int,message string,tokenType string,pkx *big.
     if cherr != nil {
 	log.Debug("get worker.bpai11 timeout.")
 	var ret2 Err
-	ret2.info = "get worker.bpai11 timeout."
+	ret2.info = "get PAI11 timeout."
 	res := RpcDcrmRes{ret:"",err:ret2}
 	ch <- res
 	return	
@@ -5311,7 +5367,7 @@ func Sign(msgprex string,encX *big.Int,message string,tokenType string,pkx *big.
 		}
 	     case <- timeout :
 		var ret2 Err
-		ret2.info = "get channel value time out!"
+		ret2.info = "get channel value time out in sign round 3!"
 		res := RpcDcrmRes{ret:"",err:ret2}
 		ch <- res
 		return
@@ -5368,7 +5424,7 @@ func Sign(msgprex string,encX *big.Int,message string,tokenType string,pkx *big.
     if cherr != nil {
 	log.Debug("get worker.bc21 timeout.")
 	var ret2 Err
-	ret2.info = "get worker.bc21 timeout."
+	ret2.info = "get C21 timeout."
 	res := RpcDcrmRes{ret:"",err:ret2}
 	ch <- res
 	return	
@@ -5402,7 +5458,7 @@ func Sign(msgprex string,encX *big.Int,message string,tokenType string,pkx *big.
     if cherr != nil {
 	log.Debug("get worker.bd21_1 timeout.")
 	var ret2 Err
-	ret2.info = "get worker.bd21_1 timeout."
+	ret2.info = "get D21 timeout."
 	res := RpcDcrmRes{ret:"",err:ret2}
 	ch <- res
 	return	
@@ -5411,7 +5467,7 @@ func Sign(msgprex string,encX *big.Int,message string,tokenType string,pkx *big.
     if cherr != nil {
 	log.Debug("get worker.bd21_2 timeout.")
 	var ret2 Err
-	ret2.info = "get worker.bd21_2 timeout."
+	ret2.info = "get D21 timeout."
 	res := RpcDcrmRes{ret:"",err:ret2}
 	ch <- res
 	return	
@@ -5420,7 +5476,7 @@ func Sign(msgprex string,encX *big.Int,message string,tokenType string,pkx *big.
     if cherr != nil {
 	log.Debug("get worker.bd21_3 timeout.")
 	var ret2 Err
-	ret2.info = "get worker.bd21_3 timeout."
+	ret2.info = "get D21 timeout."
 	res := RpcDcrmRes{ret:"",err:ret2}
 	ch <- res
 	return	
@@ -5429,7 +5485,7 @@ func Sign(msgprex string,encX *big.Int,message string,tokenType string,pkx *big.
     if cherr != nil {
 	log.Debug("get worker.bd21_4 timeout.")
 	var ret2 Err
-	ret2.info = "get worker.bd21_4 timeout."
+	ret2.info = "get D21 timeout."
 	res := RpcDcrmRes{ret:"",err:ret2}
 	ch <- res
 	return	
@@ -5460,7 +5516,7 @@ func Sign(msgprex string,encX *big.Int,message string,tokenType string,pkx *big.
     if cherr != nil {
 	log.Debug("get worker.bpai21 timeout.")
 	var ret2 Err
-	ret2.info = "get worker.bpai21 timeout."
+	ret2.info = "get PAI21 timeout."
 	res := RpcDcrmRes{ret:"",err:ret2}
 	ch <- res
 	return	
@@ -5502,7 +5558,7 @@ func Sign(msgprex string,encX *big.Int,message string,tokenType string,pkx *big.
 		}
 	     case <- timeout2 :
 		var ret2 Err
-		ret2.info = "get channel value2 time out!"
+		ret2.info = "get channel value time out in round 5!"
 		res := RpcDcrmRes{ret:"",err:ret2}
 		ch <- res
 		return
@@ -5534,7 +5590,7 @@ func Sign(msgprex string,encX *big.Int,message string,tokenType string,pkx *big.
     if cherr != nil {
 	log.Debug("get worker.bpaiw timeout.")
 	var ret2 Err
-	ret2.info = "get worker.bpaiw timeout."
+	ret2.info = "get PAILLIERTHREDHOLDW timeout."
 	res := RpcDcrmRes{ret:"",err:ret2}
 	ch <- res
 	return	
@@ -5549,7 +5605,7 @@ func Sign(msgprex string,encX *big.Int,message string,tokenType string,pkx *big.
 	    if cherr != nil {
 		log.Debug("get worker.msg_paiw timeout.")
 		var ret2 Err
-		ret2.info = "get worker.msg_paiw timeout."
+		ret2.info = "get PAILLIERTHREDHOLDW timeout."
 		res := RpcDcrmRes{ret:"",err:ret2}
 		ch <- res
 		return
@@ -5584,7 +5640,7 @@ func Sign(msgprex string,encX *big.Int,message string,tokenType string,pkx *big.
     if cherr != nil {
 	log.Debug("get worker.bpaienc timeout.")
 	var ret2 Err
-	ret2.info = "get worker.bpaienc timeout."
+	ret2.info = "get PAILLIERTHREDHOLDENC timeout."
 	res := RpcDcrmRes{ret:"",err:ret2}
 	ch <- res
 	return
@@ -5598,7 +5654,7 @@ func Sign(msgprex string,encX *big.Int,message string,tokenType string,pkx *big.
 	    if cherr != nil {
 		log.Debug("get worker.msg_paienc timeout.")
 		var ret2 Err
-		ret2.info = "get worker.msg_paienc timeout."
+		ret2.info = "get PAILLIERTHREDHOLDENC timeout."
 		res := RpcDcrmRes{ret:"",err:ret2}
 		ch <- res
 		return
