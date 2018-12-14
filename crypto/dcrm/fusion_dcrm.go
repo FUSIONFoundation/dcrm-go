@@ -806,7 +806,17 @@ func (self *RecvMsg) Run(workid int,ch chan interface{}) bool {
 	GetEnodesInfo()
 	sh := mm[0] 
 	shs := strings.Split(sh, "-")
+	//bug
+	if len(shs) < 2 {
+	    return false
+	}
+	//
 	en := shs[1]
+	//bug
+	if en == cur_enode && len(shs) < 6 {
+	    return false
+	}
+	//
 	if en == cur_enode {
 	    id,_ := strconv.Atoi(shs[3])
 	    id2,_ := strconv.Atoi(shs[5])
@@ -828,10 +838,16 @@ func (self *RecvMsg) Run(workid int,ch chan interface{}) bool {
 	workers[id].msgprex <- shs[0]
 	funs := strings.Split(shs[0],"-")
 	if funs[0] == "Dcrm_ReqAddress" {
+	    if len(shs) < 3 {
+		return false
+	    }
 	    workers[id].pub <- shs[1]
 	    workers[id].coint <- shs[2]
 	}
 	if funs[0] == "Dcrm_ConfirmAddr" {
+	    if len(shs) < 7 {
+		return false
+	    }
 	    vv := shs[1]
 	    workers[id].txhash_conaddr <- vv
 	    workers[id].lilotx <- shs[2]
@@ -842,17 +858,26 @@ func (self *RecvMsg) Run(workid int,ch chan interface{}) bool {
 	}
 	if funs[0] == "Dcrm_LiLoReqAddress" {
 	    log.Debug("RecvMsg.Run,Dcrm_LiLoReqAddress,real start req addr.")
+	    if len(shs) < 4 {
+		return false
+	    }
 	    workers[id].fusionaddr <- shs[1]
 	    workers[id].pub <- shs[2]
 	    workers[id].coint <- shs[3]
 	}
 	if funs[0] == "Dcrm_Sign" {
+	    if len(shs) < 5 {
+		return false
+	    }
 	    workers[id].sig <- shs[1]
 	    workers[id].txhash <- shs[2]
 	    workers[id].dcrmaddr <- shs[3]
 	    workers[id].coint <- shs[4]
 	}
 	if funs[0] == "Validate_Lockout" {
+	    if len(shs) < 10 {
+		return false
+	    }
 	    workers[id].txhash_lockout <- shs[1]
 	    workers[id].lilotx <- shs[2]
 	    workers[id].fusionfrom <- shs[3]
@@ -924,6 +949,9 @@ func (self *RecvMsg) Run(workid int,ch chan interface{}) bool {
 	workers[id].msgprex <- shs[0]
 	funs := strings.Split(shs[0],"-")
 	if funs[0] == "Validate_Txhash" {
+	    if len(shs) < 4 {
+		return false
+	    }
 	    workers[id].tx <- shs[1]
 	    workers[id].lockinaddr <- shs[2]
 	    workers[id].hashkey <- shs[3]
