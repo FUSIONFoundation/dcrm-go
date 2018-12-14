@@ -18,23 +18,21 @@ package dcrm
 
 import (
 	"context"
-	//"bufio"
 	"fmt"
+	"net"
 	"os"
 	"sync"
-	//"strings"
-	"net"
-	//"reflect"
+	"sync/atomic"
 	"time"
 
-	//"github.com/fusion/go-fusion/common"
-	//"github.com/fusion/go-fusion/crypto"
+	mapset "github.com/deckarep/golang-set"
+	"github.com/fusion/go-fusion/common"
+	"github.com/fusion/go-fusion/crypto/sha3"
+	"github.com/fusion/go-fusion/log"
 	"github.com/fusion/go-fusion/p2p"
 	"github.com/fusion/go-fusion/p2p/discover"
-	"github.com/fusion/go-fusion/rpc"
 	"github.com/fusion/go-fusion/rlp"
-	//"github.com/fusion/go-fusion/p2p/nat"
-	"github.com/fusion/go-fusion/log"
+	"github.com/fusion/go-fusion/rpc"
 )
 
 //TODO
@@ -45,6 +43,11 @@ const (
 	ProtocolVersion      = 1
 	ProtocolVersionStr   = "1"
 	NumberOfMessageCodes = 8 + iota // msgLength
+
+	maxKnownTxs = 30 // Maximum transactions hashes to keep in the known list (prevent DOS)
+
+	broatcastFailTimes = 0 //30 Redo Send times( 30 * 2s = 60 s)
+	broatcastFailOnce  = 2
 )
 
 type Dcrm struct {
@@ -88,7 +91,7 @@ func RegisterDcrmCallback(dcrmcallback func(interface{}) <-chan string) {
 func callEvent(msg string) {
 	callback(msg)
 }
-func RegisterDcrmRetCallback(dcrmcallback func(interface{})){
+func RegisterDcrmRetCallback(dcrmcallback func(interface{})) {
 	discover.RegisterDcrmRetCallback(dcrmcallback)
 }
 
@@ -98,10 +101,12 @@ type peerInfo struct {
 }
 
 type peer struct {
-	peer        *p2p.Peer
-	ws          p2p.MsgReadWriter
-	RecvMessage []string
-	peerInfo    *peerInfo
+	peer     *p2p.Peer
+	ws       p2p.MsgReadWriter
+	peerInfo *peerInfo
+
+	knownTxs  mapset.Set // Set of transaction hashes known to be known by this peer
+	queuedTxs []*Transaction
 }
 
 type Emitter struct {
@@ -138,13 +143,12 @@ func init() {
 }
 
 func (e *Emitter) addPeer(p *p2p.Peer, ws p2p.MsgReadWriter) {
-	fmt.Println("========  addPeer()  ========")
+	fmt.Println("==== addPeer() ====")
+	fmt.Printf("id: %+v ...\n", p.ID().String()[:8])
 	log.Debug("addPeer", "p: ", p, "ws: ", ws)
 	e.Lock()
 	defer e.Unlock()
-	//id := fmt.Sprintf("%x", p.ID)
-	//fmt.Printf("addpeer, id: %x\n", id)
-	e.peers[p.ID()] = &peer{ws: ws, peer: p, peerInfo: &peerInfo{int(ProtocolVersion)}}
+	e.peers[p.ID()] = &peer{ws: ws, peer: p, peerInfo: &peerInfo{int(ProtocolVersion)}, knownTxs: mapset.NewSet()}
 }
 
 // Start implements node.Service, starting the background data propagation thread
@@ -222,11 +226,8 @@ func New(cfg *Config) *Dcrm {
 func HandlePeer(peer *p2p.Peer, rw p2p.MsgReadWriter) error {
 	log.Debug("==== HandlePeer() ====\n")
 	emitter.addPeer(peer, rw)
-	//id := fmt.Sprintf("%x", peer.ID)
 	id := peer.ID()
-	//fmt.Printf("handle, id: %x\n", id)
 	log.Debug("emitter", "emitter.peers: ", emitter.peers)
-	//p2p.SendItems(rw, dcrmMsgCode, "aaaaaaaaaaaaaaaaaaa")
 	for {
 		msg, err := rw.ReadMsg()
 		log.Debug("HandlePeer", "ReadMsg", msg)
@@ -243,9 +244,11 @@ func HandlePeer(peer *p2p.Peer, rw p2p.MsgReadWriter) error {
 			err := rlp.Decode(msg.Payload, &recv)
 			log.Debug("Decode", "rlp.Decode", recv)
 			if err != nil {
-				fmt.Print("Err: decode msg err %+v\n", err)
-			}else {
+				fmt.Printf("Err: decode msg err %+v\n", err)
+			} else {
 				log.Debug("HandlePeer", "callback(msg): ", recv)
+				tx := Transaction{Payload: []byte(recv)}
+				emitter.broadcastInGroup(tx)
 				go callEvent(string(recv))
 			}
 		default:
@@ -318,37 +321,163 @@ func SendMsgToPeer(toid discover.NodeID, toaddr *net.UDPAddr, msg string) error 
 	return discover.SendMsgToPeer(toid, toaddr, msg)
 }
 
+type Transaction struct {
+	Payload []byte
+	Hash    atomic.Value
+}
+
+// broadcastInGroup will propagate a batch of message to all peers which are not known to
+// already have the given message.
+func (e *Emitter) broadcastInGroup(tx Transaction) {
+	e.Lock()
+	defer e.Unlock()
+
+	var txset = make(map[*peer][]Transaction)
+
+	// Broadcast message to a batch of peers not knowing about it
+	peers := e.peersWithoutTx(tx.hash(), true)
+	log.Debug("broadcastInGroup", "peers", peers)
+	for _, peer := range peers {
+		txset[peer] = append(txset[peer], tx)
+	}
+	log.Trace("Broadcast transaction", "hash", tx.hash(), "recipients", len(peers))
+
+	for peer, txs := range txset {
+		peer.sendTx(txs)
+	}
+}
+
+// group: true, in group
+//        false, peers
+func (e *Emitter) peersWithoutTx(hash common.Hash, group bool) []*peer {
+	list := make([]*peer, 0, len(e.peers))
+	if group == true {
+		if dcrmgroup == nil || len(dcrmgroup.group) == 0 {
+			return list
+		}
+		for _, g := range dcrmgroup.group {
+			if g.id == selfid {
+				continue
+			}
+			p := e.peers[g.id]
+			if !p.knownTxs.Contains(hash) {
+				list = append(list, p)
+			}
+		}
+	} else {
+		for _, p := range e.peers {
+			if !p.knownTxs.Contains(hash) {
+				list = append(list, p)
+			}
+		}
+	}
+	return list
+}
+
+// SendTransactions sends transactions to the peer and includes the hashes
+// in its transaction hash set for future reference.
+func (p *peer) sendTx(txs []Transaction) {
+	for _, tx := range txs {
+		if err := p2p.Send(p.ws, dcrmMsgCode, string(tx.Payload)); err == nil {
+			if len(p.queuedTxs) >= maxKnownTxs {
+				p.knownTxs.Pop()
+			}
+			p.knownTxs.Add(tx.hash())
+		}
+	}
+}
+
+// Hash hashes the RLP encoding of tx.
+// It uniquely identifies the transaction.
+func (tx *Transaction) hash() common.Hash {
+	if hash := tx.Hash.Load(); hash != nil {
+		return hash.(common.Hash)
+	}
+	v := rlpHash(tx.Payload)
+	tx.Hash.Store(v)
+	return v
+}
+
+func rlpHash(x interface{}) (h common.Hash) {
+	hw := sha3.NewKeccak256()
+	rlp.Encode(hw, x)
+	hw.Sum(h[:0])
+	return h
+}
+
 func BroatcastToGroup(msg string) {
+	emitter.Lock()
+	defer emitter.Unlock()
+
 	log.Debug("==== BroatcastToGroup() ====\n")
 	if msg == "" || emitter == nil {
 		return
 	}
-	//fmt.Printf("sendMsg: %s\n", msg)
-	emitter.Lock()
-	defer emitter.Unlock()
-	func() {
-		if dcrmgroup == nil {
-			return
+	log.Debug("BroatcastToGroup", "sendMsg", msg)
+	dcrmgroupfail := NewDcrmGroup()
+	broatcast := func(dcrmGroup *Group, fail bool) int {
+		if dcrmGroup == nil {
+			return 0
 		}
-		log.Debug("BroatcastToGroup", "group: ", dcrmgroup)
+		var ret int = 0
 		log.Debug("emitter", "peer: ", emitter)
-		for _, g := range dcrmgroup.group {
+		for _, g := range dcrmGroup.group {
 			log.Debug("group", "g: ", g)
-			if selfid == g.id {
-				continue
+			//if selfid == g.id {
+			//	continue
+			//}
+			if fail == false {
+				if dcrmgroupfail.group[g.id.String()] == nil {
+					continue
+				}
 			}
 			p := emitter.peers[g.id]
 			if p == nil {
 				log.Debug("BroatcastToGroup", "NodeID: ", g.id, "not in peers\n")
 				continue
 			}
-			log.Debug("send to node(group)", "g = ", g, "p.peer = ", p.peer)
 			if err := p2p.Send(p.ws, dcrmMsgCode, msg); err != nil {
+				log.Debug("send to node(group) failed", "g = ", g, "p.peer = ", p.peer)
 				log.Error("BroatcastToGroup", "p2p.Send err", err, "peer id", p.peer.ID())
-				continue
+				ret += 1
+				if fail == true {
+					dcrmgroupfail.group[g.id.String()] = &group{id: g.id, ip: g.ip, port: g.port, enode: g.enode}
+				}
+			} else {
+				tx := Transaction{Payload: []byte(msg)}
+				p.knownTxs.Add(tx.hash())
+				log.Debug("send to node(group) success", "g = ", g, "p.peer = ", p.peer)
+				if fail == false {
+					dcrmgroupfail.group[g.id.String()] = nil
+				}
 			}
 		}
-	}()
+		return ret
+	}
+	log.Debug("BroatcastToGroup", "group: ", dcrmgroup)
+	failret := broatcast(dcrmgroup, true)
+	if failret != 0 {
+		go func() {
+			if broatcastFailTimes == 0 {
+				return
+			}
+			log.Debug("BroatcastToGroupFail", "group: ", dcrmgroupfail)
+			var i int
+			for i = 0; i < broatcastFailTimes; i++ {
+				log.Debug("BroatcastToGroupFail", "group times", i+1)
+				if broatcast(dcrmgroupfail, false) == 0 {
+					break
+				}
+				time.Sleep(time.Duration(broatcastFailOnce) * time.Second)
+			}
+			if i > broatcastFailTimes {
+				log.Debug("BroatcastToGroupFail", "group: ", "failed")
+				log.Debug("BroatcastToGroupFail", "group: ", dcrmgroupfail)
+			} else {
+				log.Debug("BroatcastToGroupFail", "group: ", "success")
+			}
+		}()
+	}
 }
 
 func Broatcast(msg string) {
@@ -356,7 +485,7 @@ func Broatcast(msg string) {
 	if msg == "" || emitter == nil {
 		return
 	}
-	//fmt.Printf("sendMsg: %s\n", msg)
+	log.Debug("Broatcast", "sendMsg", msg)
 	emitter.Lock()
 	defer emitter.Unlock()
 	func() {
