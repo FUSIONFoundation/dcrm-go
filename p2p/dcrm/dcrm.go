@@ -223,6 +223,7 @@ func New(cfg *Config) *Dcrm {
 
 	return dcrm
 }
+
 func HandlePeer(peer *p2p.Peer, rw p2p.MsgReadWriter) error {
 	log.Debug("==== HandlePeer() ====\n")
 	emitter.addPeer(peer, rw)
@@ -359,8 +360,10 @@ func (e *Emitter) peersWithoutTx(hash common.Hash, group bool) []*peer {
 			if g.id == selfid {
 				continue
 			}
+			log.Debug("peersWithoutTx", "emitter", e)
+			log.Debug("peersWithoutTx", "g.id", g.id)
 			p := e.peers[g.id]
-			if !p.knownTxs.Contains(hash) {
+			if p != nil && !p.knownTxs.Contains(hash) {
 				list = append(list, p)
 			}
 		}
