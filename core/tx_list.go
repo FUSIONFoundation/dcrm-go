@@ -22,11 +22,11 @@ import (
 	"math/big"
 	"sort"
 	"strings" //caihaijun
-	"time" //caihaijun
+	//"time" //caihaijun
 	"github.com/fusion/go-fusion/common"
 	"github.com/fusion/go-fusion/core/types"
 	"github.com/fusion/go-fusion/log"
-	"github.com/fusion/go-fusion/crypto/dcrm"//caihaijun
+	//"github.com/fusion/go-fusion/crypto/dcrm"//caihaijun
 )
 
 //+++++++++++++caihaijun++++++++++++++
@@ -235,13 +235,15 @@ func (m *txSortedMap) Ready(pool *TxPool,start uint64) types.Transactions {  //+
 		}
 
 		///////////////////
-		time.Sleep(time.Duration(20)*time.Second)//tmp
+		//time.Sleep(time.Duration(2)*time.Second)//tmp
 		///////////////////
 	    } else if mm[0] == "LOCKOUT" {
 		if ok == true && val != "" {
-		    result,err := tx.MarshalJSON()
-		    v := dcrm.DcrmLockin{Tx:string(result),LockinAddr:mm[1],Hashkey:val}
-		    _,err = dcrm.Validate_Txhash(&v)
+		    log.Debug("=======txpool.ready,get lockout hash in outside======")
+		    //result,err := tx.MarshalJSON()
+		    //v := dcrm.DcrmLockin{Tx:string(result),LockinAddr:mm[1],Hashkey:val}
+		    //_,err = dcrm.Validate_Txhash(&v)
+		    _,err := pool.ValidateLockin2(tx,val)
 		    if err == nil {
 			ready = append(ready, m.items[next])
 			m.Remove(next)
@@ -249,7 +251,7 @@ func (m *txSortedMap) Ready(pool *TxPool,start uint64) types.Transactions {  //+
 		}
 
 		//////////////
-		time.Sleep(time.Duration(3)*time.Second)//tmp
+		//time.Sleep(time.Duration(3)*time.Second)//tmp
 		//////////////
 	    } else {
 		ready = append(ready, m.items[next])
