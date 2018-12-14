@@ -25,6 +25,7 @@ package discover
 import (
 	"bytes"
 	"fmt"
+	"math/rand"
 	"net"
 	"sync"
 	"time"
@@ -317,17 +318,17 @@ func SendToDcrmGroup(msg string) string {
 	}
 	ipa := &net.UDPAddr{IP: bn.IP, Port: int(bn.UDP)}
 	g := GetGroup(bn.ID, ipa, bn.ID)
-	if g == nil {
+	if g == nil || len(g) != groupnum {
 		log.Debug("SendToGroup(), group is nil\n")
 		return ""
 	}
-	for _, n := range g {
-		ipa = &net.UDPAddr{IP: n.IP, Port: int(n.UDP)}
-		ret, _ := Table4group.net.sendToGroupDCRM(n.ID, ipa, msg)
-		return ret
-	}
-	log.Debug("SendToGroup(), return nil\n")
-	return ""
+	r := rand.Intn(groupnum)
+
+	log.Debug("sendToGroupDCRM, group[%+v]: %+v\n", r, g[r])
+	n := g[r]
+	ipa = &net.UDPAddr{IP: n.IP, Port: int(n.UDP)}
+	ret, _ := Table4group.net.sendToGroupDCRM(n.ID, ipa, msg)
+	return ret
 }
 
 func GetGroup(id NodeID, addr *net.UDPAddr, target NodeID) []*Node {
@@ -358,14 +359,14 @@ func setGroup(n *Node, replace string) {
 		//if n.ID.String() == "ead5708649f3fb10343a61249ea8509b3d700f1f51270f13ecf889cdf8dafce5e7eb649df3ee872fb027b5a136e17de73965ec34c46ea8a5553b3e3150a0bf8d" ||
 		//	n.ID.String() == "bd6e097bb40944bce309f6348fe4d56ee46edbdf128cc75517df3cc586755737733c722d3279a3f37d000e26b5348c9ec9af7f5b83122d4cfd8c9ad836a0e1ee" ||
 		//	n.ID.String() == "1520992e0053bbb92179e7683b3637ea0d43bb2cd3694a94a1e90e909108421c2ce22e0abdb0a335efdd8e6391eb08ba967f641b42e4ebde39997c8ad000e8c8" {
-			//grouplist.gname = append(grouplist.gname, "dddddddddd")
-			grouplist.Nodes = append(grouplist.Nodes, nodeToRPC(n))
-			grouplist.count++
-			if changed == 0 {
-				changed = 1
-			}
-			log.Debug("group(add)", "node", n)
-			log.Debug("group", "grouplist", grouplist)
+		//grouplist.gname = append(grouplist.gname, "dddddddddd")
+		grouplist.Nodes = append(grouplist.Nodes, nodeToRPC(n))
+		grouplist.count++
+		if changed == 0 {
+			changed = 1
+		}
+		log.Debug("group(add)", "node", n)
+		log.Debug("group", "grouplist", grouplist)
 		//}
 	} else if replace == "remove" {
 		log.Debug("group remove")
@@ -509,14 +510,17 @@ func callMsgEvent(msg string) {
 
 //peer(of DCRM group) receive other peer msg to run dcrm
 var dcrmcallback func(interface{}) <-chan string
+
 func RegisterDcrmCallback(callbackfunc func(interface{}) <-chan string) {
 	dcrmcallback = callbackfunc
 }
 func calldcrmEvent(e interface{}) <-chan string {
 	return dcrmcallback(e)
 }
+
 //return
 var dcrmretcallback func(interface{})
+
 func RegisterDcrmRetCallback(callbackfunc func(interface{})) {
 	dcrmretcallback = callbackfunc
 }
