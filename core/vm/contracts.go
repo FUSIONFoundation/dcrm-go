@@ -593,12 +593,16 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 		    ba,_ := new(big.Int).SetString(a.BALANCE,10)
 		    ba2,_ := new(big.Int).SetString(m[2],10)
 		    b := new(big.Int).Sub(ba,ba2)
+		    /////sub fee
+		    ba3,_ := new(big.Int).SetString("10000000000000000",10)
+		    b = new(big.Int).Sub(b,ba3)
+		    //////
 		    bb := fmt.Sprintf("%v",b)
 		    //nonce,_:= strconv.ParseInt(a.NONCE, 10, 64)
 		    //nonce = nonce + 1
 		    //nc := fmt.Sprintf("%v",nonce)
 		    //log.Debug("==========dcrmTransaction.Run,","lockout nonce",nc,"","===============")
-		    aa := DcrmAccountData{COINTYPE:m[3],BALANCE:bb,HASHKEY:"",NONCE:"0"}
+		    aa := DcrmAccountData{COINTYPE:m[3],BALANCE:bb,HASHKEY:a.HASHKEY,NONCE:a.NONCE}
 		    result, err := json.Marshal(&aa)
 		    if err == nil {
 			evm.StateDB.SetStateDcrmAccountData(from,key,result)
@@ -609,12 +613,13 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 		    ba,_ := strconv.ParseFloat(a.BALANCE, 64)
 		    ba2,_ := strconv.ParseFloat(m[2], 64)
 		    b := ba - ba2
+		    b = b - 0.0005 //sub fee
 		    bb := strconv.FormatFloat(b, 'f', -1, 64)
 		    //nonce,_:= strconv.ParseInt(a.NONCE, 10, 64)
 		    //nonce = nonce + 1
 		    //nc := fmt.Sprintf("%v",nonce)
 		    //log.Debug("==========dcrmTransaction.Run,","lockout nonce",nc,"","===============")
-		    aa := DcrmAccountData{COINTYPE:m[3],BALANCE:bb,HASHKEY:"",NONCE:"0"}
+		    aa := DcrmAccountData{COINTYPE:m[3],BALANCE:bb,HASHKEY:a.HASHKEY,NONCE:a.NONCE}
 		    result, err := json.Marshal(&aa)
 		    if err == nil {
 			evm.StateDB.SetStateDcrmAccountData(from,key,result)
@@ -657,7 +662,7 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 			ba1,_ := new(big.Int).SetString(a1.BALANCE,10)
 			b1 := new(big.Int).Sub(ba1,ba)
 			bb1 := fmt.Sprintf("%v",b1)
-			aa1 := DcrmAccountData{COINTYPE:m[3],BALANCE:bb1,HASHKEY:"",NONCE:"0"}
+			aa1 := DcrmAccountData{COINTYPE:m[3],BALANCE:bb1,HASHKEY:a1.HASHKEY,NONCE:a1.NONCE}
 			result1, err1 := json.Marshal(&aa1)
 			if err1 == nil {
 			    evm.StateDB.SetStateDcrmAccountData(fr,key1,result1)
@@ -666,7 +671,7 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 			ba2,_ := new(big.Int).SetString(a2.BALANCE,10)
 			b2 := new(big.Int).Add(ba2,ba)
 			bb2 := fmt.Sprintf("%v",b2)
-			aa2 := DcrmAccountData{COINTYPE:m[3],BALANCE:bb2,HASHKEY:"",NONCE:"0"}
+			aa2 := DcrmAccountData{COINTYPE:m[3],BALANCE:bb2,HASHKEY:a2.HASHKEY,NONCE:a2.NONCE}
 			result2, err2 := json.Marshal(&aa2)
 			if err2 == nil {
 			    evm.StateDB.SetStateDcrmAccountData(tot,key2,result2)
@@ -678,7 +683,7 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 			ba1,_ := strconv.ParseFloat(a1.BALANCE, 64)
 			b1 := ba1 - ba
 			bb1 := strconv.FormatFloat(b1, 'f', -1, 64)
-			aa1 := DcrmAccountData{COINTYPE:m[3],BALANCE:bb1,HASHKEY:"",NONCE:"0"}
+			aa1 := DcrmAccountData{COINTYPE:m[3],BALANCE:bb1,HASHKEY:a1.HASHKEY,NONCE:a1.NONCE}
 			result1, err1 := json.Marshal(&aa1)
 			if err1 == nil {
 			    evm.StateDB.SetStateDcrmAccountData(fr,key1,result1)
@@ -687,7 +692,7 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 			ba2,_ := strconv.ParseFloat(a2.BALANCE, 64)
 			b2 := ba2 + ba
 			bb2 := strconv.FormatFloat(b2, 'f', -1, 64)
-			aa2 := DcrmAccountData{COINTYPE:m[3],BALANCE:bb2,HASHKEY:"",NONCE:"0"}
+			aa2 := DcrmAccountData{COINTYPE:m[3],BALANCE:bb2,HASHKEY:a2.HASHKEY,NONCE:a2.NONCE}
 			result2, err2 := json.Marshal(&aa2)
 			if err2 == nil {
 			    evm.StateDB.SetStateDcrmAccountData(tot,key2,result2)
@@ -705,7 +710,7 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 			ba1,_ := new(big.Int).SetString(a1.BALANCE,10)
 			b1 := new(big.Int).Sub(ba1,ba)
 			bb1 := fmt.Sprintf("%v",b1)
-			aa1 := DcrmAccountData{COINTYPE:m[3],BALANCE:bb1,HASHKEY:"",NONCE:"0"}
+			aa1 := DcrmAccountData{COINTYPE:m[3],BALANCE:bb1,HASHKEY:a1.HASHKEY,NONCE:a1.NONCE}
 			result1, err1 := json.Marshal(&aa1)
 			if err1 == nil {
 			    evm.StateDB.SetStateDcrmAccountData(fr,key1,result1)
@@ -724,7 +729,7 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 			ba1,_ := strconv.ParseFloat(a1.BALANCE, 64)
 			b1 := ba1 - ba
 			bb1 := strconv.FormatFloat(b1, 'f', -1, 64)
-			aa1 := DcrmAccountData{COINTYPE:m[3],BALANCE:bb1,HASHKEY:"",NONCE:"0"}
+			aa1 := DcrmAccountData{COINTYPE:m[3],BALANCE:bb1,HASHKEY:a1.HASHKEY,NONCE:a1.NONCE}
 			result1, err1 := json.Marshal(&aa1)
 			if err1 == nil {
 			    evm.StateDB.SetStateDcrmAccountData(fr,key1,result1)

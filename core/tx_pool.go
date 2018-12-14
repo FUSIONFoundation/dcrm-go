@@ -1026,6 +1026,39 @@ func (pool *TxPool) checkLockin(tx *types.Transaction) (bool,error) {
     return true,nil
 }
 
+func (pool *TxPool) ValidateLockin2(tx *types.Transaction,hashkey string) (bool,error) {
+    inputs := strings.Split(string(tx.Data()),":")
+    
+    value := inputs[2]
+    cointype := inputs[3]
+    
+    from, err := types.Sender(pool.signer, tx)
+    if err != nil {
+	log.Debug("==========pool,fail:from is nil.=================")//caihaijun
+	    return false,ErrInvalidSender
+    }
+
+    result,err := tx.MarshalJSON()
+
+    if !dcrm.IsInGroup() {
+	msg := tx.Hash().Hex() + sep9 + string(result) + sep9 + from.Hex() + sep9 + hashkey + sep9 + value + sep9 + cointype + sep9 + inputs[1]
+	
+	_,err := dcrm.SendReqToGroup(msg,"rpc_lockin")
+	if err != nil {
+	    return false, err
+	}
+	
+	return true,nil
+    }
+
+    v := dcrm.DcrmLockin{Tx:string(result),LockinAddr:inputs[1],Hashkey:hashkey}
+    if _,err = dcrm.Validate_Txhash(&v);err != nil {
+	    return false, err
+    }
+
+    return true,nil 
+}
+
 func (pool *TxPool) ValidateLockin(tx *types.Transaction) (bool,error) {
     inputs := strings.Split(string(tx.Data()),":")
     
