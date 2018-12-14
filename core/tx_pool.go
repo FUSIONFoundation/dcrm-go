@@ -750,7 +750,7 @@ func (pool *TxPool) checkTransaction(tx *types.Transaction) (bool,error) {
 	log.Debug("===============checkTransaction,","coinbase balance",balance,"","=================")
 	ba,_ = strconv.ParseInt(balance, 10, 64)
 	if ba < int64(dcrm.GetFee(cointype)) {
-	    return false,errors.New("value is great than dcrm balance.")
+	    return false,errors.New("value is great than gfsn balance.")
 	}
     }
 
@@ -779,7 +779,7 @@ func (pool *TxPool) checkTransaction(tx *types.Transaction) (bool,error) {
 	log.Debug("===============checkTransaction,","coinbase balance",balance,"","=================")
 	ba,_ = strconv.ParseFloat(balance,64)
 	if ba < dcrm.GetFee(cointype) { ///???? ETH?
-	    return false,errors.New("value is great than dcrm balance.")
+	    return false,errors.New("value is great than gfsn balance.")
 	}
     }
 
@@ -851,7 +851,7 @@ func (pool *TxPool) checkLockout(tx *types.Transaction) (bool,error) {
 	log.Debug("===============checkLockout,","coinbase balance",balance,"","=================")
 	ba,_ = strconv.ParseInt(balance, 10, 64)
 	if ba < int64(dcrm.GetFee(cointype)) { //????
-	    return false,errors.New("value is great than dcrm balance.")
+	    return false,errors.New("value is great than gfsn balance.")
 	}
     }
 
@@ -880,7 +880,7 @@ func (pool *TxPool) checkLockout(tx *types.Transaction) (bool,error) {
 	log.Debug("===============checkLockout,","coinbase balance",balance,"","=================")
 	ba,_ = strconv.ParseFloat(balance,64)
 	if ba < dcrm.GetFee(cointype) { // //???? ETH?
-	    return false,errors.New("value is great than dcrm balance.")
+	    return false,errors.New("value is great than gfsn balance.")
 	}
     }
 
