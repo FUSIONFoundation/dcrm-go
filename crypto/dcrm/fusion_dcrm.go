@@ -1381,6 +1381,10 @@ func (self *LockInSendMsgToDcrm) Run(workid int,ch chan interface{}) bool {
     data,cherr := GetChannelValue(w.dcrmret)
     if cherr != nil {
 	log.Debug("get w.dcrmret timeout.")
+	var ret2 Err
+	ret2.info = "get dcrm return result timeout."
+	res := RpcDcrmRes{ret:"",err:ret2}
+	ch <- res
 	return false
     }
     log.Debug("LockInSendMsgToDcrm.Run","dcrm return data",data)
@@ -1391,25 +1395,17 @@ func (self *LockInSendMsgToDcrm) Run(workid int,ch chan interface{}) bool {
 	if cur_enode == tmps[0] {
 	    if tmps[2] == "fail" {
 		var ret2 Err
-		ret2.info = "lock in fail."
+		ret2.info = tmps[3] 
 		res := RpcDcrmRes{ret:"",err:ret2}
-		//wid,_ := strconv.Atoi(tmps[1])
-		//non_dcrm_workers[wid].ch <- res
 		ch <- res
 	    }
 	    
 	    if tmps[2] == "true" {
 		res := RpcDcrmRes{ret:tmps[2],err:nil}
-		//wid,_ := strconv.Atoi(tmps[1])
-		//non_dcrm_workers[wid].ch <- res
 		ch <- res
 	    }
 	}
     }
-
-    //ret := (<- w.ch).(RpcDcrmRes)
-    //res := RpcDcrmRes{ret:ret.ret,err:ret.err}
-    //ch <- res
 
     return true
 }
@@ -1442,6 +1438,10 @@ func (self *LockoutSendMsgToDcrm) Run(workid int,ch chan interface{}) bool {
     data,cherr := GetChannelValue(w.dcrmret)
     if cherr != nil {
 	log.Debug("get w.dcrmret timeout.")
+	var ret2 Err
+	ret2.info = "get dcrm return result timeout."
+	res := RpcDcrmRes{ret:"",err:ret2}
+	ch <- res
 	return false
     }
     log.Debug("==========LockoutSendMsgToDcrm.run,","receiv data",data,"","===============")
@@ -1451,25 +1451,17 @@ func (self *LockoutSendMsgToDcrm) Run(workid int,ch chan interface{}) bool {
 	    if cur_enode == tmps[0] {
 		if tmps[2] == "fail" {
 		var ret2 Err
-		ret2.info = "lock out fail."
+		ret2.info = tmps[3] 
 		res := RpcDcrmRes{ret:"",err:ret2}
-		//wid,_ := strconv.Atoi(tmps[1])
-		//non_dcrm_workers[wid].ch <- res
 		ch <- res
 	    }
 
 	    if tmps[2] != "fail" {
 		res := RpcDcrmRes{ret:tmps[2],err:nil}
-		//wid,_ := strconv.Atoi(tmps[1])
-		//non_dcrm_workers[wid].ch <- res
 		ch <- res
 	    }
 	}
     }
-
-    //ret := (<- w.ch).(RpcDcrmRes)
-    //res := RpcDcrmRes{ret:ret.ret,err:ret.err}
-    //ch <- res
 
     return true
 }
@@ -2043,7 +2035,7 @@ func dcrmcall(msg interface{}) <-chan string {
 	v := DcrmLockin{Tx:tmps[2],LockinAddr:tmps[7],Hashkey:tmps[4]}
 	_,err := Validate_Txhash(&v)
 	if err != nil {
-	ss := tmps[0] + "-" + tmps[8] + "-" + "fail" + msgtypesep + "rpc_lockin_res"
+	ss := tmps[0] + "-" + tmps[8] + "-" + "fail" + "-" + err.Error() + msgtypesep + "rpc_lockin_res"
 	//p2pdcrm.Broatcast(ss)
 	ch <- ss 
 	return ch
@@ -2060,9 +2052,9 @@ func dcrmcall(msg interface{}) <-chan string {
 	tmps := strings.Split(mm[0],"-")
 	/////
 	realfusionfrom,realdcrmfrom,err := ChooseRealFusionAccountForLockout(tmps[8],tmps[7],tmps[9])
-	if err != nil || realfusionfrom == "" || realdcrmfrom == "" {
+	if err != nil {
 	    log.Debug("============dcrmcall,get real fusion/dcrm from fail.===========")
-	    ss := tmps[0] + "-" + tmps[10] + "-" + "fail" + msgtypesep + "rpc_lockout_res"
+	    ss := tmps[0] + "-" + tmps[10] + "-" + "fail" + "-" + err.Error() + msgtypesep + "rpc_lockout_res"
 	    ch <- ss 
 	    return ch
 	}
@@ -2070,13 +2062,13 @@ func dcrmcall(msg interface{}) <-chan string {
 	//real from
 	if IsValidFusionAddr(realfusionfrom) == false {
 	    log.Debug("============dcrmcall,validate real fusion from fail.===========")
-	    ss := tmps[0] + "-" + tmps[10] + "-" + "fail" + msgtypesep + "rpc_lockout_res"
+	    ss := tmps[0] + "-" + tmps[10] + "-" + "fail" + "-" + "can not get suitable fusion from account" + msgtypesep + "rpc_lockout_res"
 	    ch <- ss 
 	    return ch
 	}
 	if IsValidDcrmAddr(realdcrmfrom,tmps[9]) == false {
 	    log.Debug("============dcrmcall,validate real dcrm from fail.===========")
-	    ss := tmps[0] + "-" + tmps[10] + "-" + "fail" + msgtypesep + "rpc_lockout_res"
+	    ss := tmps[0] + "-" + tmps[10] + "-" + "fail" +  "-" + "can not get suitable dcrm from addr" + msgtypesep + "rpc_lockout_res"
 	    ch <- ss 
 	    return ch
 	}
@@ -2086,7 +2078,7 @@ func dcrmcall(msg interface{}) <-chan string {
 	v := DcrmLockout{Txhash:tmps[1],Tx:tmps[2],FusionFrom:tmps[3],DcrmFrom:tmps[4],RealFusionFrom:realfusionfrom,RealDcrmFrom:realdcrmfrom,Lockoutto:tmps[7],Value:tmps[8],Cointype:tmps[9]}
 	sign,err := Validate_Lockout(&v)
 	if err != nil {
-	ss := tmps[0] + "-" + tmps[10] + "-" + "fail" + msgtypesep + "rpc_lockout_res"
+	ss := tmps[0] + "-" + tmps[10] + "-" + "fail" + "-" + err.Error() + msgtypesep + "rpc_lockout_res"
 	ch <- ss 
 	return ch
     }
