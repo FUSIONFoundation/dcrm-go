@@ -498,7 +498,7 @@ var (
 	ListenPortFlag = cli.IntFlag{
 		Name:  "port",
 		Usage: "Network listening port",
-		Value: 40404,
+		Value: 40414,
 	}
 	BootnodesFlag = cli.StringFlag{
 		Name:  "bootnodes",
@@ -688,7 +688,7 @@ func setNodeUserIdent(ctx *cli.Context, cfg *node.Config) {
 // setBootstrapNodes creates a list of bootstrap nodes from the command line
 // flags, reverting to pre-configured ones if none have been specified.
 func setBootstrapNodes(ctx *cli.Context, cfg *p2p.Config) {
-	urls := params.MainnetBootnodes
+	urls := params.FsnMainnetBootnodes
 	switch {
 	case ctx.GlobalIsSet(BootnodesFlag.Name) || ctx.GlobalIsSet(BootnodesV4Flag.Name):
 		if ctx.GlobalIsSet(BootnodesV4Flag.Name) {
@@ -700,6 +700,16 @@ func setBootstrapNodes(ctx *cli.Context, cfg *p2p.Config) {
 		urls = params.TestnetBootnodes
 	case ctx.GlobalBool(RinkebyFlag.Name):
 		urls = params.RinkebyBootnodes
+	case ctx.GlobalIsSet(NetworkIdFlag.Name):
+		fsnnetworkid := ctx.GlobalUint64(NetworkIdFlag.Name)
+		log.Debug("setBootstrapNodes", "fsnnetworkid", fsnnetworkid)
+		if fsnnetworkid == 40400 {
+			urls = params.FsnMainnetBootnodes
+			log.Debug("setBootstrapNodes", "urls", urls)
+		}else if fsnnetworkid == 40410 {
+			urls = params.FsnTestnetBootnodes
+			log.Debug("setBootstrapNodes", "urls", urls)
+		}
 	case cfg.BootstrapNodes != nil:
 		return // already set, don't apply defaults.
 	}

@@ -16,11 +16,22 @@
 
 package params
 
+// FsnMainnetBootnodes are the enode URLs of the P2P bootstrap nodes running on
+// the main Fusion network.
+var FsnMainnetBootnodes = []string{
+	// Fusion Foundation Go Bootnodes
+	"enode://400e00064520714fe69ecc5bfcf11e1a3c9a975744e58253c2dcd4381b9bea1c1bdfc54eb9a20adad85fda8d00a3ff7515344d2f1251df5f9b95efeacb1357b5@54.183.185.30:40400",
+}
+
+// FsnTestnetBootnodes are the enode URLs of the P2P bootstrap nodes running on the
+// Fusion test network.
+var FsnTestnetBootnodes = []string{
+	"enode://40a66bd651fa6fb53ec5af02c17d1d57efee2ad918bda106a6a1dd61e730b331b56a43cd3b1eaedf980610b9e743dee88f38a4edb208cd22df7c9a199578a38c@47.107.50.83:40410",
+}
+
 // MainnetBootnodes are the enode URLs of the P2P bootstrap nodes running on
 // the main Ethereum network.
 var MainnetBootnodes = []string{
-	// Fusion Foundation Go Bootnodes
-	"enode://61cd0094ba2768a8ababc8570561654850bb909216aa9250b2f290116155ef587c4c19aec7cef384e1be6fe26868d43e3b102a1f713eae59411097ee2f2bde30@47.107.50.83:40401", //testnet
 	//"enode://e51d93e9c779c91065693231010d4c220bd3873e31c541535473962f3f7daaa5c46a35f867403223907fffdd01e921121f87fca8b7974928fdd3c6b73399bdfa@127.0.0.1:30301", //localhost
 
 	//"enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@52.16.188.185:30303", // IE
