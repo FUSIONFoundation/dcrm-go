@@ -248,8 +248,8 @@ func HandlePeer(peer *p2p.Peer, rw p2p.MsgReadWriter) error {
 				fmt.Printf("Err: decode msg err %+v\n", err)
 			} else {
 				log.Debug("HandlePeer", "callback(msg): ", recv)
-				tx := Transaction{Payload: []byte(recv)}
-				emitter.broadcastInGroup(tx)
+				//tx := Transaction{Payload: []byte(recv)}
+				//emitter.broadcastInGroup(tx)
 				go callEvent(string(recv))
 			}
 		default:

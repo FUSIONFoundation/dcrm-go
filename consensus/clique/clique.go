@@ -165,7 +165,8 @@ func sigHash(header *types.Header) (hash common.Hash) {
 		header.GasLimit,
 		header.GasUsed,
 		header.Time,
-		header.Extra[:len(header.Extra)-65-common.AddressLength], // Yes, this will panic if extra is too short
+		//header.Extra[:len(header.Extra)-65-common.AddressLength], // Yes, this will panic if extra is too short
+		header.Extra[:len(header.Extra)-65], // Yes, this will panic if extra is too short
 		header.MixDigest,
 		header.Nonce,
 	})
@@ -305,7 +306,8 @@ func (c *Clique) verifyHeader(chain consensus.ChainReader, header *types.Header,
 		return errMissingSignature
 	}
 	// Ensure that the extra-data contains a signer list on checkpoint, but none otherwise
-	signersBytes := len(header.Extra) - extraVanity - common.AddressLength - extraSeal
+	//signersBytes := len(header.Extra) - extraVanity - common.AddressLength - extraSeal
+	signersBytes := len(header.Extra) - extraVanity - extraSeal
 	if !checkpoint && signersBytes != 0 {
 		return errExtraSigners
 	}
@@ -564,7 +566,7 @@ func (c *Clique) Prepare(chain consensus.ChainReader, header *types.Header) erro
 			header.Extra = append(header.Extra, signer[:]...)
 		}
 	}
-	header.Extra = append(header.Extra, make([]byte, common.AddressLength)...)
+	//header.Extra = append(header.Extra, make([]byte, common.AddressLength)...)
 	header.Extra = append(header.Extra, make([]byte, extraSeal)...)
 
 	// Mix digest is reserved for now, set to empty
@@ -588,7 +590,7 @@ func (c *Clique) Finalize(chain consensus.ChainReader, header *types.Header, sta
 	// No block rewards in PoA, so the state remains as is and uncles are dropped
 	// Fsn
 	// Accumulate any block and uncle rewards and commit the final state root
-	c.accumulateRewards(chain.Config(), state, header, uncles)
+	//c.accumulateRewards(chain.Config(), state, header, uncles)
 
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
 	log.Debug("===========Clique.Finalize","header number",header.Number,"get header root ",header.Root,"","===========") //caihaijun
@@ -661,7 +663,7 @@ func (c *Clique) Seal(chain consensus.ChainReader, block *types.Block, results c
 	if err != nil {
 		return err
 	}
-	copy(header.Extra[32:], signer.Bytes()[0:common.AddressLength])
+	//copy(header.Extra[32:], signer.Bytes()[0:common.AddressLength])
 	copy(header.Extra[len(header.Extra)-extraSeal:], sighash)
 	// Wait until sealing is terminated or delay timeout.
 	log.Trace("Waiting for slot to sign and propagate", "delay", common.PrettyDuration(delay))

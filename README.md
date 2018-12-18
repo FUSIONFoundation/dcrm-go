@@ -50,18 +50,18 @@ git clone https://github.com/FUSIONFoundation/go-dcrm.git $GOPATH/src/github.com
 Once the dependencies are installed, run:
 
 ``` bash
-make gfsn
+make gdcrm
 ```
 
-When successfully building the project, the `gfsn` binary should be present in `build/bin` directory.
+When successfully building the project, the `gdcrm` binary should be present in `build/bin` directory.
 
 ## Running
 
-Currently, fusion is still in active development and a ton of work needs to be done, but we also provide the following content for these eager to do something with `gfsn`. This section won't cover all the commands, for more information, please get more from the help of  command, e.g., `gfsn help`.
+Currently, fusion is still in active development and a ton of work needs to be done, but we also provide the following content for these eager to do something with `gdcrm`. This section won't cover all the commands, for more information, please get more from the help of  command, e.g., `gdcrm help`.
 
 ```help
 USAGE:
-   gfsn [options] command [command options] [arguments...]
+   gdcrm [options] command [command options] [arguments...]
 
 COMMANDS:
    account           Manage accounts
@@ -88,17 +88,17 @@ COMMANDS:
 This command will start gofsn in fast sync mode, causing it to download block data and connect to the FUSION network:
 
 ```bash
-gfsn
+gdcrm
 ```
 
 *Note: Do not perform cross-chain transfer, swap, deposit, and lock-in operations on the main network to avoid losing your tokens, such as: btc, eth.*
 
 ### Configuration
 
-As an alternative to passing the numerous flags to the `gfsn` binary, you can also pass a configuration file via:
+As an alternative to passing the numerous flags to the `gdcrm` binary, you can also pass a configuration file via:
 
 ```bash
-gfsn --config /path/to/your_config.toml
+gdcrm --config /path/to/your_config.toml
 ```
 
 #### PoS staking config

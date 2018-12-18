@@ -48,7 +48,7 @@ import (
 )
 
 const (
-	clientIdentifier = "gfsn" // Client identifier to advertise over the network
+	clientIdentifier = "gdcrm" // Client identifier to advertise over the network
 )
 
 var (

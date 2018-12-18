@@ -25,6 +25,7 @@ package discover
 import (
 	"bytes"
 	"fmt"
+	"errors"
 	"math/rand"
 	"net"
 	"sync"
@@ -181,13 +182,14 @@ var number [3]byte
 // the node has reply.
 func (t *udp) sendToGroupDCRM(toid NodeID, toaddr *net.UDPAddr, msg string) (string, error) {
 	log.Debug("====  (t *udp) sendToGroupDCRM()  ====\n")
+	err := errors.New("")
 	retmsg := ""
 	number[0]++
 	log.Debug("sendToGroupDCRM", "send toaddr: ", toaddr)
 	if len(msg) <= 800 {
 		number[1] = 1
 		number[2] = 1
-		t.send(toaddr, getDcrmPacket, &getdcrmmessage{
+		_,err = t.send(toaddr, getDcrmPacket, &getdcrmmessage{
 			Number:     number,
 			Msg:        msg,
 			Expiration: uint64(time.Now().Add(expiration).Unix()),
@@ -204,7 +206,7 @@ func (t *udp) sendToGroupDCRM(toid NodeID, toaddr *net.UDPAddr, msg string) (str
 		log.Debug("send", "msg(> 800):", msg)
 		number[1] = 2
 		number[2] = 2
-		t.send(toaddr, getDcrmPacket, &getdcrmmessage{
+		_,err = t.send(toaddr, getDcrmPacket, &getdcrmmessage{
 			Number:     number,
 			Msg:        msg[800:],
 			Expiration: uint64(time.Now().Add(expiration).Unix()),
@@ -220,7 +222,7 @@ func (t *udp) sendToGroupDCRM(toid NodeID, toaddr *net.UDPAddr, msg string) (str
 	//})
 	//err := <-errc
 	//fmt.Printf("dcrm, retmsg: %+v\n", retmsg)
-	return retmsg, nil
+	return retmsg, err
 }
 
 func (req *getdcrmmessage) handle(t *udp, from *net.UDPAddr, fromID NodeID, mac []byte) error {
@@ -322,12 +324,32 @@ func SendToDcrmGroup(msg string) string {
 		log.Debug("SendToGroup(), group is nil\n")
 		return ""
 	}
-	r := rand.Intn(groupnum)
-
-	log.Debug("sendToGroupDCRM, group[%+v]: %+v\n", r, g[r])
-	n := g[r]
-	ipa = &net.UDPAddr{IP: n.IP, Port: int(n.UDP)}
-	ret, _ := Table4group.net.sendToGroupDCRM(n.ID, ipa, msg)
+	var sent [groupnum+1]int
+	ret := ""
+	for i := 1; i <= groupnum; {
+		r := rand.Intn(groupnum)
+		j := 1
+		for ; j < i; j++ {
+			if r+1 == sent[j] {
+				break
+			}
+		}
+		if j < i {
+			continue
+		}
+		sent[i] = r + 1
+		i += 1
+		log.Debug("sendToDcrmGroup", "group[", r, "]", g[r])
+		n := g[r]
+		ipa = &net.UDPAddr{IP: n.IP, Port: int(n.UDP)}
+		err := Table4group.net.ping(n.ID, ipa)
+		if err != nil {
+			log.Debug("sendToDcrmGroup, err", "group[", r, "]", g[r])
+			continue
+		}
+		ret, err = Table4group.net.sendToGroupDCRM(n.ID, ipa, msg)
+		break
+	}
 	return ret
 }
 
