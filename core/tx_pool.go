@@ -805,7 +805,8 @@ func (pool *TxPool) checkLockout(tx *types.Transaction) (bool,error) {
 	return false,errors.New("tx input data param error.")
     }
 
-    if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false && strings.EqualFold(cointype,"GUSD") == false && strings.EqualFold(cointype,"BNB") == false && strings.EqualFold(cointype,"MKR") == false && strings.EqualFold(cointype,"HT") == false && strings.EqualFold(cointype,"BNT") == false {
+    //if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false && strings.EqualFold(cointype,"GUSD") == false && strings.EqualFold(cointype,"BNB") == false && strings.EqualFold(cointype,"MKR") == false && strings.EqualFold(cointype,"HT") == false && strings.EqualFold(cointype,"BNT") == false {
+    if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false { //tmp  //TODO
 	return false,errors.New("coin type is not supported.")
     }
     
@@ -1060,6 +1061,7 @@ func (pool *TxPool) ValidateLockin2(tx *types.Transaction,hashkey string) (bool,
 }
 
 func (pool *TxPool) ValidateLockin(tx *types.Transaction) (bool,error) {
+	log.Debug("==========ValidateLockin.=================")//caihaijun
     inputs := strings.Split(string(tx.Data()),":")
     
     hashkey := inputs[1]
