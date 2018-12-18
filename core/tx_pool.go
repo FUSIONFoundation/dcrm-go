@@ -669,6 +669,46 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 
 //+++++++++++++caihaijun+++++++++++++++
 
+func isValidBtcValue(s string) bool {
+    if s == "" {
+	return false
+    }
+
+    i := 0
+    nums := []rune(s)
+    for k,_ := range nums {
+	if string(nums[k:k+1]) == "." {
+	    i++
+	    if k == 0 || k == (len(nums)-1) {
+		return false
+	    }
+	    if i >= 2 {
+		return false
+	    }
+
+	} else if string(nums[k:k+1]) != "0" && string(nums[k:k+1]) != "1" && string(nums[k:k+1]) != "2" && string(nums[k:k+1]) != "3" && string(nums[k:k+1]) != "4" && string(nums[k:k+1]) != "5" && string(nums[k:k+1]) != "6" && string(nums[k:k+1]) != "7" && string(nums[k:k+1]) != "8" && string(nums[k:k+1]) != "9" {
+	    return false
+	}
+    }
+
+    return true
+}
+
+func isDecimalNumber(s string) bool {
+    if s == "" {
+	return false
+    }
+
+    nums := []rune(s)
+    for k,_ := range nums {
+	if string(nums[k:k+1]) != "0" && string(nums[k:k+1]) != "1" && string(nums[k:k+1]) != "2" && string(nums[k:k+1]) != "3" && string(nums[k:k+1]) != "4" && string(nums[k:k+1]) != "5" && string(nums[k:k+1]) != "6" && string(nums[k:k+1]) != "7" && string(nums[k:k+1]) != "8" && string(nums[k:k+1]) != "9" {
+	    return false
+	}
+    }
+
+    return true
+}
+
 //transaction
 func (pool *TxPool) checkTransaction(tx *types.Transaction) (bool,error) {
     inputs := strings.Split(string(tx.Data()),":")
@@ -783,6 +823,14 @@ func (pool *TxPool) checkTransaction(tx *types.Transaction) (bool,error) {
 	}
     }
 
+    //bug
+    if strings.EqualFold(cointype,"BTC") == true && isValidBtcValue(value) == false {
+	    return false,errors.New("value is not the right format.")
+    }
+    if (strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true) && isDecimalNumber(value) == false {
+	    return false,errors.New("value is not the right format.")
+    }
+
     return true,nil
 }
 
@@ -883,6 +931,14 @@ func (pool *TxPool) checkLockout(tx *types.Transaction) (bool,error) {
 	if ba < dcrm.GetFee(cointype) { // //???? ETH?
 	    return false,errors.New("fee is great than gfsn balance.")
 	}
+    }
+
+    //bug
+    if strings.EqualFold(cointype,"BTC") == true && isValidBtcValue(value) == false {
+	    return false,errors.New("value is not the right format.")
+    }
+    if (strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true) && isDecimalNumber(value) == false {
+	    return false,errors.New("value is not the right format.")
     }
 
     //lockoutto
@@ -990,6 +1046,14 @@ func (pool *TxPool) checkLockin(tx *types.Transaction) (bool,error) {
 	if amount < 0.00000001 {
 	    return false,errors.New("value is less than 0.00000001 BTC.")
 	}
+    }
+
+    //bug
+    if strings.EqualFold(cointype,"BTC") == true && isValidBtcValue(value) == false {
+	    return false,errors.New("value is not the right format.")
+    }
+    if (strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true) && isDecimalNumber(value) == false {
+	    return false,errors.New("value is not the right format.")
     }
 
     hashkeys := []rune(hashkey)
