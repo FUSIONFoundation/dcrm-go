@@ -771,7 +771,7 @@ func (pool *TxPool) checkTransaction(tx *types.Transaction) (bool,error) {
     if strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true {
 	amount, verr := strconv.ParseInt(value, 10, 64)
 	 if verr != nil {
-	    return false,errors.New("params error:value is not the right format,it must be xxx wei ")
+	    return false,verr
 	 }
 
 	addr2 := new(big.Int).SetBytes([]byte(dcrmfrom))

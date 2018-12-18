@@ -421,7 +421,7 @@ func IsValidDcrmAddr(s string,cointype string) bool {
 	return false
     }
 
-    if strings.EqualFold(cointype,"ETH") == true && IsValidFusionAddr(s) == true { 
+    if (strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true) && IsValidFusionAddr(s) == true { 
 	return true 
     }
     if strings.EqualFold(cointype,"BTC") == true && ValidateAddress(1,s) == true {
