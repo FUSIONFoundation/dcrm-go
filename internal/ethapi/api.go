@@ -765,46 +765,6 @@ func (s *PublicFsnAPI) DcrmGetNonce(ctx context.Context,fusionaddr string,cointy
     return ret,nil
 }
 
-func isValidBtcValue(s string) bool {
-    if s == "" {
-	return false
-    }
-
-    i := 0
-    nums := []rune(s)
-    for k,_ := range nums {
-	if string(nums[k:k+1]) == "." {
-	    i++
-	    if k == 0 || k == (len(nums)-1) {
-		return false
-	    }
-	    if i >= 2 {
-		return false
-	    }
-
-	} else if string(nums[k:k+1]) != "0" && string(nums[k:k+1]) != "1" && string(nums[k:k+1]) != "2" && string(nums[k:k+1]) != "3" && string(nums[k:k+1]) != "4" && string(nums[k:k+1]) != "5" && string(nums[k:k+1]) != "6" && string(nums[k:k+1]) != "7" && string(nums[k:k+1]) != "8" && string(nums[k:k+1]) != "9" {
-	    return false
-	}
-    }
-
-    return true
-}
-
-func isDecimalNumber(s string) bool {
-    if s == "" {
-	return false
-    }
-
-    nums := []rune(s)
-    for k,_ := range nums {
-	if string(nums[k:k+1]) != "0" && string(nums[k:k+1]) != "1" && string(nums[k:k+1]) != "2" && string(nums[k:k+1]) != "3" && string(nums[k:k+1]) != "4" && string(nums[k:k+1]) != "5" && string(nums[k:k+1]) != "6" && string(nums[k:k+1]) != "7" && string(nums[k:k+1]) != "8" && string(nums[k:k+1]) != "9" {
-	    return false
-	}
-    }
-
-    return true
-}
-
 func (s *PublicFsnAPI) DcrmLockin(ctx context.Context,hashkey string,value string,cointype string) (common.Hash, error) {
 	log.Debug("=============DcrmLockin================")
 

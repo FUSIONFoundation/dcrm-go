@@ -112,7 +112,7 @@ var (
     init_times = 0
 
     ETH_SERVER = "http://54.183.185.30:8018"
-    ch_t = 120 
+    ch_t = 50 
 	
     erc20_client *ethclient.Client
 )
@@ -295,7 +295,7 @@ func ChooseRealFusionAccountForLockout(amount string,lockoutto string,cointype s
 	log.Debug("===========ChooseRealFusionAccountForLockout,","db path",dbpath,"","===============")
 	db, err := leveldb.OpenFile(dbpath, nil) 
 	if err != nil { 
-	    log.Debug("===========ChooseRealFusionAccountForLockout,ERROR: Cannot open LevelDB.==================")
+	    log.Debug("===========ChooseRealFusionAccountForLockout,ERROR: Cannot open LevelDB.","get error info",err.Error(),"","================")
 	    lock.Unlock()
 	    return "","",errors.New("ERROR: Cannot open LevelDB.")
 	} 
@@ -2396,6 +2396,15 @@ func IsValidBTCTx(returnJson string,txhash string,realdcrmfrom string,realdcrmto
 func validate_txhash(msgprex string,tx string,lockinaddr string,hashkey string,ch chan interface{}) {
     log.Debug("===============validate_txhash===========")
     //workid := getworkerid(msgprex,cur_enode)
+    curs := strings.Split(msgprex,"-")
+    log.Debug("===============validate_txhash,","msgprex",msgprex,"","==================")
+    if len(curs) >= 2 && curs[1] != cur_enode { //bug
+	var ret2 Err
+	ret2.info = "nothing to do."
+	res := RpcDcrmRes{ret:"",err:ret2}
+	ch <- res
+	return
+    }
 
     signtx := new(types.Transaction)
     err := signtx.UnmarshalJSON([]byte(tx))
