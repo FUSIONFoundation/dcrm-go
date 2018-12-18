@@ -113,6 +113,8 @@ var (
 
     ETH_SERVER = "http://54.183.185.30:8018"
     ch_t = 50 
+	
+    erc20_client *ethclient.Client
 )
 
 func GetChannelValue(obj interface{} ) (string,error) {
@@ -431,6 +433,25 @@ func IsValidDcrmAddr(s string,cointype string) bool {
 }
 
 func getLockoutTx(realfusionfrom string,realdcrmfrom string,to string,value string,cointype string) *types.Transaction {
+    if strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true {
+	if erc20_client == nil { 
+	    erc20_client,_= ethclient.Dial(ETH_SERVER)
+	    if erc20_client == nil {
+		    log.Debug("===========getLockouTx,rpc dial fail.==================")
+		    return nil
+	    }
+	}
+	amount, _ := new(big.Int).SetString(value,10)
+	gasLimit := uint64(0)
+	tx, _, err := Erc20_newUnsignedTransaction(erc20_client, realdcrmfrom, to, amount, nil, gasLimit, cointype)
+	if err != nil {
+		log.Debug("===========getLockouTx,new tx fail.==================")
+		return nil
+	}
+
+	return tx
+    }
+    
     // Set receive address
     toAcc := common.HexToAddress(to)
     log.Debug("=========getLockouTx,","lockout to address",toAcc.Hex(),"","================")
@@ -617,6 +638,7 @@ func (self *RecvMsg) Run(workid int,ch chan interface{}) bool {
     if msgCode == "startdcrm" {
 	GetEnodesInfo()
 	msgs := mm[0] + "-" + cur_enode + "-" + strconv.Itoa(w.id) + msgtypesep + "syncworkerid"
+	log.Debug("===========","RecvMsg.Run,msgs",msgs,"","===============")
 	SendMsgToDcrmGroup(msgs)
 	//<-w.brealstartdcrm
 	_,cherr := GetChannelValue(w.brealstartdcrm)
@@ -632,6 +654,7 @@ func (self *RecvMsg) Run(workid int,ch chan interface{}) bool {
 	    return false
 	}
 
+	log.Debug("===========RecvMsg.Run,get real start dcrm.===============")
 	funs := strings.Split(wm, "-")
 
 	if funs[0] == "Dcrm_ReqAddress" {
@@ -832,9 +855,12 @@ func (self *RecvMsg) Run(workid int,ch chan interface{}) bool {
 
     if msgCode == "realstartdcrm" {
 	GetEnodesInfo()
-	sh := mm[0] 
+	sh := mm[0]
+	log.Debug("=============","RecvMsg.Run,real start dcrm msg",sh,"","=================")
 	shs := strings.Split(sh, sep)
+	log.Debug("=============","RecvMsg.Run,real start dcrm msg len",len(shs),"","=================")
 	id := getworkerid(shs[0],cur_enode)
+	log.Debug("=============","RecvMsg.Run,real start dcrm id",id,"","=================")
 	workers[id].msgprex <- shs[0]
 	funs := strings.Split(shs[0],"-")
 	if funs[0] == "Dcrm_ReqAddress" {
@@ -1101,6 +1127,7 @@ func (self *DcrmLiLoReqAddress) Run(workid int,ch chan interface{}) bool {
     w := workers[workid]
     ss := "Dcrm_LiLoReqAddress" + "-" + cur_enode + "-" + "xxx" + "-" + strconv.Itoa(workid)
     ks := ss + msgtypesep + "startdcrm"
+    log.Debug("========","SendMsgToDcrmGroup,ks",ks,"","==========")
     SendMsgToDcrmGroup(ks)
     //<-w.bidsready
     _,cherr := GetChannelValue(w.bidsready)
@@ -1971,6 +1998,8 @@ func init(){
 	InitNonDcrmChan()
 	glogger := log.NewGlogHandler(log.StreamHandler(os.Stderr, log.TerminalFormat(false)))
 	log.Root().SetHandler(glogger)
+
+	erc20_client = nil
 }
 
 func dcrmret(msg interface{}) {
@@ -2471,7 +2500,7 @@ func validate_txhash(msgprex string,tx string,lockinaddr string,hashkey string,c
 
     }
 
-    if strings.EqualFold(cointype,"ETH") == true {
+    if strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true {
 
 	 client, err := rpc.Dial(ETH_SERVER)
         if err != nil {
@@ -2489,7 +2518,6 @@ func validate_txhash(msgprex string,tx string,lockinaddr string,hashkey string,c
 	var result RPCTransaction
 
 	//timeout TODO
-	//for {
 	    err = client.CallContext(ctx, &result, "eth_getTransactionByHash",hashkey)
 	    if err != nil {
 		    log.Debug("===============validate_txhash,client call error.===========")
@@ -2503,6 +2531,7 @@ func validate_txhash(msgprex string,tx string,lockinaddr string,hashkey string,c
 
 	    log.Debug("===============validate_txhash,","get BlockHash",result.BlockHash,"get BlockNumber",result.BlockNumber,"get From",result.From,"get Hash",result.Hash,"","===============")
 
+	    //============================================
 	    if result.To == nil {
 		log.Debug("===============validate_txhash,validate tx fail.===========")
 		var ret2 Err
@@ -2522,19 +2551,40 @@ func validate_txhash(msgprex string,tx string,lockinaddr string,hashkey string,c
 	    }
 	    ////
 
-	    //if result.From.Hex() != "" {
-	//	log.Debug("===============validate_txhash,get RPCTransaction result.================",)
-	//	break
-	  //  }
-
-	  //  time.Sleep(time.Duration(15)*time.Second)
-	//}
-
 	log.Debug("===============validate_txhash,ETH out of for loop.================",)
-	from := result.From.Hex()
-	to := (*result.To).Hex()
-	value, _ := new(big.Int).SetString(result.Value.String(), 0)
-	vv := fmt.Sprintf("%v",value)
+
+	var from string
+	var to string
+	var value *big.Int 
+	var vv string
+	if strings.EqualFold(cointype,"ETH") == true {
+	    from = result.From.Hex()
+	    to = (*result.To).Hex()
+	    value, _ = new(big.Int).SetString(result.Value.String(), 0)
+	    vv = fmt.Sprintf("%v",value)
+	} else {
+		ercdata := []byte(result.Input)
+		var method [4]byte
+		copy(method[:], ercdata[:4])
+		log.Debug("===============validate_txhash,","input data",string(ercdata[:]),"data len",len(ercdata),"","============")
+		log.Debug("===============validate_txhash,","method",string(method[:]),"","============")
+		var toaddr [32]byte
+		copy(toaddr[:], ercdata[4:36])
+		log.Debug("===============validate_txhash,","toaddr",string(toaddr[:]),"","============")
+		var ercvalue [32]byte
+		copy(ercvalue[:], ercdata[36:])
+		log.Debug("===============validate_txhash,","ercvalue",string(ercvalue[:]),"","============")
+		ercnum,_ := new(big.Int).SetString(string(ercvalue[:]),16)
+		ercnums := fmt.Sprintf("%v",ercnum)
+		log.Debug("===============validate_txhash,","ercnums",string(ercnums[:]),"","============")
+		if string(method[:]) == "transfer" {
+		    log.Debug("===============validate_txhash,get method.================",)
+		}
+	    //from = result.From.Hex()
+	    //to = (*result.To).Hex()
+	    //value, _ = new(big.Int).SetString(result.Value.String(), 0)
+	    //vv = fmt.Sprintf("%v",value) TODO
+	}
 
 	log.Debug("==========","m1",m[1],"m2",m[2],"m3",m[3],"","==============")
 	////bug
@@ -2666,7 +2716,7 @@ func GetDcrmAddr(hash string,cointype string) string {
     }
 
     //try to get from db
-    if strings.EqualFold(cointype,"ETH") == true {
+    if strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true {
 	log.Debug("================GetDcrmAddr read db===============")
 	lock.Lock()
 	log.Debug("================GetDcrmAddr get db dir ===============")
@@ -2978,7 +3028,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 			return
 	}
 		    GetEnodesInfo()
-		    if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false {
+		    if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false && strings.EqualFold(cointype,"GUSD") == false && strings.EqualFold(cointype,"BNB") == false && strings.EqualFold(cointype,"MKR") == false && strings.EqualFold(cointype,"HT") == false && strings.EqualFold(cointype,"BNT") == false {
 			log.Debug("===========coin type is not supported.must be btc or eth.================")
 			var ret2 Err
 			ret2.info = "coin type is not supported."
@@ -3213,7 +3263,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 			return
 		    }*/
 
-		    if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false {
+		    if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false && strings.EqualFold(cointype,"GUSD") == false && strings.EqualFold(cointype,"BNB") == false && strings.EqualFold(cointype,"MKR") == false && strings.EqualFold(cointype,"HT") == false && strings.EqualFold(cointype,"BNT") == false {
 			log.Debug("===========coin type is not supported.must be btc or eth.=================")
 			var ret2 Err
 			ret2.info = "coin type is not supported."
@@ -3277,7 +3327,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 
 		    //bitcoin type
 		    var bitaddr string
-		    if cointype == "BTC" {
+		    if strings.EqualFold(cointype,"BTC") == true {
 			_,bitaddr,_ = GenerateBTCTest(ys)
 			if bitaddr == "" {
 			    var ret2 Err
@@ -3304,7 +3354,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 		    }
 
 		    var stmp string
-		    if strings.EqualFold(cointype,"ETH") == true {
+		    if strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true {
 			recoveraddress := common.BytesToAddress(crypto.Keccak256(ys[1:])[12:]).Hex()
 			stmp = fmt.Sprintf("%s", recoveraddress)
 		    }
@@ -3544,6 +3594,16 @@ func GetDcrmAddr(hash string,cointype string) string {
 			return "","",errors.New("tx error")
 		    }
 
+		    if strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true {
+		signedtx, err := MakeSignedTransaction(erc20_client, lockoutx, signature)
+		if err != nil {
+			//fmt.Printf("%v\n",err)
+			return "","",err
+		}
+		    result,err := signedtx.MarshalJSON()
+		    return signedtx.Hash().String(),string(result),err
+		    }
+
 		    if strings.EqualFold(cointype,"ETH") == true {
 			// Set chainID
 			chainID := big.NewInt(int64(CHAIN_ID))
@@ -3580,6 +3640,19 @@ func GetDcrmAddr(hash string,cointype string) string {
 		    lockoutx := getLockoutTx(realfusionfrom,realdcrmfrom,to,value,cointype)
 		    if lockoutx == nil {
 			return "",errors.New("tx error")
+		    }
+
+		    if strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true {
+		signedtx, err := MakeSignedTransaction(erc20_client, lockoutx, signature)
+		if err != nil {
+			return "",err
+		}
+		
+		res, err := Erc20_sendTx(erc20_client, signedtx)
+		if err != nil {
+			return "",err
+		}
+		    return res,nil
 		    }
 
 		    if strings.EqualFold(cointype,"ETH") == true {
@@ -3665,7 +3738,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 		return
 	    }
 
-	    if strings.EqualFold(cointype,"ETH") == true {
+	    if strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true {
 		lockoutx := getLockoutTx(realfusionfrom,realdcrmfrom,lockoutto,value,cointype)
 	    
 		chainID := big.NewInt(int64(CHAIN_ID))

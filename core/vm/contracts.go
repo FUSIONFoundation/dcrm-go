@@ -497,7 +497,7 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 
 	evm.StateDB.SetStateDcrmAccountData(from,key,result)
         
-	h := crypto.Keccak256Hash([]byte(m[2])) //bug
+	h := crypto.Keccak256Hash([]byte(strings.ToLower(m[2]))) //bug
 	log.Debug("========dcrmTransaction.Run","cointype",m[2],"cointype hash",h.Hex(),"","================")
 	evm.StateDB.SetStateDcrmAccountData(from,h,[]byte(m[1]))
     }
@@ -505,7 +505,7 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
     if m[0] == "LOCKIN" {
 	log.Debug("dcrmTransaction.Run,LOCKIN")
 	from := contract.Caller()
-	addr := evm.StateDB.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(m[3])),m[3])
+	addr := evm.StateDB.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(strings.ToLower(m[3]))),m[3])
 	dcrmaddr := new(big.Int).SetBytes([]byte(addr))
 	key := common.BytesToHash(dcrmaddr.Bytes())
 	
@@ -566,7 +566,7 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
     if m[0] == "LOCKOUT" {
 	log.Debug("===============dcrmTransaction.Run,LOCKOUT===============")
 	from := contract.Caller()
-	addr := evm.StateDB.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(m[3])),m[3])
+	addr := evm.StateDB.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(strings.ToLower(m[3]))),m[3])
 
 	//_,realdcrmfrom,err := callback(m[2],m[3])
 	//log.Debug("===============dcrmTransaction.Run,LOCKOUT,","real dcrm from",realdcrmfrom,"","=================")
@@ -635,11 +635,11 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 	toaddr,_ := new(big.Int).SetString(m[1],0)
 	to := common.BytesToAddress(toaddr.Bytes())
 
-	dcrmfrom := evm.StateDB.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(m[3])),m[3])
+	dcrmfrom := evm.StateDB.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(strings.ToLower(m[3]))),m[3])
 	dcrmaddr1 := new(big.Int).SetBytes([]byte(dcrmfrom))
 	key1 := common.BytesToHash(dcrmaddr1.Bytes())
 
-	dcrmto := evm.StateDB.GetDcrmAddress(to,crypto.Keccak256Hash([]byte(m[3])),m[3])
+	dcrmto := evm.StateDB.GetDcrmAddress(to,crypto.Keccak256Hash([]byte(strings.ToLower(m[3]))),m[3])
 	dcrmaddr2 := new(big.Int).SetBytes([]byte(dcrmto))
 	key2 := common.BytesToHash(dcrmaddr2.Bytes())
 

@@ -684,7 +684,7 @@ func (pool *TxPool) checkTransaction(tx *types.Transaction) (bool,error) {
 	return false,errors.New("tx input data param error.")
     }
 
-    if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false {
+    if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false && strings.EqualFold(cointype,"GUSD") == false && strings.EqualFold(cointype,"BNB") == false && strings.EqualFold(cointype,"MKR") == false && strings.EqualFold(cointype,"HT") == false && strings.EqualFold(cointype,"BNT") == false {
 	return false,errors.New("coin type is not supported.")
     }
     
@@ -694,13 +694,13 @@ func (pool *TxPool) checkTransaction(tx *types.Transaction) (bool,error) {
 	    return false,ErrInvalidSender
     }
 
-    dcrmfrom := pool.currentState.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(cointype)),cointype)
+    dcrmfrom := pool.currentState.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),cointype)
     if dcrmfrom == "" {
 	    return false,errors.New("the coinbase account has not request dcrm addr before.")
     }
 
     if dcrm.IsValidDcrmAddr(dcrmfrom,cointype) == false {
-	if strings.EqualFold(cointype,"ETH") == true {
+	if strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true {
 	    return false,errors.New("ETH coinbase dcrm addr must start with 0x and len = 42.")
 	}
 	if strings.EqualFold(cointype,"BTC") == true {
@@ -714,13 +714,13 @@ func (pool *TxPool) checkTransaction(tx *types.Transaction) (bool,error) {
 
 	toaddr,_ := new(big.Int).SetString(fusionto,0)
 	to := common.BytesToAddress(toaddr.Bytes())
-	dcrmto := pool.currentState.GetDcrmAddress(to,crypto.Keccak256Hash([]byte(cointype)),cointype)
+	dcrmto := pool.currentState.GetDcrmAddress(to,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),cointype)
     if dcrmto == "" {
 	    return false,errors.New("the coinbase account has not request dcrm addr before.")
     }
 
     if dcrm.IsValidDcrmAddr(dcrmto,cointype) == false {
-	if strings.EqualFold(cointype,"ETH") == true {
+	if strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true {
 	    return false,errors.New("ETH coinbase dcrm addr must start with 0x and len = 42.")
 	}
 	if strings.EqualFold(cointype,"BTC") == true {
@@ -728,7 +728,7 @@ func (pool *TxPool) checkTransaction(tx *types.Transaction) (bool,error) {
 	}
     }
 
-    if strings.EqualFold(cointype,"ETH") == true {
+    if strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true {
 	amount, verr := strconv.ParseInt(value, 10, 64)
 	 if verr != nil {
 	    return false,errors.New("params error:value is not the right format,it must be xxx wei ")
@@ -805,7 +805,7 @@ func (pool *TxPool) checkLockout(tx *types.Transaction) (bool,error) {
 	return false,errors.New("tx input data param error.")
     }
 
-    if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false {
+    if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false && strings.EqualFold(cointype,"GUSD") == false && strings.EqualFold(cointype,"BNB") == false && strings.EqualFold(cointype,"MKR") == false && strings.EqualFold(cointype,"HT") == false && strings.EqualFold(cointype,"BNT") == false {
 	return false,errors.New("coin type is not supported.")
     }
     
@@ -815,13 +815,13 @@ func (pool *TxPool) checkLockout(tx *types.Transaction) (bool,error) {
 	    return false,ErrInvalidSender
     }
 
-    dcrmfrom := pool.currentState.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(cointype)),cointype)
+    dcrmfrom := pool.currentState.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),cointype)
     if dcrmfrom == "" {
 	    return false,errors.New("the coinbase account has not request dcrm addr before.")
     }
 
     if dcrm.IsValidDcrmAddr(dcrmfrom,cointype) == false {
-	if strings.EqualFold(cointype,"ETH") == true {
+	if strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true {
 	    return false,errors.New("ETH coinbase dcrm addr must start with 0x and len = 42.")
 	}
 	if strings.EqualFold(cointype,"BTC") == true {
@@ -829,7 +829,7 @@ func (pool *TxPool) checkLockout(tx *types.Transaction) (bool,error) {
 	}
     }
 
-    if strings.EqualFold(cointype,"ETH") == true {
+    if strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true {
 	amount, verr := strconv.ParseInt(value, 10, 64)
 	 if verr != nil {
 	    return false,errors.New("params error:value is not the right format,it must be xxx wei ")
@@ -886,7 +886,7 @@ func (pool *TxPool) checkLockout(tx *types.Transaction) (bool,error) {
 
     //lockoutto
     if dcrm.IsValidDcrmAddr(lockoutto,cointype) == false {
-	if strings.EqualFold(cointype,"ETH") == true {
+	if strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true {
 	    return false,errors.New("ETH coinbase dcrm addr must start with 0x and len = 42.")
 	}
 	if strings.EqualFold(cointype,"BTC") == true {
@@ -910,7 +910,7 @@ func (pool *TxPool) validateLockout(tx *types.Transaction) (bool,error) {
 	    return false,ErrInvalidSender
     }
 
-    dcrmfrom := pool.currentState.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(cointype)),cointype)
+    dcrmfrom := pool.currentState.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),cointype)
     result,err := tx.MarshalJSON()
     if err != nil {
 	return false,errors.New("tx data invalid.")
@@ -969,11 +969,11 @@ func (pool *TxPool) checkLockin(tx *types.Transaction) (bool,error) {
 	return false,errors.New("tx input data param error.")
     }
 
-    if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false {
+    if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false && strings.EqualFold(cointype,"GUSD") == false && strings.EqualFold(cointype,"BNB") == false && strings.EqualFold(cointype,"MKR") == false && strings.EqualFold(cointype,"HT") == false && strings.EqualFold(cointype,"BNT") == false {
 	    return false,errors.New("coin type is not supported.")
     }
 
-    if strings.EqualFold(cointype,"ETH") == true {
+    if strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true {
 	_, verr := strconv.ParseInt(value, 10, 64)
 	 if verr != nil {
 	    return false,errors.New("params error:value is not the right format,it must be xxx wei ")
@@ -1002,13 +1002,13 @@ func (pool *TxPool) checkLockin(tx *types.Transaction) (bool,error) {
 	    return false,ErrInvalidSender
     }
 
-    ret := pool.currentState.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(cointype)),cointype)
+    ret := pool.currentState.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),cointype)
     if ret == "" {
 	return false,errors.New("the account has not request dcrm addr before.")
     }
 
     dcrmaddrs := []rune(ret)
-    if strings.EqualFold(cointype,"ETH") == true && len(dcrmaddrs) != 42 { //42 = 2 + 20*2 =====>0x + addr
+    if (strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true) && len(dcrmaddrs) != 42 { //42 = 2 + 20*2 =====>0x + addr
 	return false,errors.New("ETH addr must start with 0x and len = 42.")
     }
     if strings.EqualFold(cointype,"BTC") == true && dcrm.ValidateAddress(1,ret) == false {
@@ -1072,7 +1072,7 @@ func (pool *TxPool) ValidateLockin(tx *types.Transaction) (bool,error) {
 	    return false,ErrInvalidSender
     }
 
-    ret := pool.currentState.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(cointype)),cointype)
+    ret := pool.currentState.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),cointype)
     result,err := tx.MarshalJSON()
 
     if !dcrm.IsInGroup() {
@@ -1110,7 +1110,7 @@ func (pool *TxPool) checkConfirmAddr(tx *types.Transaction) (bool,error) {
 	return false,errors.New("tx input data param error.")
     }
 
-    if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false {
+    if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false && strings.EqualFold(cointype,"GUSD") == false && strings.EqualFold(cointype,"BNB") == false && strings.EqualFold(cointype,"MKR") == false && strings.EqualFold(cointype,"HT") == false && strings.EqualFold(cointype,"BNT") == false {
 	log.Debug("coin type is not supported.")
 	return false,errors.New("coin type is not supported.")
     }
@@ -1120,7 +1120,7 @@ func (pool *TxPool) checkConfirmAddr(tx *types.Transaction) (bool,error) {
 	return false,errors.New("dcrm addr is not the right format.")
     }
     
-    if strings.EqualFold(cointype,"ETH") == true {
+    if strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true {
 	dcrms := []rune(dcrmaddr)
 	if string(dcrms[0:2]) == "0x" && len(dcrms) != 42 { //42 = 2 + 20*2 =====>0x + addr
 	    log.Debug("param error.ETH dcrm addr must start with 0x and len = 42.")
@@ -1146,7 +1146,7 @@ func (pool *TxPool) checkConfirmAddr(tx *types.Transaction) (bool,error) {
 	    return false,ErrInvalidSender
     }
 
-    ret := pool.currentState.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(cointype)),cointype)
+    ret := pool.currentState.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),cointype)
     if ret != "" {
 	log.Debug("the account has confirmed dcrm address.")
 	return false,errors.New("the account has confirmed dcrm address.")
