@@ -544,7 +544,7 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 		    }
 		} 
 		
-		if strings.EqualFold("ETH",m[3]) == true {
+		if strings.EqualFold(m[3],"ETH") == true || strings.EqualFold(m[3],"GUSD") == true || strings.EqualFold(m[3],"BNB") == true || strings.EqualFold(m[3],"MKR") == true || strings.EqualFold(m[3],"HT") == true || strings.EqualFold(m[3],"BNT") == true {
 		    ba,_ := new(big.Int).SetString(a.BALANCE,10)
 		    ba2,_ := new(big.Int).SetString(m[2],10)
 		    b := new(big.Int).Add(ba,ba2)
@@ -589,7 +589,7 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 
 	    if strings.EqualFold(a.COINTYPE,m[3]) == true {
 		log.Debug("dcrmTransaction.Run,a.COINTYPE == m[3]")
-		if strings.EqualFold("ETH",m[3]) == true {
+		if strings.EqualFold(m[3],"ETH") == true || strings.EqualFold(m[3],"GUSD") == true || strings.EqualFold(m[3],"BNB") == true || strings.EqualFold(m[3],"MKR") == true || strings.EqualFold(m[3],"HT") == true || strings.EqualFold(m[3],"BNT") == true {
 		    ba,_ := new(big.Int).SetString(a.BALANCE,10)
 		    ba2,_ := new(big.Int).SetString(m[2],10)
 		    b := new(big.Int).Sub(ba,ba2)
@@ -657,7 +657,7 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 		json.Unmarshal(s2, &a2)
 		
 		if strings.EqualFold(a1.COINTYPE,m[3]) == true && strings.EqualFold(a2.COINTYPE,m[3]) == true {
-		    if strings.EqualFold("ETH",m[3]) == true {
+		    if strings.EqualFold(m[3],"ETH") == true || strings.EqualFold(m[3],"GUSD") == true || strings.EqualFold(m[3],"BNB") == true || strings.EqualFold(m[3],"MKR") == true || strings.EqualFold(m[3],"HT") == true || strings.EqualFold(m[3],"BNT") == true {
 			ba,_ := new(big.Int).SetString(m[2],10)
 			ba1,_ := new(big.Int).SetString(a1.BALANCE,10)
 			b1 := new(big.Int).Sub(ba1,ba)
@@ -704,7 +704,7 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 		json.Unmarshal(s1, &a1)
 		
 		if strings.EqualFold(a1.COINTYPE,m[3]) == true {
-		    if strings.EqualFold("ETH",m[3]) == true {
+		    if strings.EqualFold(m[3],"ETH") == true || strings.EqualFold(m[3],"GUSD") == true || strings.EqualFold(m[3],"BNB") == true || strings.EqualFold(m[3],"MKR") == true || strings.EqualFold(m[3],"HT") == true || strings.EqualFold(m[3],"BNT") == true {
 			ba,_ := new(big.Int).SetString(m[2],10)
 		    
 			ba1,_ := new(big.Int).SetString(a1.BALANCE,10)

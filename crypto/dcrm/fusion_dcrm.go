@@ -112,7 +112,7 @@ var (
     init_times = 0
 
     ETH_SERVER = "http://54.183.185.30:8018"
-    ch_t = 50 
+    ch_t = 120 
 	
     erc20_client *ethclient.Client
 )
@@ -2502,6 +2502,92 @@ func validate_txhash(msgprex string,tx string,lockinaddr string,hashkey string,c
 
     if strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true {
 
+	if strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true {
+	    client, err := rpc.Dial(ETH_SERVER)
+	    if err != nil {
+		    log.Debug("==============validate_txhash,eth rpc.Dial error.===========")
+		    var ret2 Err
+		    ret2.info = "eth rpc.Dial error."
+		    res := RpcDcrmRes{ret:"",err:ret2}
+		    ch <- res
+		    return
+	    }
+
+	    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	    defer cancel()
+
+	    var r *types.Receipt
+	    err = client.CallContext(ctx, &r, "eth_getTransactionReceipt", common.HexToHash(hashkey))
+	    if err != nil {
+		var ret2 Err
+		ret2.info = "get erc20 tx info fail."
+		res := RpcDcrmRes{ret:"",err:ret2}
+		ch <- res
+		return
+	    }
+
+	    ca := r.ContractAddress.Hex()
+	    log.Debug("===============validate_txhash,","contract address",ca,"","=================")
+
+	    for _, logs := range r.Logs {
+		ercdata := new(big.Int).SetBytes(logs.Data)//string(logs.Data)
+		ercdatanum := fmt.Sprintf("%v",ercdata)
+		log.Debug("===============validate_txhash,","erc data",ercdatanum,"","=================")
+		for _,top := range logs.Topics {
+		    log.Debug("===============validate_txhash,","top",top.Hex(),"","=================")
+		    log.Debug("===============validate_txhash,","realdcrmto",realdcrmto,"","=================")
+		    /////
+
+		    tb := []rune(top.Hex())
+		    if strings.EqualFold(string(tb[0:2]),"0x") == true {
+			tb = tb[2:]
+		    } 
+		    for i,_ := range tb {
+			if string(tb[i:i+1]) != "0" {
+			    tb = tb[i:]
+			    break
+			}
+		    }
+		    /*
+		    tb,_ := new(big.Int).SetString(top.Hex(),0)
+		    tb2 := fmt.Sprintf("%v",tb)
+		    realdcrmtob,_ := new(big.Int).SetString(realdcrmto,0)
+		    realdcrmtob2 := fmt.Sprintf("%v",realdcrmtob)
+		    log.Debug("===============validate_txhash,","tb2",tb2,"","=================")
+		    log.Debug("===============validate_txhash,","realdcrmtob2",realdcrmtob2,"","=================")*/
+
+		    /////
+		    log.Debug("===============validate_txhash,","tb",string(tb),"","=================")
+		    log.Debug("===============validate_txhash,","realdcrmto",realdcrmto,"","=================")
+		    log.Debug("===============validate_txhash,","lockinvalue",lockinvalue,"","=================")
+		    rdt := []rune(realdcrmto)
+		    if strings.EqualFold(string(rdt[0:2]),"0x") == true {
+			rdt = rdt[2:]
+		    } 
+		    //if lockinvalue == ercdatanum && strings.EqualFold(string(tb),rdt) == true {
+		    if lockinvalue == ercdatanum && strings.EqualFold(string(tb),string(rdt)) == true {
+			log.Debug("==============validate_txhash,erc validate pass.===========")
+			answer = "pass"
+			break
+		    }
+		}
+	    }
+	    
+	    if answer == "pass" {
+		log.Debug("==============validate_txhash,answer pass.===========")
+		res := RpcDcrmRes{ret:"true",err:nil}
+		ch <- res
+		return
+	    } 
+
+	    log.Debug("==============validate_txhash,answer no pass.===========")
+	    var ret2 Err
+	    ret2.info = "lockin validate fail."
+	    res := RpcDcrmRes{ret:"",err:ret2}
+	    ch <- res
+	    return
+	}
+
 	 client, err := rpc.Dial(ETH_SERVER)
         if err != nil {
 		log.Debug("==============validate_txhash,eth rpc.Dial error.===========")
@@ -2562,11 +2648,23 @@ func validate_txhash(msgprex string,tx string,lockinaddr string,hashkey string,c
 	    to = (*result.To).Hex()
 	    value, _ = new(big.Int).SetString(result.Value.String(), 0)
 	    vv = fmt.Sprintf("%v",value)
-	} else {
+	} /*else {
 		ercdata := []byte(result.Input)
+		log.Debug("===============validate_txhash,","input data",string(ercdata[:]),"data len",len(ercdata),"","============")
+		erc := new(big.Int).SetBytes(ercdata)
+		ercs := fmt.Sprintf("%v",erc)
+		log.Debug("===============validate_txhash,","erc",ercs,"","============")
+
+		if len(ercdata) == 0 {
+		    var ret2 Err
+		    ret2.info = "get erc20 input data fail."
+		    res := RpcDcrmRes{ret:"",err:ret2}
+		    ch <- res
+		    return
+		}
+
 		var method [4]byte
 		copy(method[:], ercdata[:4])
-		log.Debug("===============validate_txhash,","input data",string(ercdata[:]),"data len",len(ercdata),"","============")
 		log.Debug("===============validate_txhash,","method",string(method[:]),"","============")
 		var toaddr [32]byte
 		copy(toaddr[:], ercdata[4:36])
@@ -2584,7 +2682,7 @@ func validate_txhash(msgprex string,tx string,lockinaddr string,hashkey string,c
 	    //to = (*result.To).Hex()
 	    //value, _ = new(big.Int).SetString(result.Value.String(), 0)
 	    //vv = fmt.Sprintf("%v",value) TODO
-	}
+	}*/
 
 	log.Debug("==========","m1",m[1],"m2",m[2],"m3",m[3],"","==============")
 	////bug
