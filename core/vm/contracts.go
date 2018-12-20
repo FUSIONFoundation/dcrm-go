@@ -74,14 +74,6 @@ var PrecompiledContractsByzantium = map[common.Address]PrecompiledContract{
 	types.DcrmPrecompileAddr: &dcrmTransaction{Tx:""},//++++++++caihaijun+++++++++
 }
 
-//++++++++++++caihaijun++++++++++++
-var callback   func(string,string,string) (string,string,error)
-
-func RegisterDcrmGetRealFusionCallback(recvDcrmFunc func(string,string,string) (string,string,error)) {
-	callback = recvDcrmFunc
-}
-//+++++++++++++++end++++++++++++++
-
 // RunPrecompiledContract runs and evaluates the output of a precompiled contract.
 //func RunPrecompiledContract(p PrecompiledContract, input []byte, contract *Contract) (ret []byte, err error) {//----caihaijun----
 func RunPrecompiledContract(p PrecompiledContract, input []byte, contract *Contract, evm *EVM) (ret []byte, err error) {   //caihaijun
@@ -567,9 +559,6 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 	log.Debug("===============dcrmTransaction.Run,LOCKOUT===============")
 	from := contract.Caller()
 	addr := evm.StateDB.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(strings.ToLower(m[3]))),m[3])
-
-	//_,realdcrmfrom,err := callback(m[2],m[3])
-	//log.Debug("===============dcrmTransaction.Run,LOCKOUT,","real dcrm from",realdcrmfrom,"","=================")
 
 	dcrmaddr := new(big.Int).SetBytes([]byte(addr))
 	key := common.BytesToHash(dcrmaddr.Bytes())
