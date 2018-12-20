@@ -1,8 +1,8 @@
-# GO-DCRM
+# DCRM-GO
 
 Official golang implementation of the FUSION DCRM.
 
-FUSION is an inclusive public blockchain that provides the infrastructure and architecture for fully fledged financial functions on the blockchain. To learn more about FUSION, please visit official website at <https://www.fusion.org> or read the [White Paper](https://github.com/FUSIONFoundation/Whitepaper).
+FUSION is an inclusive public blockchain that provides the infrastructure and architecture for fully fledged financial functions on the blockchain. To learn more about FUSION, please visit official website at <https://www.fusion.org> or read the [White Paper](https://github.com/FUSIONFoundation/Whitepaper/blob/master/FUSION%20Whitepaper%20V.1.1.pdf) and [Yellow Paper](https://github.com/FUSIONFoundation/Whitepaper/blob/master/DCRM%20Yellow%20Paper.pdf).
 
 *Note: go-dcrm is considered beta software. We make no warranties or guarantees of its security or stability.*
 
@@ -16,10 +16,9 @@ FUSION DCRM client currently supports the following 64bits operating systems:
 2. Debian 9
 3. Centos 7 and RHEL 7
 4. Fedora 25 or higher
-5. Windows 7 or higher(Win 10 recommended)
-6. MacOS Darwin 10.12 or higher
+5. MacOS Darwin 10.12 or higher
 
-The following building instructions are based on Ubuntu 18.04(64bits), for more prerequisites and detailed build instructions please read the [Installation Instructions](https://github.com/FUSIONFoundation/go-fusion/wiki/) on the wiki.
+The following building instructions are based on Ubuntu 18.04(64bits), for more prerequisites and detailed build instructions please read the [Installation Instructions](https://github.com/FUSIONFoundation/dcrm-go/wiki/) on the wiki.
 
 ### Requirements
 
@@ -42,7 +41,7 @@ go env GOROOT GOPATH
 ### Get the source code
 
 ``` bash
-git clone https://github.com/FUSIONFoundation/go-dcrm.git $GOPATH/src/github.com/go-dcrm
+git clone https://github.com/FUSIONFoundation/dcrm-go.git $GOPATH/src/github.com/dcrm-go
 ```
 
 ### Build
@@ -101,14 +100,6 @@ As an alternative to passing the numerous flags to the `gdcrm` binary, you can a
 gdcrm --config /path/to/your_config.toml
 ```
 
-#### PoS staking config
-
-Please read the [PoS-staking-Guide](https://github.com/FUSIONFoundation/go-dcrm/wiki/PoS-staking-Guide) on the wiki.
-
-#### Supreme Node config
-
-Please read the [Supreme-node-Guide](https://github.com/FUSIONFoundation/go-dcrm/wiki/Supreme-node-Guide) on the wiki.
-
 ### JSON-RPC  API
 
 Go-DCRM has built-in support for a JSON-RPC based APIs ([standard APIs](https://github.com/FUSIONFoundation/go-dcrm/wiki/JSON-RPC)). These can be exposed via HTTP, WebSockets and IPC.The IPC interface is enabled by default and exposes all the APIs supported by go-fusion, the gofsn node doesn't start the http and weboscket service and not all functionality is provided over these interfaces due to security reasons. These can be turned on/off and configured with the --rpcapi and --wsapi arguments when the gofsn node is started.
@@ -132,11 +123,11 @@ Developer need to use your own programming environments' capabilities (libraries
 
 ## Testing
 
-Please read the [User-Test-Guide](https://github.com/FUSIONFoundation/go-dcrm/wiki/User-Test-Guide) on the wiki.
+Please read the [User-Test-Guide](https://github.com/FUSIONFoundation/dcrm-go/wiki/User-Test-Guide) on the wiki.
 
 ## Contribution
 
-Welcome anyone contribute to FUSION with [issues](https://github.com/FUSIONFoundation/go-dcrm/issues) and [PRs](https://github.com/FUSIONFoundation/go-dcrm/pulls). Filing issues for problems you encounter is a great way to contribute. Contributing bugfix is greatly appreciated.
+Welcome anyone contribute to FUSION with [issues](https://github.com/FUSIONFoundation/dcrm-go/issues) and [PRs](https://github.com/FUSIONFoundation/dcrm-go/pulls). Filing issues for problems you encounter is a great way to contribute. Contributing bugfix is greatly appreciated.
 
 We recommend the following workflow:
 
@@ -149,4 +140,4 @@ We recommend the following workflow:
 
 ## License
 
-The go-fusion project is licensed under the [GNU Lesser General Public License v3.0](https://www.gnu.org/licenses/lgpl-3.0.en.html).
+The dcrm-go project is licensed under the [GNU Lesser General Public License v3.0](https://www.gnu.org/licenses/lgpl-3.0.en.html).
