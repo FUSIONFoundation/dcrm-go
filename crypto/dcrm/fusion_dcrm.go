@@ -2398,7 +2398,8 @@ func validate_txhash(msgprex string,tx string,lockinaddr string,hashkey string,c
     //workid := getworkerid(msgprex,cur_enode)
     curs := strings.Split(msgprex,"-")
     log.Debug("===============validate_txhash,","msgprex",msgprex,"","==================")
-    if len(curs) >= 2 && curs[1] != cur_enode { //bug
+    if len(curs) >= 2 && strings.EqualFold(curs[1],cur_enode) == false { //bug
+	log.Debug("===============validate_txhash,nothing need to do.==================")
 	var ret2 Err
 	ret2.info = "nothing to do."
 	res := RpcDcrmRes{ret:"",err:ret2}
@@ -2409,6 +2410,7 @@ func validate_txhash(msgprex string,tx string,lockinaddr string,hashkey string,c
     signtx := new(types.Transaction)
     err := signtx.UnmarshalJSON([]byte(tx))
     if err != nil {
+	log.Debug("===============validate_txhash,new transaction fail.==================")
 	var ret2 Err
 	ret2.info = "new transaction fail."
 	res := RpcDcrmRes{ret:"",err:ret2}
@@ -2438,6 +2440,7 @@ func validate_txhash(msgprex string,tx string,lockinaddr string,hashkey string,c
 	
 	_,realdcrmfrom,err = ChooseRealFusionAccountForLockout(m[2],m[1],m[3])
 	if err != nil {
+	    log.Debug("===============validate_txhash,choose real fusion account fail.==================")
 	    var ret2 Err
 	    ret2.info = "choose real fusion account fail."
 	    res := RpcDcrmRes{ret:"",err:ret2}
@@ -2454,6 +2457,7 @@ func validate_txhash(msgprex string,tx string,lockinaddr string,hashkey string,c
     if strings.EqualFold(cointype,"BTC") == true {
 	rpcClient, err := NewClient(SERVER_HOST, SERVER_PORT, USER, PASSWD, USESSL)
 	if err != nil {
+		log.Debug("=============validate_txhash,new client fail.========")
 		var ret2 Err
 		ret2.info = "new client fail."
 		res := RpcDcrmRes{ret:"",err:ret2}
@@ -2466,7 +2470,9 @@ func validate_txhash(msgprex string,tx string,lockinaddr string,hashkey string,c
 	var returnJson string
 	//for {
 	    returnJson, err2 := rpcClient.Send(reqJson)
+	    log.Debug("=============validate_txhash,","return Json data",returnJson,"","=============")
 	    if err2 != nil {
+		    log.Debug("=============validate_txhash,send rpc fail.========")
 		    var ret2 Err
 		    ret2.info = "send rpc fail."
 		    res := RpcDcrmRes{ret:"",err:ret2}
@@ -2476,6 +2482,7 @@ func validate_txhash(msgprex string,tx string,lockinaddr string,hashkey string,c
 
 	    ////
 	    if returnJson == "" {
+		log.Debug("=============validate_txhash,get btc transaction fail.========")
 		var ret2 Err
 		ret2.info = "get btc transaction fail."
 		res := RpcDcrmRes{ret:"",err:ret2}
