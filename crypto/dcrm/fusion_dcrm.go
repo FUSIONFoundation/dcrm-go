@@ -115,7 +115,66 @@ var (
     ch_t = 50 
 	
     erc20_client *ethclient.Client
+    
+    //for lockin
+    lock2 sync.Mutex
 )
+
+func IsHashkeyExsitInLocalDB(hashkey string) (bool,error) {
+    if hashkey == "" {
+	return false,errors.New("param error in check local db by hashkey.")
+    }
+    
+    lock2.Lock()
+    path := GetDbDirForLockin()
+    db,_ := ethdb.NewLDBDatabase(path, 0, 0)
+    if db == nil {
+	log.Debug("==============IsHashkeyExsitInLocalDB,create db fail.============")
+	lock2.Unlock()
+	return false,errors.New("create db fail.")
+    }
+    
+    has,err := db.Has([]byte(hashkey))
+    if err != nil {
+	db.Close()
+	lock2.Unlock()
+	return false,err
+    }
+
+    if has == false {
+	db.Close()
+	lock2.Unlock()
+	return false,nil
+    }
+
+    db.Close()
+    lock2.Unlock()
+    return true,nil
+}
+
+func WriteHashkeyToLocalDB(hashkey string,value string) (bool,error) {
+    if !IsInGroup() {
+	return false,errors.New("it is not in group.")
+    }
+
+    if hashkey == "" || value == "" {
+	return false,errors.New("param error in write hashkey to local db.")
+    }
+
+    lock2.Lock()
+    path := GetDbDirForLockin()
+    db,_ := ethdb.NewLDBDatabase(path, 0, 0)
+    if db == nil {
+	log.Debug("==============WriteHashkeyToLocalDB,create db fail.============")
+	lock2.Unlock()
+	return false,errors.New("create db fail.")
+    }
+    
+    db.Put([]byte(hashkey),[]byte(value))
+    db.Close()
+    lock2.Unlock()
+    return true,nil
+}
 
 func GetChannelValue(obj interface{} ) (string,error) {
     timeout := make(chan bool, 1)
@@ -222,7 +281,7 @@ func GetFee(cointype string) float64 {
     return 0
 }
 
-func IsExsitInDb(addr string) bool {
+/*func IsExsitInDb(addr string) bool {
     if addr == "" {
 	return false
     }
@@ -275,7 +334,7 @@ func IsExsitInDb(addr string) bool {
     lock.Unlock()
     log.Debug("===========IsExsitInDb,return false===============")
     return false
-}
+}*/
 
 func ChooseRealFusionAccountForLockout(amount string,lockoutto string,cointype string) (string,string,error) {
 
@@ -568,6 +627,11 @@ func SendReqToGroup(msg string,rpctype string) (string,error) {
 	case "rpc_lockout":
 	    m := strings.Split(msg,sep9)
 	    v := LockoutSendMsgToDcrm{Txhash:m[0],Tx:m[1],FusionFrom:m[2],DcrmFrom:m[3],RealFusionFrom:m[4],RealDcrmFrom:m[5],Lockoutto:m[6],Value:m[7],Cointype:m[8]}
+	    rch := make(chan interface{},1)
+	    req = RpcReq{rpcdata:&v,ch:rch}
+	case "rpc_check_hashkey":
+	    m := strings.Split(msg,sep9)
+	    v := CheckHashkeySendMsgToDcrm{Txhash:m[0],Tx:m[1],Hashkey:m[2]}
 	    rch := make(chan interface{},1)
 	    req = RpcReq{rpcdata:&v,ch:rch}
 	default:
@@ -1534,6 +1598,57 @@ func (self *LockoutSendMsgToDcrm) Run(workid int,ch chan interface{}) bool {
 
     return true
 }
+
+//checkhashkey
+type CheckHashkeySendMsgToDcrm struct {
+    Txhash string
+    Tx string
+    Hashkey string
+}
+
+func (self *CheckHashkeySendMsgToDcrm) Run(workid int,ch chan interface{}) bool {
+    if workid < 0 {
+	return false
+    }
+
+    GetEnodesInfo()
+    w := non_dcrm_workers[workid]
+    
+    ss := cur_enode + "-" + self.Txhash + "-" + self.Tx + "-" + self.Hashkey + "-" + strconv.Itoa(workid) + msgtypesep + "rpc_check_hashkey"
+    log.Debug("CheckHashkeySendMsgToDcrm.Run","send data",ss)
+    p2pdcrm.SendToDcrmGroup(ss)
+    //data := <-w.dcrmret
+    data,cherr := GetChannelValue(w.dcrmret)
+    if cherr != nil {
+	log.Debug("get w.dcrmret timeout.")
+	var ret2 Err
+	ret2.info = "get dcrm return result timeout."
+	res := RpcDcrmRes{ret:"",err:ret2}
+	ch <- res
+	return false
+    }
+    log.Debug("CheckHashkeySendMsgToDcrm.Run","dcrm return data",data)
+    
+    mm := strings.Split(data,msgtypesep)
+    if len(mm) == 2 && mm[1] == "rpc_check_hashkey_res" {
+	tmps := strings.Split(mm[0],"-")
+	if cur_enode == tmps[0] {
+	    if tmps[2] == "fail" {
+		var ret2 Err
+		ret2.info = tmps[3] 
+		res := RpcDcrmRes{ret:"",err:ret2}
+		ch <- res
+	    }
+	    
+	    if tmps[2] == "true" {
+		res := RpcDcrmRes{ret:tmps[2],err:nil}
+		ch <- res
+	    }
+	}
+    }
+
+    return true
+}
 ////////////////////////////////////////
 
 type RpcDcrmRes struct {
@@ -2052,6 +2167,13 @@ func dcrmret(msg interface{}) {
 	w := non_dcrm_workers[id]
 	w.dcrmret <- data
     }
+    if len(mm) == 2 && mm[1] == "rpc_check_hashkey_res" {
+	tmps := strings.Split(mm[0],"-")
+	log.Debug("dcrmret","receiv data",data,"worker id",tmps[1])
+	id,_ := strconv.Atoi(tmps[1])
+	w := non_dcrm_workers[id]
+	w.dcrmret <- data
+    }
 }
 
 func dcrmcall(msg interface{}) <-chan string {
@@ -2113,6 +2235,28 @@ func dcrmcall(msg interface{}) <-chan string {
    
 	//ss:  enode-wid-true || rpc_lockin_res
 	ss := tmps[0] + "-" + tmps[9] + "-" + "true" + msgtypesep + "rpc_lockin_res"
+	//p2pdcrm.Broatcast(ss)
+	ch <- ss 
+	return ch
+    }
+
+    if len(mm) == 2 && mm[1] == "rpc_check_hashkey" {
+	tmps := strings.Split(mm[0],"-")
+	has,err := IsHashkeyExsitInLocalDB(tmps[3])
+	if err != nil {
+	ss := tmps[0] + "-" + tmps[4] + "-" + "fail" + "-" + err.Error() + msgtypesep + "rpc_check_hashkey_res"
+	//p2pdcrm.Broatcast(ss)
+	ch <- ss 
+	return ch
+    }
+	if has == true {
+	ss := tmps[0] + "-" + tmps[4] + "-" + "fail" + "-" + "error: the dcrmaddr has lockin already." + msgtypesep + "rpc_check_hashkey_res"
+	//p2pdcrm.Broatcast(ss)
+	ch <- ss 
+	return ch
+    }
+   
+	ss := tmps[0] + "-" + tmps[4] + "-" + "true" + msgtypesep + "rpc_check_hashkey_res"
 	//p2pdcrm.Broatcast(ss)
 	ch <- ss 
 	return ch
@@ -2852,6 +2996,7 @@ func GetDcrmAddr(hash string,cointype string) string {
     //try to get from db
     if strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true {
 	log.Debug("================GetDcrmAddr read db===============")
+	
 	lock.Lock()
 	log.Debug("================GetDcrmAddr get db dir ===============")
 	dbpath := GetDbDir()
@@ -2862,7 +3007,6 @@ func GetDcrmAddr(hash string,cointype string) string {
 	    lock.Unlock()
 	    return  "" 
 	} 
-	defer db.Close() 
 
 	var b bytes.Buffer 
 	b.WriteString("") 
@@ -2885,6 +3029,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 		    if len(dcrmaddrs) == 42 { //ETH
 			//s := []string{fusionaddr,pubkey,string(ys),string(encX.Bytes()),txhash_reqaddr} ////fusionaddr ??
 			if strings.EqualFold(hash,s[4]) == true {
+			    db.Close() 
 			    lock.Unlock()
 			    return key
 			}
@@ -2896,6 +3041,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 	} 
 	
 	iter.Release() 
+	db.Close() 
 	lock.Unlock()
     }
 
@@ -2909,7 +3055,6 @@ func GetDcrmAddr(hash string,cointype string) string {
 	    lock.Unlock()
 	    return "" 
 	} 
-	defer db.Close() 
 
 	var b bytes.Buffer 
 	b.WriteString("") 
@@ -2934,6 +3079,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 		    } else { //BTC
 			//s := []string{fusionaddr,pubkey,string(ys),string(encX.Bytes()),txhash_reqaddr} ////fusionaddr ??
 			if strings.EqualFold(hash,s[4]) == true {
+			    db.Close() 
 			    lock.Unlock()
 			    return key 
 			}
@@ -2943,6 +3089,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 	} 
 	
 	iter.Release() 
+	db.Close() 
 	lock.Unlock()
     }
 
@@ -3037,6 +3184,19 @@ func GetDcrmAddr(hash string,cointype string) string {
 
 		    ss := []string{"dir",cur_enode}
 		    dir = strings.Join(ss,"-")
+		    return dir
+		}
+
+		//for lockin
+		func GetDbDirForLockin() string {
+		    if datadir != "" {
+		    	return datadir+"/hashkeydb"
+		    }
+
+		    ss := []string{"dir",cur_enode}
+		    dir = strings.Join(ss,"-")
+		    dir += "-"
+		    dir += "hashkeydb"
 		    return dir
 		}
 
@@ -3243,7 +3403,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 		    ch <- res
 		}
 
-		func DcrmValidateResGet(hashkey string,cointype string,datatype string) string {
+		/*func DcrmValidateResGet(hashkey string,cointype string,datatype string) string {
 		    if hashkey == "" || datatype == "" || cointype == "" {
 			return ""
 		    }
@@ -3373,7 +3533,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 		}
 
 		    return ""
-		}
+		}*/
 
 		func dcrm_liloreqAddress(msgprex string,fusionaddr string,pubkey string,cointype string,ch chan interface{}) {
 
