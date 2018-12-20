@@ -29,7 +29,7 @@ import (
 	"time"
 	//"net"
 
-	//"github.com/fusion/go-fusion/crypto/dcrm"
+	//"github.com/fusion/go-fusion/crypto/dcrm" //caihaijun
 	"github.com/elastic/gosigar"
 	"github.com/fusion/go-fusion/accounts"
 	"github.com/fusion/go-fusion/accounts/keystore"
@@ -53,6 +53,7 @@ const (
 
 var (
 	paillier_threshold_index int
+	//datadir string
 
 	// Git SHA1 commit hash of the release (set via linker flags)
 	gitCommit = ""
@@ -161,6 +162,13 @@ var (
 			cli.IntFlag{Name: "index", Value:0, Usage: "paillier threshold decrept", Destination: &paillier_threshold_index},
 		}
 
+		//+++++++++++caihaijun++++++++++++
+		//datadirFlags = []cli.Flag{
+		//		cli.StringFlag{Name: "datadir", Value:"", Usage: "data dir", Destination: &datadir},
+		//	}
+
+		//+++++++++++++++end+++++++++++++
+
 	whisperFlags = []cli.Flag{
 		utils.WhisperEnabledFlag,
 		utils.WhisperMaxMessageSizeFlag,
@@ -220,11 +228,12 @@ func init() {
 	app.Flags = append(app.Flags, whisperFlags...)
 	app.Flags = append(app.Flags, metricsFlags...)
 	app.Flags = append(app.Flags, paillierThresholdFlags...)
+	//app.Flags = append(app.Flags, datadirFlags...) //caihaijun
 
 	app.Before = func(ctx *cli.Context) error {
 		runtime.GOMAXPROCS(runtime.NumCPU())
 
-		utils.SetDatadir (ctx)
+		//utils.SetDatadir (ctx)
 
 		logdir := ""
 		if ctx.GlobalBool(utils.DashboardEnabledFlag.Name) {
@@ -280,6 +289,9 @@ func geth(ctx *cli.Context) error {
 	if args := ctx.Args(); len(args) > 0 {
 		return fmt.Errorf("invalid command: %q", args[0])
 	}
+
+	utils.SetDatadir (ctx) //caihaijun
+	//dcrm.SetDatadir(datadir) //caihaijun
 	node := makeFullNode(ctx)
 	startNode(ctx, node)
 

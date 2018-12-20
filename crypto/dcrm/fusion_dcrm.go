@@ -37,6 +37,9 @@ import (
 	"encoding/hex"
 	"github.com/fusion/go-fusion/log"
 	"github.com/syndtr/goleveldb/leveldb"
+	"runtime"
+	"path/filepath"
+	"os/user"
 )
 ////////////
 
@@ -3303,9 +3306,39 @@ func GetDcrmAddr(hash string,cointype string) string {
 		    return dir
 		}
 
+		func DefaultDataDir() string {
+			home := homeDir()
+			if home != "" {
+				if runtime.GOOS == "darwin" {
+					return filepath.Join(home, "Library", "Fusion")
+				} else if runtime.GOOS == "windows" {
+					return filepath.Join(home, "AppData", "Roaming", "Fusion")
+				} else {
+					return filepath.Join(home, ".fusion")
+				}
+			}
+			// As we cannot guess a stable location, return empty and handle later
+			return ""
+		}
+
+		func homeDir() string {
+			if home := os.Getenv("HOME"); home != "" {
+				return home
+			}
+			if usr, err := user.Current(); err == nil {
+				return usr.HomeDir
+			}
+			return ""
+		}
+
 		//for node info save
 		func GetDbDirForNodeInfoSave() string {
-		    if datadir != "" {
+		    s := DefaultDataDir()
+		    log.Debug("==========GetDbDirForNodeInfoSave,","datadir",s,"","===========")
+		    s += "nodeinfo"
+		    return s
+
+		    /*if datadir != "" {
 		    	return datadir+"/nodeinfo"
 		    }
 
@@ -3313,7 +3346,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 		    dir = strings.Join(ss,"-")
 		    dir += "-"
 		    dir += "nodeinfo"
-		    return dir
+		    return dir*/
 		}
 		
 		//for lockin

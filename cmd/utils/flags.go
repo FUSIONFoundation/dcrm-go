@@ -630,7 +630,9 @@ var (
 )
 
 func SetDatadir (ctx *cli.Context) {
+	log.Debug("=============SetDatadir==========")//caihaijun
 	if path := ctx.GlobalString(DataDirFlag.Name); path != "" {
+	    log.Debug("=============SetDatadir,","data dir path",path,"","==========")//caihaijun
 	cdcrm.SetDatadir(path)
 	}
 }
