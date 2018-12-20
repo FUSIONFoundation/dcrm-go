@@ -1080,13 +1080,43 @@ func (pool *TxPool) checkLockin(tx *types.Transaction) (bool,error) {
 	return false,errors.New("BTC dcrm addr is not the right format.")
     }
 
+    ////////
+    result,err := tx.MarshalJSON()
+    if !dcrm.IsInGroup() {
+	//check again from block.
+	d := new(big.Int).SetBytes([]byte(ret))
+	key := common.BytesToHash(d.Bytes())
+	hk := pool.currentState.GetDcrmHashKey(from,key,cointype)
+	if strings.EqualFold(hashkey,hk) == true {
+	    return false,errors.New("error: the dcrmaddr has lockin already.")
+	}
+	
+	msg := tx.Hash().Hex() + sep9 + string(result) + sep9 + hashkey 
+	
+	_,err := dcrm.SendReqToGroup(msg,"rpc_check_hashkey")
+	if err != nil {
+	    return false, err
+	}
+	
+	return true,nil
+    }
+
+    //check again from block.
     d := new(big.Int).SetBytes([]byte(ret))
     key := common.BytesToHash(d.Bytes())
-
     hk := pool.currentState.GetDcrmHashKey(from,key,cointype)
     if strings.EqualFold(hashkey,hk) == true {
 	return false,errors.New("error: the dcrmaddr has lockin already.")
     }
+    has,err := dcrm.IsHashkeyExsitInLocalDB(hashkey)
+    if err != nil {
+	return false,err
+    }
+    if has == true {
+	return false,errors.New("error: the dcrmaddr has lockin already.")
+    }
+
+    ///////
 
     return true,nil
 }

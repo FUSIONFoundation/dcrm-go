@@ -33,6 +33,7 @@ import (
 	"github.com/fusion/go-fusion/params"
 	"golang.org/x/crypto/ripemd160"
 	"github.com/fusion/go-fusion/log"
+	"github.com/fusion/go-fusion/crypto/dcrm" //caihaijun
 )
 
 func init() {
@@ -510,6 +511,9 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 	    if err == nil {
 		log.Debug("dcrmTransaction.Run","from",from,"key",key,"result",result)
 		evm.StateDB.SetStateDcrmAccountData(from,key,result)
+		//////write hashkey to local db
+		dcrm.WriteHashkeyToLocalDB(m[1],addr)	
+		//////
 	    }
 	} else {
 		
@@ -533,6 +537,9 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 		    result, err := json.Marshal(&aa)
 		    if err == nil {
 			evm.StateDB.SetStateDcrmAccountData(from,key,result)
+			//////write hashkey to local db
+			dcrm.WriteHashkeyToLocalDB(m[1],addr)	
+			//////
 		    }
 		} 
 		
@@ -549,6 +556,9 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 		    result, err := json.Marshal(&aa)
 		    if err == nil {
 			evm.StateDB.SetStateDcrmAccountData(from,key,result)
+			//////write hashkey to local db
+			dcrm.WriteHashkeyToLocalDB(m[1],addr)	
+			//////
 		    }
 		}
 	    }
