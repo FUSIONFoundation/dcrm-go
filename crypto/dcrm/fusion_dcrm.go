@@ -67,7 +67,6 @@ var (
     priv_Key *privKey
     ZKParams *PublicParameters
 
-    ALTER_ADDR_HEX = `0xd92c6581cb000367c10a1997070ccd870287f2da`
     CHAIN_ID       = 4 //ethereum mainnet=1 rinkeby testnet=4
 
     //
@@ -118,7 +117,96 @@ var (
     
     //for lockin
     lock2 sync.Mutex
+    
+    //for node info save
+    lock3 sync.Mutex
 )
+
+func ReadNodeInfoFromLocalDB(nodeinfo string) (string,error) {
+    if !IsInGroup() {
+	return "",errors.New("it is not in group.")
+    }
+
+    if nodeinfo == "" {
+	return "",errors.New("param error in read nodeinfo from local db.")
+    }
+
+    lock3.Lock()
+    path := GetDbDirForNodeInfoSave()
+    db,_ := ethdb.NewLDBDatabase(path, 0, 0)
+    if db == nil {
+	log.Debug("==============ReadNodeInfoFromLocalDB,create db fail.============")
+	lock3.Unlock()
+	return "",errors.New("create db fail.")
+    }
+    
+    value,has:= db.Get([]byte(nodeinfo))
+    if has != nil {
+	db.Close()
+	lock3.Unlock()
+	return "",errors.New("has not nodeinfo in local DB.")
+    }
+
+    db.Close()
+    lock3.Unlock()
+    return string(value),nil
+}
+
+func IsNodeInfoExsitInLocalDB(nodeinfo string) (bool,error) {
+    if nodeinfo == "" {
+	return false,errors.New("param error in check local db by nodeinfo.")
+    }
+    
+    lock3.Lock()
+    path := GetDbDirForNodeInfoSave()
+    db,_ := ethdb.NewLDBDatabase(path, 0, 0)
+    if db == nil {
+	log.Debug("==============IsNodeInfoExsitInLocalDB,create db fail.============")
+	lock3.Unlock()
+	return false,errors.New("create db fail.")
+    }
+    
+    has,err := db.Has([]byte(nodeinfo))
+    if err != nil {
+	db.Close()
+	lock3.Unlock()
+	return false,err
+    }
+
+    if has == false {
+	db.Close()
+	lock3.Unlock()
+	return false,nil
+    }
+
+    db.Close()
+    lock3.Unlock()
+    return true,nil
+}
+
+func WriteNodeInfoToLocalDB(nodeinfo string,value string) (bool,error) {
+    if !IsInGroup() {
+	return false,errors.New("it is not in group.")
+    }
+
+    if nodeinfo == "" || value == "" {
+	return false,errors.New("param error in write nodeinfo to local db.")
+    }
+
+    lock3.Lock()
+    path := GetDbDirForNodeInfoSave()
+    db,_ := ethdb.NewLDBDatabase(path, 0, 0)
+    if db == nil {
+	log.Debug("==============WriteNodeInfoToLocalDB,create db fail.============")
+	lock3.Unlock()
+	return false,errors.New("create db fail.")
+    }
+    
+    db.Put([]byte(nodeinfo),[]byte(value))
+    db.Close()
+    lock3.Unlock()
+    return true,nil
+}
 
 func IsHashkeyExsitInLocalDB(hashkey string) (bool,error) {
     if hashkey == "" {
@@ -2128,6 +2216,21 @@ func init(){
 	log.Root().SetHandler(glogger)
 
 	erc20_client = nil
+
+	//
+	b,err := IsNodeInfoExsitInLocalDB(crypto.Keccak256Hash([]byte(strings.ToLower("NODEINFO"))).Hex()) 
+	if err == nil && b {
+	    value,err2 := ReadNodeInfoFromLocalDB(crypto.Keccak256Hash([]byte(strings.ToLower("NODEINFO"))).Hex())
+	    if err2 == nil && value != "" {
+		datas := strings.Split(value,"dcrmnodeinfo")
+		privkey := datas[1]
+		pri,_ := new(big.Int).SetString(privkey,10)
+		cnt := datas[2]
+		c,_ := strconv.Atoi(cnt)
+		Init("",pri,c)
+	    }
+	}
+	//
 }
 
 func dcrmret(msg interface{}) {
@@ -2363,6 +2466,19 @@ func Init(tmp string, paillier_dprivkey *big.Int,nodecnt int) {
     GetEnodesInfo()  
     InitChan()
 	init_times = 1
+
+    ////
+    b,err := IsNodeInfoExsitInLocalDB(crypto.Keccak256Hash([]byte(strings.ToLower("NODEINFO"))).Hex()) 
+     if err == nil && !b {
+	peers,others := p2pdcrm.GetGroup()
+	s := "dcrmnodeinfo"
+	privkey := fmt.Sprintf("%v",paillier_dprivkey)
+	ps := strconv.Itoa(peers)
+	groupIds := "0" //default
+	value := groupIds + s + privkey + s + ps + s + others + s + cur_enode
+	WriteNodeInfoToLocalDB(crypto.Keccak256Hash([]byte(strings.ToLower("NODEINFO"))).Hex(),value)
+    }
+    ////
 }
 
 //###############
@@ -3187,6 +3303,19 @@ func GetDcrmAddr(hash string,cointype string) string {
 		    return dir
 		}
 
+		//for node info save
+		func GetDbDirForNodeInfoSave() string {
+		    if datadir != "" {
+		    	return datadir+"/nodeinfo"
+		    }
+
+		    ss := []string{"dir",cur_enode}
+		    dir = strings.Join(ss,"-")
+		    dir += "-"
+		    dir += "nodeinfo"
+		    return dir
+		}
+		
 		//for lockin
 		func GetDbDirForLockin() string {
 		    if datadir != "" {
