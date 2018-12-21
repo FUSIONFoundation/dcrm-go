@@ -34,7 +34,7 @@ import (
 	"github.com/fusion/go-fusion/crypto/sha3"
 	"github.com/fusion/go-fusion/params"
 	"github.com/fusion/go-fusion/rlp"
-	"github.com/fusion/go-fusion/log" //caihaijun
+	//"github.com/fusion/go-fusion/log" //caihaijun
 )
 
 // Ethash proof-of-work protocol constants.
@@ -567,7 +567,7 @@ func (ethash *Ethash) Prepare(chain consensus.ChainReader, header *types.Header)
 // setting the final state and assembling the block.
 func (ethash *Ethash) Finalize(chain consensus.ChainReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
 	// Accumulate any block and uncle rewards and commit the final state root
-	log.Debug("===========Ethash.Finalize======") //caihaijun
+	//log.Debug("===========Ethash.Finalize======") //caihaijun
 	accumulateRewards(chain.Config(), state, header, uncles)
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
 
@@ -618,7 +618,7 @@ func accumulateRewards(config *params.ChainConfig, state *state.StateDB, header 
 	}
 	// Accumulate the rewards for the miner and any included uncles
 	reward := new(big.Int).Set(blockReward)
-	log.Debug("===========accumulateRewards","reward",reward,"","===========") //caihaijun
+	//log.Debug("===========accumulateRewards","reward",reward,"","===========") //caihaijun
 	r := new(big.Int)
 	for _, uncle := range uncles {
 		r.Add(uncle.Number, big8)

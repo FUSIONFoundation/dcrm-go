@@ -593,7 +593,7 @@ func (c *Clique) Finalize(chain consensus.ChainReader, header *types.Header, sta
 	//c.accumulateRewards(chain.Config(), state, header, uncles)
 
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
-	log.Debug("===========Clique.Finalize","header number",header.Number,"get header root ",header.Root,"","===========") //caihaijun
+	//log.Debug("===========Clique.Finalize","header number",header.Number,"get header root ",header.Root,"","===========") //caihaijun
 	header.UncleHash = types.CalcUncleHash(nil)
 
 	// Assemble and return the final block for sealing
@@ -659,7 +659,7 @@ func (c *Clique) Seal(chain consensus.ChainReader, block *types.Block, results c
 	}
 	// Sign all the things!
 	sighash, err := signFn(accounts.Account{Address: signer}, sigHash(header).Bytes())
-	log.Debug("===========Clique.Seal","sighash",string(sighash),"","===========") //caihaijun
+	//log.Debug("===========Clique.Seal","sighash",string(sighash),"","===========") //caihaijun
 	if err != nil {
 		return err
 	}
@@ -736,7 +736,7 @@ var (
 // reward. The total reward consists of the static block reward and rewards for
 // included uncles. The coinbase of each uncle block is also rewarded.
 func (c *Clique) accumulateRewards(config *params.ChainConfig, state *state.StateDB, header *types.Header, uncles []*types.Header) {
-	log.Debug("==== accumulateRewards ====\n")
+	//log.Debug("==== accumulateRewards ====\n")
 
 	blockReward := FsnBlockReward
 	// Select the correct block reward based on chain progression
@@ -745,7 +745,7 @@ func (c *Clique) accumulateRewards(config *params.ChainConfig, state *state.Stat
 	}
 	// Accumulate the rewards for the signer
 	reward := new(big.Int).Set(blockReward)
-	log.Debug("===========accumulateRewards","reward",reward,"","===========") //caihaijun
+	//log.Debug("===========accumulateRewards","reward",reward,"","===========") //caihaijun
 	sig := header.Extra[32 : len(header.Extra)-65]
 	if common.BytesToAddress(sig) != (common.Address{}) {
 		state.AddBalance(common.BytesToAddress(sig), reward)

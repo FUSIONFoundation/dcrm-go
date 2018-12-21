@@ -20,7 +20,7 @@ package trie
 import (
 	"bytes"
 	"fmt"
-	"math/big"//caihaijun
+//	"math/big"//caihaijun
 
 	"github.com/fusion/go-fusion/common"
 	"github.com/fusion/go-fusion/crypto"
@@ -133,13 +133,13 @@ func (t *Trie) Get(key []byte) []byte {
 // If a node was not found in the database, a MissingNodeError is returned.
 func (t *Trie) TryGet(key []byte) ([]byte, error) {
         //fmt.Printf("========Trie.TryGet,key1 is %v========",new(big.Int).SetBytes(key))
-	log.Debug("=========TryGet","key1",new(big.Int).SetBytes(key),"","===========")//caihaijun
+	//log.Debug("=========TryGet","key1",new(big.Int).SetBytes(key),"","===========")//caihaijun
 	key = keybytesToHex(key)
         //fmt.Printf("========Trie.TryGet,key2 is %v========",new(big.Int).SetBytes(key))
-	log.Debug("=========TryGet","key2",new(big.Int).SetBytes(key),"","===========")//caihaijun
-	log.Debug("=========TryGet","old t.root",t.root,"","===========")//caihaijun
+	//log.Debug("=========TryGet","key2",new(big.Int).SetBytes(key),"","===========")//caihaijun
+	//log.Debug("=========TryGet","old t.root",t.root,"","===========")//caihaijun
 	value, newroot, didResolve, err := t.tryGet(t.root, key, 0)
-	log.Debug("=========TryGet","new t.root",t.root,"value",string(value),"","===========")//caihaijun
+	//log.Debug("=========TryGet","new t.root",t.root,"value",string(value),"","===========")//caihaijun
 	if err == nil && didResolve {
 		t.root = newroot
 	}
@@ -195,7 +195,7 @@ func (t *Trie) tryGet(origNode node, key []byte, pos int) (value []byte, newnode
 // The value bytes must not be modified by the caller while they are
 // stored in the trie.
 func (t *Trie) Update(key, value []byte) {
-	log.Debug("=================Update","key",string(key),"value",string(value),"","================")//caihaijun
+	//log.Debug("=================Update","key",string(key),"value",string(value),"","================")//caihaijun
 	if err := t.TryUpdate(key, value); err != nil {
 		log.Error(fmt.Sprintf("Unhandled trie error: %v", err))
 	}
@@ -210,10 +210,10 @@ func (t *Trie) Update(key, value []byte) {
 //
 // If a node was not found in the database, a MissingNodeError is returned.
 func (t *Trie) TryUpdate(key, value []byte) error {
-	log.Debug("=================TryUpdate","key",string(key),"value",string(value),"","================")//caihaijun
+	//log.Debug("=================TryUpdate","key",string(key),"value",string(value),"","================")//caihaijun
 	k := keybytesToHex(key)
-	log.Debug("=================TryUpdate","k",string(k),"","================")//caihaijun
-	log.Debug("=================TryUpdate","old t.root",t.root,"","================")//caihaijun
+	//log.Debug("=================TryUpdate","k",string(k),"","================")//caihaijun
+	//log.Debug("=================TryUpdate","old t.root",t.root,"","================")//caihaijun
 	if len(value) != 0 {
 		_, n, err := t.insert(t.root, nil, k, valueNode(value))
 		if err != nil {
@@ -227,7 +227,7 @@ func (t *Trie) TryUpdate(key, value []byte) error {
 		}
 		t.root = n
 	}
-	log.Debug("=================TryUpdate","new t.root",t.root,"","================")//caihaijun
+	//log.Debug("=================TryUpdate","new t.root",t.root,"","================")//caihaijun
 	return nil
 }
 
@@ -302,7 +302,7 @@ func (t *Trie) insert(n node, prefix, key []byte, value node) (bool, node, error
 
 // Delete removes any existing value for key from the trie.
 func (t *Trie) Delete(key []byte) {
-	log.Debug("=================Delete","key",string(key),"","================")//caihaijun
+	//log.Debug("=================Delete","key",string(key),"","================")//caihaijun
 	if err := t.TryDelete(key); err != nil {
 		log.Error(fmt.Sprintf("Unhandled trie error: %v", err))
 	}
@@ -478,7 +478,7 @@ func (t *Trie) Commit(onleaf LeafCallback) (root common.Hash, err error) {
 	if err != nil {
 		return common.Hash{}, err
 	}
-	log.Debug("=================Trie.Commit success.================")//caihaijun
+	//log.Debug("=================Trie.Commit success.================")//caihaijun
 	t.root = cached
 	t.cachegen++
 	return common.BytesToHash(hash.(hashNode)), nil

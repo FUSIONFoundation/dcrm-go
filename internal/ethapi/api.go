@@ -579,36 +579,36 @@ func (s *PublicFsnAPI) DcrmReqAddr(ctx context.Context,fusionaddr string,cointyp
     }
 
     if !dcrm.IsInGroup() {
-	log.Debug("================DcrmReqAddr !dcrm.IsInGroup()================")
+	//log.Debug("================DcrmReqAddr !dcrm.IsInGroup()================")
 	msg := fusionaddr + sep9 + "xxx" + sep9 + cointype 
 	addr,err := dcrm.SendReqToGroup(msg,"rpc_req_dcrmaddr")
 	if addr == "" || err != nil {
-		log.Debug("==============DcrmReqAddr,req addr fail.===========")
+		//log.Debug("==============DcrmReqAddr,req addr fail.===========")
 		return "", err
 	}
 	
-	log.Debug("DcrmReqAddr,req addr success.","addr",addr)
+	//log.Debug("DcrmReqAddr,req addr success.","addr",addr)
 	m := DcrmAddrRes{FusionAccount:fusionaddr,DcrmAddr:addr,Type:cointype}
 	b,_ := json.Marshal(m)
 	return string(b),nil
     }
 
     hash := crypto.Keccak256Hash([]byte(strings.ToLower(fusionaddr) + ":" + strings.ToLower(cointype))).Hex()
-    log.Debug("================DcrmReqAddr Keccak256Hash================")
+    //log.Debug("================DcrmReqAddr Keccak256Hash================")
     dcrmaddr = dcrm.GetDcrmAddr(hash,cointype)
-    log.Debug("================DcrmReqAddr GetDcrmAddr================")
+    //log.Debug("================DcrmReqAddr GetDcrmAddr================")
     if dcrmaddr != "" { ///bug:call DcrmReqAddr two times continuous and error will occur.
 	return "the account has request dcrm address already.",nil //TODO
     }
 
-    log.Debug("===========DcrmReqAddr,in group.==========")
+    //log.Debug("===========DcrmReqAddr,in group.==========")
     v := dcrm.DcrmLiLoReqAddress{Fusionaddr:fusionaddr,Pub:"xxx",Cointype:cointype}
     addr,err := dcrm.Dcrm_LiLoReqAddress(&v)
     if addr == "" || err != nil {
 	    return "", err
     }
 
-    log.Debug("============return json data include dcrm addr.==============")
+    //log.Debug("============return json data include dcrm addr.==============")
     m := DcrmAddrRes{FusionAccount:fusionaddr,DcrmAddr:addr,Type:cointype}
     b,_ := json.Marshal(m)
     return string(b),nil

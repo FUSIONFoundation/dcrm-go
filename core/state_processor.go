@@ -68,7 +68,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	}
 	// Iterate over and process the individual transactions
 	for i, tx := range block.Transactions() {
-		log.Debug("===========StateProcessor.Process","tx hash",tx.Hash(),"block hash",block.Hash(),"header number",header.Number,"","============") //caihaijun
+		//log.Debug("===========StateProcessor.Process","tx hash",tx.Hash(),"block hash",block.Hash(),"header number",header.Number,"","============") //caihaijun
 		statedb.Prepare(tx.Hash(), block.Hash(), i)
 		receipt, _, err := ApplyTransaction(p.config, p.bc, nil, gp, statedb, header, tx, usedGas, cfg)
 		if err != nil {
@@ -108,15 +108,15 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, author *commo
 	// Update the state with pending changes
 	var root []byte
 	if config.IsByzantium(header.Number) {
-		log.Debug("===========ApplyTransaction,config.IsByzantium======") //caihaijun
+		//log.Debug("===========ApplyTransaction,config.IsByzantium======") //caihaijun
 		statedb.Finalise(true)
 	} else {
-		log.Debug("===========ApplyTransaction,config.Is not Byzantium and get mekle root======") //caihaijun
+		//log.Debug("===========ApplyTransaction,config.Is not Byzantium and get mekle root======") //caihaijun
 		root = statedb.IntermediateRoot(config.IsEIP158(header.Number)).Bytes()
-		log.Debug("===========ApplyTransaction,","get root",string(root),"","==============") //caihaijun
+		//log.Debug("===========ApplyTransaction,","get root",string(root),"","==============") //caihaijun
 	}
 	*usedGas += gas
-	log.Debug("===========ApplyTransaction,","usedGas",*usedGas,"tx hash",tx.Hash(),"","==============") //caihaijun
+	//log.Debug("===========ApplyTransaction,","usedGas",*usedGas,"tx hash",tx.Hash(),"","==============") //caihaijun
 
 	// Create a new receipt for the transaction, storing the intermediate root and gas used by the tx
 	// based on the eip phase, we're passing whether the root touch-delete accounts.

@@ -241,7 +241,7 @@ func (m *txSortedMap) Ready(pool *TxPool,start uint64) types.Transactions {  //+
 		///////////////////
 	    } else if mm[0] == "LOCKOUT" {
 		if ok == true && val != "" {
-		    log.Debug("=======txpool.ready,get lockout hash in outside======")
+		    //log.Debug("=======txpool.ready,get lockout hash in outside======")
 		    //result,err := tx.MarshalJSON()
 		    //v := dcrm.DcrmLockin{Tx:string(result),LockinAddr:mm[1],Hashkey:val}
 		    //_,err = dcrm.Validate_Txhash(&v)
