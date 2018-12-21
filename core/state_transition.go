@@ -190,11 +190,11 @@ func (st *StateTransition) preCheck() error {
 // returning the result including the used gas. It returns an error if failed.
 // An error indicates a consensus issue.
 func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bool, err error) {
-	log.Debug("===============TransitionDb,step 1=================")//caihaijun
+	//log.Debug("===============TransitionDb,step 1=================")//caihaijun
 	if err = st.preCheck(); err != nil {
 		return
 	}
-	log.Debug("==================TransitionDb,step 2=================")//caihaijun
+	//log.Debug("==================TransitionDb,step 2=================")//caihaijun
 	msg := st.msg
 	sender := vm.AccountRef(msg.From())
 	homestead := st.evm.ChainConfig().IsHomestead(st.evm.BlockNumber)
@@ -206,13 +206,13 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		return nil, 0, false, err
 	}
 
-	log.Debug("==================TransitionDb,step 3=================")
+	//log.Debug("==================TransitionDb,step 3=================")
 	if err = st.useGas(gas); err != nil {
 		log.Debug("===================TransitionDb,useGas fail.=================")//caihaijun
 		return nil, 0, false, err
 	}
 
-	log.Debug("===================TransitionDb,useGas finish.=================")//caihaijun
+	//log.Debug("===================TransitionDb,useGas finish.=================")//caihaijun
 	var (
 		evm = st.evm
 		// vm errors do not effect consensus and are therefor

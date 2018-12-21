@@ -240,7 +240,7 @@ func (self *stateObject) GetDcrmAccountBalance(db Database, key common.Hash,coin
     if strings.EqualFold(cointype, a.COINTYPE) == true {
 	var ba *big.Int
 	if strings.EqualFold(cointype, "BTC") == true {
-	    log.Debug("GetDcrmAccountBalance","a.BALANCE",a.BALANCE)
+	    //log.Debug("GetDcrmAccountBalance","a.BALANCE",a.BALANCE)
 	    ba = new(big.Int).SetBytes([]byte(a.BALANCE))
 	} else {
 	    ba,_ = new(big.Int).SetString(a.BALANCE,10)
@@ -261,13 +261,13 @@ func (self *stateObject) GetDcrmAddress(db Database, txhash common.Hash,cointype
 }
 
 func (self *stateObject) GetDcrmHashKey(db Database, key common.Hash,cointype string) string {
-    log.Debug("========stateObject.GetDcrmHashKey================")
+   // log.Debug("========stateObject.GetDcrmHashKey================")
     s := self.GetStateDcrmAccountData(db,key)
     if s == nil { 
 	return ""
     }
     
-    log.Debug("========stateObject.GetDcrmHashKey,data is not nil.================")
+   // log.Debug("========stateObject.GetDcrmHashKey,data is not nil.================")
     var a DcrmAccountData
     json.Unmarshal(s, &a)
     if strings.EqualFold(cointype, a.COINTYPE) == true {
@@ -278,13 +278,13 @@ func (self *stateObject) GetDcrmHashKey(db Database, key common.Hash,cointype st
 }
 
 func (self *stateObject) GetDcrmNonce(db Database, key common.Hash,cointype string) string {
-    log.Debug("========stateObject.GetDcrmNonce================")
+    //log.Debug("========stateObject.GetDcrmNonce================")
     s := self.GetStateDcrmAccountData(db,key)
     if s == nil { 
 	return ""
     }
     
-    log.Debug("========stateObject.GetDcrmNonce,data is not nil.================")
+    //log.Debug("========stateObject.GetDcrmNonce,data is not nil.================")
     var a DcrmAccountData
     json.Unmarshal(s, &a)
     if strings.EqualFold(cointype, a.COINTYPE) == true {
@@ -295,35 +295,35 @@ func (self *stateObject) GetDcrmNonce(db Database, key common.Hash,cointype stri
 }
 
 func (self *stateObject) GetStateDcrmAccountData(db Database, key common.Hash) []byte {
-	log.Debug("========stateObject.GetStateDcrmAccountData================")
+//	log.Debug("========stateObject.GetStateDcrmAccountData================")
 	// If we have a dirty value for this state entry, return it
 	value, dirty := self.dirtyStorageDcrmAccountData[key]
 	if dirty {
 		return value
 	}
-	log.Debug("========stateObject.GetStateDcrmAccountData,call GetCommittedStateDcrmAccountData================")
+//	log.Debug("========stateObject.GetStateDcrmAccountData,call GetCommittedStateDcrmAccountData================")
 	// Otherwise return the entry's original value
 	return self.GetCommittedStateDcrmAccountData(db, key)
 }
 
 func (self *stateObject) GetCommittedStateDcrmAccountData(db Database, key common.Hash) []byte {
-	log.Debug("========stateObject.GetCommittedStateDcrmAccountData================")
+//	log.Debug("========stateObject.GetCommittedStateDcrmAccountData================")
 	value, exists := self.cachedStorageDcrmAccountData[key]
 	if exists {
 		return value
 	}
-	log.Debug("========stateObject.GetCommittedStateDcrmAccountData,call TryGet","key",string(key[:]),"","================")
+//	log.Debug("========stateObject.GetCommittedStateDcrmAccountData,call TryGet","key",string(key[:]),"","================")
 	// Load from DB in case it is missing.
 	value, err := self.getTrie(db).TryGet(key[:])
 	if err == nil && len(value) != 0 {
 		self.cachedStorageDcrmAccountData[key] = value
 	}
-	log.Debug("========stateObject.GetCommittedStateDcrmAccountData,call TryGet","value",string(value),"","================")
+//	log.Debug("========stateObject.GetCommittedStateDcrmAccountData,call TryGet","value",string(value),"","================")
  	return value
  }
 
 func (self *stateObject) SetStateDcrmAccountData(db Database, key common.Hash, value []byte) {
-	log.Debug("========stateObject.SetStateDcrmAccountData================")
+//	log.Debug("========stateObject.SetStateDcrmAccountData================")
 	self.db.journal.append(storageDcrmAccountDataChange{
 		account:  &self.address,
 		key:      key,
@@ -370,18 +370,18 @@ func (self *stateObject) updateTrie(db Database) Trie {
 	//log.Debug("","===============stateObject.updateTrie===========")//caihaijun
 	tr := self.getTrie(db)
 	for key, value := range self.dirtyStorage {
-	    log.Debug("===============stateObject.updateTrie, dirtyStorage:","get key",key,"get value",value.Hex(),"","=====================")//caihaijun
+	    //log.Debug("===============stateObject.updateTrie, dirtyStorage:","get key",key,"get value",value.Hex(),"","=====================")//caihaijun
 		delete(self.dirtyStorage, key)
 
 		// Skip noop changes, persist actual changes
 		if value == self.originStorage[key] {
-		    log.Debug("============stateObject.updateTrie, dirtyStorage:","key",key.Hex(),"","no change,and skip.============")//caihaijun
+	//	    log.Debug("============stateObject.updateTrie, dirtyStorage:","key",key.Hex(),"","no change,and skip.============")//caihaijun
 			continue
 		}
 		self.originStorage[key] = value
 
 		if (value == common.Hash{}) {
-		    log.Debug("===============stateObject.updateTrie, dirtyStorage:","key",key.Hex(),"","value is nil and delete it.===========")//caihaijun
+	//	    log.Debug("===============stateObject.updateTrie, dirtyStorage:","key",key.Hex(),"","value is nil and delete it.===========")//caihaijun
 			self.setError(tr.TryDelete(key[:]))
 			continue
 		}
@@ -392,25 +392,25 @@ func (self *stateObject) updateTrie(db Database) Trie {
 
 	//+++++++++++++++caihaijun++++++++++++++++
 	for key, value := range self.dirtyStorageDcrmAccountData {
-	    log.Debug("===============stateObject.updateTrie, dirtyStorageDcrmAccountData:","get key",key.Hex(),"get value",string(value),"","=====================")//caihaijun
+	  //  log.Debug("===============stateObject.updateTrie, dirtyStorageDcrmAccountData:","get key",key.Hex(),"get value",string(value),"","=====================")//caihaijun
 		delete(self.dirtyStorageDcrmAccountData, key)
 
 		// Skip noop changes, persist actual changes
 		if string(value) == string(self.cachedStorageDcrmAccountData[key]) {
-		    log.Debug("============stateObject.updateTrie, dirtyStorageDcrmAccountData:","key",key.Hex(),"","no change,and skip.============")//caihaijun
+	//	    log.Debug("============stateObject.updateTrie, dirtyStorageDcrmAccountData:","key",key.Hex(),"","no change,and skip.============")//caihaijun
 			continue
 		}
 		self.cachedStorageDcrmAccountData[key] = value
 
 		if (value == nil) {
-		    log.Debug("===============stateObject.updateTrie, dirtyStorageDcrmAccountData:","key",key.Hex(),"","value is nil and delete it.===========")//caihaijun
+	//	    log.Debug("===============stateObject.updateTrie, dirtyStorageDcrmAccountData:","key",key.Hex(),"","value is nil and delete it.===========")//caihaijun
 			self.setError(tr.TryDelete(key[:]))
 			continue
 		}
 		// Encoding []byte cannot fail, ok to ignore the error.
 		//v, _ := rlp.EncodeToBytes(bytes.TrimLeft(value[:], "\x00"))
 		v := value//v, _ := rlp.EncodeToBytes(bytes.TrimLeft(value[:], ""))
-		log.Debug("===============stateObject.updateTrie, dirtyStorageDcrmAccountData:","key",key.Hex(),"value",string(v),"","is update into trie.===========")//caihaijun
+	//	log.Debug("===============stateObject.updateTrie, dirtyStorageDcrmAccountData:","key",key.Hex(),"value",string(v),"","is update into trie.===========")//caihaijun
 		self.setError(tr.TryUpdate(key[:], v))
 	}
 	//++++++++++++++++++end+++++++++++++++++++
@@ -426,7 +426,7 @@ func (self *stateObject) updateRoot(db Database) {
 // CommitTrie the storage trie of the object to db.
 // This updates the trie root.
 func (self *stateObject) CommitTrie(db Database) error {
-	log.Debug("=========stateObject.CommitTrie, call updateTrie to update trie root and write to db ======")//caihaijun
+	//log.Debug("=========stateObject.CommitTrie, call updateTrie to update trie root and write to db ======")//caihaijun
 	self.updateTrie(db)
 	if self.dbErr != nil {
 	    log.Debug("=========stateObject.CommitTrie,db error.======")//caihaijun
@@ -434,7 +434,7 @@ func (self *stateObject) CommitTrie(db Database) error {
 	}
 	root, err := self.trie.Commit(nil)
 	if err == nil {
-		log.Debug("=========stateObject.CommitTrie,update root ======")//caihaijun
+	//	log.Debug("=========stateObject.CommitTrie,update root ======")//caihaijun
 		self.data.Root = root
 	}
 	return err

@@ -23,7 +23,7 @@ import (
 	"github.com/fusion/go-fusion/core/state"
 	"github.com/fusion/go-fusion/core/types"
 	"github.com/fusion/go-fusion/params"
-	"github.com/fusion/go-fusion/log" //caihaijun
+	//"github.com/fusion/go-fusion/log" //caihaijun
 )
 
 // BlockValidator is responsible for validating block headers, uncles and
@@ -50,7 +50,7 @@ func NewBlockValidator(config *params.ChainConfig, blockchain *BlockChain, engin
 // header's transaction and uncle roots. The headers are assumed to be already
 // validated at this point.
 func (v *BlockValidator) ValidateBody(block *types.Block) error {
-	log.Debug("==========ValidateBody start==============") //caihaijun
+	//log.Debug("==========ValidateBody start==============") //caihaijun
 	// Check whether the block's known, and if not, that it's linkable
 	if v.bc.HasBlockAndState(block.Hash(), block.NumberU64()) {
 		return ErrKnownBlock
@@ -80,9 +80,9 @@ func (v *BlockValidator) ValidateBody(block *types.Block) error {
 // itself. ValidateState returns a database batch if the validation was a success
 // otherwise nil and an error is returned.
 func (v *BlockValidator) ValidateState(block, parent *types.Block, statedb *state.StateDB, receipts types.Receipts, usedGas uint64) error {
-	log.Debug("==========ValidateState start==============") //caihaijun
+	//log.Debug("==========ValidateState start==============") //caihaijun
 	header := block.Header()
-	log.Debug("==========ValidateState","usedGas",usedGas,"","=================") //caihaijun
+	//log.Debug("==========ValidateState","usedGas",usedGas,"","=================") //caihaijun
 	if block.GasUsed() != usedGas {
 		return fmt.Errorf("invalid gas used (remote: %d local: %d)", block.GasUsed(), usedGas)
 	}
@@ -99,7 +99,7 @@ func (v *BlockValidator) ValidateState(block, parent *types.Block, statedb *stat
 	}
 	// Validate the state root against the received state root and throw
 	// an error if they don't match.
-	log.Debug("==========ValidateState","download block header.Root",header.Root,"","=================") //caihaijun
+	//log.Debug("==========ValidateState","download block header.Root",header.Root,"","=================") //caihaijun
 	if root := statedb.IntermediateRoot(v.config.IsEIP158(header.Number)); header.Root != root {
 		return fmt.Errorf("invalid merkle root (remote: %x local: %x)", header.Root, root)
 	}
