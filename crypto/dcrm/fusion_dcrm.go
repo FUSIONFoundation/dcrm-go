@@ -1474,20 +1474,23 @@ func (self *ConfirmAddrSendMsgToDcrm) Run(workid int,ch chan interface{}) bool {
     if len(mm) == 2 && mm[1] == "rpc_confirm_dcrmaddr_res" {
 	tmps := strings.Split(mm[0],"-")
 	if cur_enode == tmps[0] {
-	    if tmps[1] == "fail" {
+	    if tmps[2] == "fail" {
+	    log.Debug("ConfirmAddrSendMsgToDcrm.Run,fail")
 		var ret2 Err
 		ret2.info = tmps[3] 
 		res := RpcDcrmRes{ret:"",err:ret2}
 		ch <- res
 	    }
 	    
-	    if tmps[1] != "fail" {
+	    if tmps[2] != "fail" {
+	    log.Debug("ConfirmAddrSendMsgToDcrm.Run,success.")
 		res := RpcDcrmRes{ret:"true",err:nil}
 		ch <- res
 	    }
 	}
     }
 		    
+    log.Debug("ConfirmAddrSendMsgToDcrm.Run,return true.")
     return true
 }
 
@@ -3447,16 +3450,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 		    return false
 		}
 
-		func dcrm_confirmaddr(msgprex string,txhash_conaddr string,tx string,fusionaddr string,dcrmaddr string,hashkey string,cointype string,ch chan interface{}) {
-		_,ok := types.GetDcrmValidateDataKReady(strings.ToLower(dcrmaddr))
-	if ok == false {
-		log.Debug("tx hash is not right or the dcrm addr is not exsit.")
-			var ret2 Err
-			ret2.info = "tx hash is not right or the dcrm addr is not exsit."
-			res := RpcDcrmRes{ret:"",err:ret2}
-			ch <- res
-			return
-	}
+		func dcrm_confirmaddr(msgprex string,txhash_conaddr string,tx string,fusionaddr string,dcrmaddr string,hashkey string,cointype string,ch chan interface{}) {	
 		    GetEnodesInfo()
 		    if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false && strings.EqualFold(cointype,"GUSD") == false && strings.EqualFold(cointype,"BNB") == false && strings.EqualFold(cointype,"MKR") == false && strings.EqualFold(cointype,"HT") == false && strings.EqualFold(cointype,"BNT") == false {
 			log.Debug("===========coin type is not supported.must be btc or eth.================")
@@ -3467,18 +3461,30 @@ func GetDcrmAddr(hash string,cointype string) string {
 			return
 		    }
 
-		    //log.Debug("","fusionaddr",fusionaddr)
-		    //log.Debug("","dcrmaddr",dcrmaddr)
-		    val,ok := types.GetDcrmValidateDataKReady(dcrmaddr)
-		    //log.Debug("","val",val,"ok",ok)
-		    if ok == true {
-		//	log.Debug("","val",val,"hash",crypto.Keccak256Hash([]byte(strings.ToLower(fusionaddr) + ":" + strings.ToLower(cointype))).Hex())
-			if strings.EqualFold(val,crypto.Keccak256Hash([]byte(strings.ToLower(fusionaddr) + ":" + strings.ToLower(cointype))).Hex() ) == true {
-			    res := RpcDcrmRes{ret:"true",err:nil}
-			    ch <- res
-			    return
+		    hash := crypto.Keccak256Hash([]byte(strings.ToLower(fusionaddr) + ":" + strings.ToLower(cointype))).Hex()
+		    val,ok := types.GetDcrmValidateDataKReady(strings.ToLower(dcrmaddr))
+			if !ok {
+				addr := GetDcrmAddr(hash,cointype)
+				if addr == "" || !strings.EqualFold(addr,dcrmaddr) {
+					log.Debug("the dcrm addr is not right.")
+					var ret2 Err
+					ret2.info = "the dcrm addr is not right."
+					res := RpcDcrmRes{ret:"",err:ret2}
+					ch <- res
+					return
+				}
+
+			} else if !strings.EqualFold(val,hash) {
+					log.Debug("the dcrm addr is not right.")
+					var ret2 Err
+					ret2.info = "the dcrm addr is not right."
+					res := RpcDcrmRes{ret:"",err:ret2}
+					ch <- res
+					return
 			}
-		    }
+			
+			res := RpcDcrmRes{ret:"true",err:nil}
+			ch <- res
 
 		    /*log.Debug("","hashkey",hashkey)
 		    if ValidateDcrm(hashkey) {
@@ -3535,8 +3541,8 @@ func GetDcrmAddr(hash string,cointype string) string {
 		    }*/
 		    
 		    //log.Debug("===========dcrm_confirmaddr,return false.===============")
-		    res := RpcDcrmRes{ret:"false",err:errors.New("dcrm addr confirm fail.")}
-		    ch <- res
+		    //res := RpcDcrmRes{ret:"false",err:errors.New("dcrm addr confirm fail.")}
+		    //ch <- res
 		}
 
 		/*func DcrmValidateResGet(hashkey string,cointype string,datatype string) string {
@@ -4050,7 +4056,6 @@ func GetDcrmAddr(hash string,cointype string) string {
 				log.Debug("signer with signature error:")
 				return "","",signErr
 			}
-
 			//log.Debug("GetTxHashForLockout","tx hash",sigTx.Hash().String())
 			result,err := sigTx.MarshalJSON()
 			return sigTx.Hash().String(),string(result),err
@@ -5270,8 +5275,8 @@ func Dcrm_ConfirmAddr(wr WorkReq) (string, error) {
     //ret := (<- rch).(RpcDcrmRes)
     ret,cherr := GetChannelValue(rch)
     if cherr != nil {
-	log.Debug("Dcrm_ConfirmAddr get rch timeout.")
-	return "",errors.New("Dcrm_ConfirmAddr get rch timeout.")
+	log.Debug(cherr.Error())
+	return "",cherr
     }
     return ret,cherr
 }
