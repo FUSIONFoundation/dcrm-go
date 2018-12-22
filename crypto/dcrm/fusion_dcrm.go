@@ -126,9 +126,6 @@ var (
 )
 
 func ReadNodeInfoFromLocalDB(nodeinfo string) (string,error) {
-    if !IsInGroup() {
-	return "",errors.New("it is not in group.")
-    }
 
     if nodeinfo == "" {
 	return "",errors.New("param error in read nodeinfo from local db.")
@@ -144,15 +141,14 @@ func ReadNodeInfoFromLocalDB(nodeinfo string) (string,error) {
     }
     
     value,has:= db.Get([]byte(nodeinfo))
-    if has != nil {
+    if string(value) != "" && has == nil {
+	    db.Close()
+	    lock3.Unlock()
+	    return string(value),nil
+    }
 	db.Close()
 	lock3.Unlock()
 	return "",errors.New("has not nodeinfo in local DB.")
-    }
-
-    db.Close()
-    lock3.Unlock()
-    return string(value),nil
 }
 
 func IsNodeInfoExsitInLocalDB(nodeinfo string) (bool,error) {
@@ -169,22 +165,16 @@ func IsNodeInfoExsitInLocalDB(nodeinfo string) (bool,error) {
 	return false,errors.New("create db fail.")
     }
     
-    has,err := db.Has([]byte(nodeinfo))
-    if err != nil {
-	db.Close()
-	lock3.Unlock()
-	return false,err
-    }
-
-    if has == false {
-	db.Close()
-	lock3.Unlock()
-	return false,nil
+    has,_ := db.Has([]byte(nodeinfo))
+    if has == true {
+	    db.Close()
+	    lock3.Unlock()
+	    return true,nil
     }
 
     db.Close()
     lock3.Unlock()
-    return true,nil
+    return false,nil
 }
 
 func WriteNodeInfoToLocalDB(nodeinfo string,value string) (bool,error) {
@@ -225,22 +215,16 @@ func IsHashkeyExsitInLocalDB(hashkey string) (bool,error) {
 	return false,errors.New("create db fail.")
     }
     
-    has,err := db.Has([]byte(hashkey))
-    if err != nil {
-	db.Close()
-	lock2.Unlock()
-	return false,err
+    has,_ := db.Has([]byte(hashkey))
+    if has == true {
+	    db.Close()
+	    lock2.Unlock()
+	    return true,nil
     }
 
-    if has == false {
 	db.Close()
 	lock2.Unlock()
 	return false,nil
-    }
-
-    db.Close()
-    lock2.Unlock()
-    return true,nil
 }
 
 func WriteHashkeyToLocalDB(hashkey string,value string) (bool,error) {
@@ -2184,6 +2168,7 @@ func (w RpcReqWorker) Stop() {
 //////////////////////////////////////
 
 func init(){
+	log.Debug("==============dcrminit===================")
 	discover.RegisterSendCallback(DispenseSplitPrivKey)
 	p2pdcrm.RegisterRecvCallback(call)
 	p2pdcrm.RegisterCallback(call)
@@ -2196,18 +2181,39 @@ func init(){
 	log.Root().SetHandler(glogger)
 
 	erc20_client = nil
+}
 
+func RestoreNodeInfo() {
 	//
 	b,err := IsNodeInfoExsitInLocalDB(crypto.Keccak256Hash([]byte(strings.ToLower("NODEINFO"))).Hex()) 
 	if err == nil && b {
+		log.Debug("==============dcrminit====11111===============")
 	    value,err2 := ReadNodeInfoFromLocalDB(crypto.Keccak256Hash([]byte(strings.ToLower("NODEINFO"))).Hex())
+	    log.Debug("=========RestoreNodeInfo,","value",value,"","==============")
 	    if err2 == nil && value != "" {
+		log.Debug("==============dcrminit====22222===============")
+		//value := groupIds + s + privkey + s + ps + s + others + s + cur_enode
 		datas := strings.Split(value,"dcrmnodeinfo")
 		privkey := datas[1]
 		pri,_ := new(big.Int).SetString(privkey,10)
 		cnt := datas[2]
 		c,_ := strconv.Atoi(cnt)
-		Init("",pri,c)
+		//Init("",pri,c)
+		////////
+		init_times = 1
+		NodeCnt = c 
+		    log.Debug("","NodeCnt",NodeCnt)
+		    //paillier
+		    GetPaillierKey(crand.Reader,1024,pri,"")
+		    log.Debug("==============new paillier finish=================")
+		    //zk
+		    GetPublicParams(secp256k1.S256(), 256, 512, SecureRnd)
+		    log.Debug("==============new zk finish====================")
+		    //GetEnodesInfo()  
+		    enode_cnts = c 
+		    cur_enode = datas[4]
+		    InitChan()
+		////////
 	    }
 	}
 	//
@@ -2450,6 +2456,7 @@ func Init(tmp string, paillier_dprivkey *big.Int,nodecnt int) {
     ////
     b,err := IsNodeInfoExsitInLocalDB(crypto.Keccak256Hash([]byte(strings.ToLower("NODEINFO"))).Hex()) 
      if err == nil && !b {
+	log.Debug("==============DcrmInit====111111===============")
 	peers,others := p2pdcrm.GetGroup()
 	s := "dcrmnodeinfo"
 	privkey := fmt.Sprintf("%v",paillier_dprivkey)
@@ -3310,20 +3317,15 @@ func GetDcrmAddr(hash string,cointype string) string {
 
 		//for node info save
 		func GetDbDirForNodeInfoSave() string {
+
+		    if datadir != "" {
+		    	return datadir+"/nodeinfo"
+		    }
+
 		    s := DefaultDataDir()
 		    log.Debug("==========GetDbDirForNodeInfoSave,","datadir",s,"","===========")
 		    s += "/nodeinfo"
 		    return s
-
-		    /*if datadir != "" {
-		    	return datadir+"/nodeinfo"
-		    }
-
-		    ss := []string{"dir",cur_enode}
-		    dir = strings.Join(ss,"-")
-		    dir += "-"
-		    dir += "nodeinfo"
-		    return dir*/
 		}
 		
 		//for lockin

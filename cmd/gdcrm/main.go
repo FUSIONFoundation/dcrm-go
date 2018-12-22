@@ -29,7 +29,7 @@ import (
 	"time"
 	//"net"
 
-	//"github.com/fusion/go-fusion/crypto/dcrm" //caihaijun
+	"github.com/fusion/go-fusion/crypto/dcrm" //caihaijun
 	"github.com/elastic/gosigar"
 	"github.com/fusion/go-fusion/accounts"
 	"github.com/fusion/go-fusion/accounts/keystore"
@@ -291,7 +291,8 @@ func geth(ctx *cli.Context) error {
 	}
 
 	utils.SetDatadir (ctx) //caihaijun
-	//dcrm.SetDatadir(datadir) //caihaijun
+	dcrm.RestoreNodeInfo() //caihaijun
+	
 	node := makeFullNode(ctx)
 	startNode(ctx, node)
 
