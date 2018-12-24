@@ -750,10 +750,10 @@ func (s *PublicFsnAPI) DcrmGetBalance(ctx context.Context,fusionaddr string,coin
 	    return "param error.fusion addr must start with 0x and len = 42.",nil
 	}
 
-	//dcrmaddr,e := s.DcrmGetAddr(ctx,fusionaddr,cointype)
-	//if e != nil || dcrmaddr == "" {
-	  //  return "the account has not request dcrm addr before.",nil
-	//}
+	/*dcrmaddr,e := s.DcrmGetAddr(ctx,fusionaddr,cointype)
+	if e != nil || dcrmaddr == "" {
+	    return "the account has not request dcrm addr before.",nil
+	}
 
 	dcrmaddrs := []rune(dcrmaddr)
 	if (strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true) && len(dcrmaddrs) != 42 { //42 = 2 + 20*2 =====>0x + addr
@@ -761,7 +761,7 @@ func (s *PublicFsnAPI) DcrmGetBalance(ctx context.Context,fusionaddr string,coin
 	}
 	if strings.EqualFold(cointype,"BTC") == true && dcrm.ValidateAddress(1,dcrmaddr) == false {
 	    return "BTC dcrm addr is not the right format.",nil
-	}
+	}*/
     
 	state, _, err := s.b.StateAndHeaderByNumber(ctx,rpc.LatestBlockNumber)
 	if state == nil || err != nil {
