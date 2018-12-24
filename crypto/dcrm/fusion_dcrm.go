@@ -3001,6 +3001,18 @@ func validate_txhash(msgprex string,tx string,lockinaddr string,hashkey string,r
 		return
 	    }
 
+	    //bug
+	    log.Debug("===============validate_txhash,","receipt",r,"","=================")
+	    null := common.Address{}
+	    if r == nil || r.ContractAddress == null {
+		var ret2 Err
+		ret2.info = "erc20 tx validate fail."
+		res := RpcDcrmRes{ret:"",err:ret2}
+		ch <- res
+		return
+	    }
+	    //
+
 	    ca := r.ContractAddress.Hex()
 	    log.Debug("===============validate_txhash,","contract address",ca,"","=================")
 
