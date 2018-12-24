@@ -734,7 +734,7 @@ func (pool *TxPool) checkTransaction(tx *types.Transaction) (bool,error) {
 	    return false,ErrInvalidSender
     }
 
-    dcrmfrom := pool.currentState.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),cointype)
+    dcrmfrom := pool.currentState.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
     if dcrmfrom == "" {
 	    return false,errors.New("the coinbase account has not request dcrm addr before.")
     }
@@ -752,9 +752,9 @@ func (pool *TxPool) checkTransaction(tx *types.Transaction) (bool,error) {
 	    return false,errors.New("param error.fusion addr must start with 0x and len = 42.")
 	}
 
-	toaddr,_ := new(big.Int).SetString(fusionto,0)
+	/*toaddr,_ := new(big.Int).SetString(fusionto,0)
 	to := common.BytesToAddress(toaddr.Bytes())
-	dcrmto := pool.currentState.GetDcrmAddress(to,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),cointype)
+	dcrmto := pool.currentState.GetDcrmAddress(to,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
     if dcrmto == "" {
 	    return false,errors.New("the coinbase account has not request dcrm addr before.")
     }
@@ -766,7 +766,7 @@ func (pool *TxPool) checkTransaction(tx *types.Transaction) (bool,error) {
 	if strings.EqualFold(cointype,"BTC") == true {
 	    return false,errors.New("BTC coinbase dcrm addr is not the right format.")
 	}
-    }
+    }*/
 
     if strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true {
 	amount, verr := strconv.ParseInt(value, 10, 64)
@@ -774,9 +774,7 @@ func (pool *TxPool) checkTransaction(tx *types.Transaction) (bool,error) {
 	    return false,verr
 	 }
 
-	addr2 := new(big.Int).SetBytes([]byte(dcrmfrom))
-	key := common.BytesToHash(addr2.Bytes())
-	 ret := pool.currentState.GetDcrmAccountBalance(from,key,cointype)
+	 ret := pool.currentState.GetDcrmAccountBalance(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
 	//log.Debug("checkTransaction","balance",ret)
 
 	balance := fmt.Sprintf("%v",ret)
@@ -803,9 +801,7 @@ func (pool *TxPool) checkTransaction(tx *types.Transaction) (bool,error) {
 	    return false,errors.New("value is less than 0.00000001 BTC.")
 	}
 	 
-	addr2 := new(big.Int).SetBytes([]byte(dcrmfrom))
-	key := common.BytesToHash(addr2.Bytes())
-	 ret := pool.currentState.GetDcrmAccountBalance(from,key,cointype)
+	 ret := pool.currentState.GetDcrmAccountBalance(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
 
 	 ///log.Debug("=========checkTransaction,","From dcrm Balance",ret,"","====================")
 	 balance := string(ret.Bytes())
@@ -864,7 +860,7 @@ func (pool *TxPool) checkLockout(tx *types.Transaction) (bool,error) {
 	    return false,ErrInvalidSender
     }
 
-    dcrmfrom := pool.currentState.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),cointype)
+    dcrmfrom := pool.currentState.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
     if dcrmfrom == "" {
 	    return false,errors.New("the coinbase account has not request dcrm addr before.")
     }
@@ -884,9 +880,7 @@ func (pool *TxPool) checkLockout(tx *types.Transaction) (bool,error) {
 	    return false,errors.New("params error:value is not the right format,it must be xxx wei ")
 	 }
 
-	addr2 := new(big.Int).SetBytes([]byte(dcrmfrom))
-	key := common.BytesToHash(addr2.Bytes())
-	 ret := pool.currentState.GetDcrmAccountBalance(from,key,cointype)
+	 ret := pool.currentState.GetDcrmAccountBalance(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
 	//log.Debug("checkLockout","balance",ret)
 
 	balance := fmt.Sprintf("%v",ret)
@@ -913,9 +907,7 @@ func (pool *TxPool) checkLockout(tx *types.Transaction) (bool,error) {
 	    return false,errors.New("value is less than 0.00000001 BTC.")
 	}
 	 
-	addr2 := new(big.Int).SetBytes([]byte(dcrmfrom))
-	key := common.BytesToHash(addr2.Bytes())
-	 ret := pool.currentState.GetDcrmAccountBalance(from,key,cointype)
+	 ret := pool.currentState.GetDcrmAccountBalance(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
 
 	 //log.Debug("=========checkLockout,","From dcrm Balance",ret,"","====================")
 	 balance := string(ret.Bytes())
@@ -967,7 +959,7 @@ func (pool *TxPool) validateLockout(tx *types.Transaction) (bool,error) {
 	    return false,ErrInvalidSender
     }
 
-    dcrmfrom := pool.currentState.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),cointype)
+    dcrmfrom := pool.currentState.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
     result,err := tx.MarshalJSON()
     if err != nil {
 	return false,errors.New("tx data invalid.")
@@ -1067,7 +1059,7 @@ func (pool *TxPool) checkLockin(tx *types.Transaction) (bool,error) {
 	    return false,ErrInvalidSender
     }
 
-    ret := pool.currentState.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),cointype)
+    ret := pool.currentState.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
     if ret == "" {
 	return false,errors.New("the account has not request dcrm addr before.")
     }
@@ -1083,14 +1075,6 @@ func (pool *TxPool) checkLockin(tx *types.Transaction) (bool,error) {
     ////////
     result,err := tx.MarshalJSON()
     if !dcrm.IsInGroup() {
-	//check again from block.
-	d := new(big.Int).SetBytes([]byte(ret))
-	key := common.BytesToHash(d.Bytes())
-	hk := pool.currentState.GetDcrmHashKey(from,key,cointype)
-	if strings.EqualFold(hashkey,hk) == true {
-	    return false,errors.New("error: the dcrmaddr has lockin already.")
-	}
-	
 	msg := tx.Hash().Hex() + sep9 + string(result) + sep9 + hashkey 
 	
 	_,err := dcrm.SendReqToGroup(msg,"rpc_check_hashkey")
@@ -1102,12 +1086,6 @@ func (pool *TxPool) checkLockin(tx *types.Transaction) (bool,error) {
     }
 
     //check again from block.
-    d := new(big.Int).SetBytes([]byte(ret))
-    key := common.BytesToHash(d.Bytes())
-    hk := pool.currentState.GetDcrmHashKey(from,key,cointype)
-    if strings.EqualFold(hashkey,hk) == true {
-	return false,errors.New("error: the dcrmaddr has lockin already.")
-    }
     has,err := dcrm.IsHashkeyExsitInLocalDB(hashkey)
     if err != nil {
 	return false,err
@@ -1179,7 +1157,7 @@ func (pool *TxPool) ValidateLockin(tx *types.Transaction) (bool,error) {
 	    return false,ErrInvalidSender
     }
 
-    ret := pool.currentState.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),cointype)
+    ret := pool.currentState.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
     result,err := tx.MarshalJSON()
 
     if !dcrm.IsInGroup() {
@@ -1253,8 +1231,8 @@ func (pool *TxPool) checkConfirmAddr(tx *types.Transaction) (bool,error) {
 	    return false,ErrInvalidSender
     }
 
-    ret := pool.currentState.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),cointype)
-    if ret != "" {
+    ret,err := pool.currentState.IsExsitDcrmAddress(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),dcrmaddr)
+    if err == nil && ret == true {
 	log.Debug("the account has confirmed dcrm address.")
 	return false,errors.New("the account has confirmed dcrm address.")
     }

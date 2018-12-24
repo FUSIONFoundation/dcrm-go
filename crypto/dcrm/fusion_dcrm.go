@@ -123,7 +123,191 @@ var (
     
     //for node info save
     lock3 sync.Mutex
+    //for write dcrmaddr 
+    lock4 sync.Mutex
+    //for get lockout info 
+    lock5 sync.Mutex
 )
+
+func GetLockoutInfoFromLocalDB(hashkey string) (string,error) {
+    if hashkey == "" {
+	return "",errors.New("param error get lockout info from local db by hashkey.")
+    }
+    
+    lock5.Lock()
+    path := GetDbDirForLockoutInfo()
+    db,_ := ethdb.NewLDBDatabase(path, 0, 0)
+    if db == nil {
+	log.Debug("==============GetLockoutInfoFromLocalDB,create db fail.============")
+	lock5.Unlock()
+	return "",errors.New("create db fail.")
+    }
+    
+    value,has:= db.Get([]byte(hashkey))
+    if string(value) != "" && has == nil {
+	db.Close()
+	lock5.Unlock()
+	return string(value),nil
+    }
+
+    db.Close()
+    lock5.Unlock()
+    return "",nil
+}
+
+func WriteLockoutInfoToLocalDB(hashkey string,value string) (bool,error) {
+    if !IsInGroup() {
+	return false,errors.New("it is not in group.")
+    }
+
+    if hashkey == "" || value == "" {
+	return false,errors.New("param error in write lockout info to local db.")
+    }
+
+    lock5.Lock()
+    path := GetDbDirForLockoutInfo()
+    db,_ := ethdb.NewLDBDatabase(path, 0, 0)
+    if db == nil {
+	log.Debug("==============WriteLockoutInfoToLocalDB,create db fail.============")
+	lock5.Unlock()
+	return false,errors.New("create db fail.")
+    }
+    
+    db.Put([]byte(hashkey),[]byte(value))
+    db.Close()
+    lock5.Unlock()
+    return true,nil
+}
+
+//========
+func ReadDcrmAddrFromLocalDBByIndex(fusion string,cointype string,index int) (string,error) {
+
+    if fusion == "" || cointype == "" || index < 0 {
+	return "",errors.New("param error.")
+    }
+
+    lock4.Lock()
+    path := GetDbDirForWriteDcrmAddr()
+    db,_ := ethdb.NewLDBDatabase(path, 0, 0)
+    if db == nil {
+	log.Debug("==============ReadDcrmAddrFromLocalDBByIndex,create db fail.============")
+	lock4.Unlock()
+	return "",errors.New("create db fail.")
+    }
+    
+    hash := crypto.Keccak256Hash([]byte(strings.ToLower(fusion) + ":" + strings.ToLower(cointype))).Hex()
+    value,has:= db.Get([]byte(hash))
+    if string(value) != "" && has == nil {
+	    v := strings.Split(string(value),":")
+	    if len(v) < (index + 1) {
+		db.Close()
+		lock4.Unlock()
+		return "",errors.New("has not dcrmaddr in local DB.")
+	    }
+
+	    db.Close()
+	    lock4.Unlock()
+	    return v[index],nil
+    }
+	db.Close()
+	lock4.Unlock()
+	return "",errors.New("has not dcrmaddr in local DB.")
+}
+
+func IsFusionAccountExsitDcrmAddr(fusion string,cointype string,dcrmaddr string) (bool,error) {
+    if fusion == "" || cointype == "" {
+	return false,errors.New("param error")
+    }
+    
+    lock4.Lock()
+    path := GetDbDirForWriteDcrmAddr()
+    db,_ := ethdb.NewLDBDatabase(path, 0, 0)
+    if db == nil {
+	log.Debug("==============IsFusionAccountExsitDcrmAddr,create db fail.============")
+	lock4.Unlock()
+	return false,errors.New("create db fail.")
+    }
+    
+    hash := crypto.Keccak256Hash([]byte(strings.ToLower(fusion) + ":" + strings.ToLower(cointype))).Hex()
+    if dcrmaddr == "" {
+	has,_ := db.Has([]byte(hash))
+	if has == true {
+		log.Debug("========IsFusionAccountExsitDcrmAddr,has req dcrmaddr.==============")
+		db.Close()
+		lock4.Unlock()
+		return true,nil
+	}
+
+	log.Debug("========IsFusionAccountExsitDcrmAddr,has not req dcrmaddr.==============")
+	db.Close()
+	lock4.Unlock()
+	return false,nil
+    }
+    
+    value,has:= db.Get([]byte(hash))
+    if has == nil && string(value) != "" {
+	v := strings.Split(string(value),":")
+	if len(v) < 1 {
+	    log.Debug("========IsFusionAccountExsitDcrmAddr,data error.==============")
+	    db.Close()
+	    lock4.Unlock()
+	    return false,errors.New("data error.")
+	}
+
+	for _,item := range v {
+	    if strings.EqualFold(item,dcrmaddr) {
+		log.Debug("========IsFusionAccountExsitDcrmAddr,success get dcrmaddr.==============")
+		db.Close()
+		lock4.Unlock()
+		return true,nil
+	    }
+	}
+    }
+   
+    log.Debug("========IsFusionAccountExsitDcrmAddr,fail get dcrmaddr.==============")
+    db.Close()
+    lock4.Unlock()
+    return false,nil
+
+}
+
+func WriteDcrmAddrToLocalDB(fusion string,cointype string,dcrmaddr string) (bool,error) {
+    if !IsInGroup() {
+	return false,errors.New("it is not in group.")
+    }
+
+    if fusion == "" || cointype == "" || dcrmaddr == "" {
+	return false,errors.New("param error in write dcrmaddr to local db.")
+    }
+
+    lock4.Lock()
+    path := GetDbDirForWriteDcrmAddr()
+    db,_ := ethdb.NewLDBDatabase(path, 0, 0)
+    if db == nil {
+	log.Debug("==============WriteDcrmAddrToLocalDB,create db fail.============")
+	lock4.Unlock()
+	return false,errors.New("create db fail.")
+    }
+    
+    hash := crypto.Keccak256Hash([]byte(strings.ToLower(fusion) + ":" + strings.ToLower(cointype))).Hex()
+    has,_ := db.Has([]byte(hash))
+    if has != true {
+	db.Put([]byte(hash),[]byte(dcrmaddr))
+	db.Close()
+	lock4.Unlock()
+	return true,nil
+    }
+    
+    value,_:= db.Get([]byte(hash))
+    v := string(value)
+    v += ":"
+    v += dcrmaddr
+    db.Put([]byte(hash),[]byte(v))
+    db.Close()
+    lock4.Unlock()
+    return true,nil
+}
+//========
 
 func ReadNodeInfoFromLocalDB(nodeinfo string) (string,error) {
 
@@ -2290,8 +2474,16 @@ func dcrmcall(msg interface{}) <-chan string {
     }
 
     if len(mm) == 2 && mm[1] == "rpc_req_dcrmaddr" {
-	//log.Debug("dcrmcall,receive rpc_req_dcrmaddr data")
 	tmps := strings.Split(mm[0],"-")
+	has,err := IsFusionAccountExsitDcrmAddr(tmps[1],tmps[3],"")
+	if err == nil && has == true {
+	    log.Debug("==========dcrmcall,req add fail.========")
+	    ss := tmps[0] + "-" + tmps[4] + "-" + "fail" + "-" + "the account has request dcrm address already." + msgtypesep + "rpc_req_dcrmaddr_res"  //???? "-" == error
+
+	    ch <- ss 
+	    return ch
+	}
+
 	v := DcrmLiLoReqAddress{Fusionaddr:tmps[1],Pub:tmps[2],Cointype:tmps[3]}
 	addr,err := Dcrm_LiLoReqAddress(&v)
 	//log.Debug("================dcrmcall,","ret addr",addr,"","==================")
@@ -3000,46 +3192,6 @@ func validate_txhash(msgprex string,tx string,lockinaddr string,hashkey string,r
     ret2.info = "lockin validate fail."
     res := RpcDcrmRes{ret:"",err:ret2}
     ch <- res
-    /*tmp := msgprex + sep + tx + sep + hashkey 
-    cnt,_ := p2pdcrm.GetGroup()
-    dvr := DcrmValidateRes{Txhash:signtx.Hash().Hex(),Tx:tx,Workid:strconv.Itoa(workid),Enode:cur_enode,DcrmParms: tmp,ValidateRes:answer,DcrmCnt:cnt,DcrmEnodes:"TODO"}
-    jsondvr,_:= json.Marshal(dvr)
-    log.Debug("==========validate_txhash,","jsondvr",string(jsondvr),"","================")
-
-    log.Debug("===============validate_txhash,start broacast.================")
-    val,ok := types.GetDcrmValidateDataKReady(signtx.Hash().Hex())
-    if ok == true && !IsExsitDcrmValidateData(string(jsondvr)) {
-	log.Debug("===============validate_txhash,ok == true && !IsExsitDcrmValidateData(string(jsondvr)).================")
-	val = val + sep6 + string(jsondvr)
-
-	if !IsExsitDcrmValidateData(string(jsondvr)) {/////////////////////////////////??
-	    types.SetDcrmValidateData(signtx.Hash().Hex(),val)
-	    p2pdcrm.Broatcast(string(jsondvr) + msgtypesep + "lilolockinres")
-	}
-	log.Debug("===============validate_txhash,broacast finish.================",)
-	//tmps := strings.Split(val,sep2)
-	if ValidateDcrm(signtx.Hash().Hex()) {
-		log.Debug("===============validate_txhash,submitTransaction.================",)
-		_,err := submitTransaction(signtx)
-		if err != nil {
-		    res := RpcDcrmRes{ret:"",err:err}
-		    ch <- res
-		    return 
-		}
-
-		res := RpcDcrmRes{ret:"true",err:nil}
-		ch <- res
-	}
-	
-    } else if !IsExsitDcrmValidateData(string(jsondvr)) {
-	log.Debug("===============validate_txhash,ok == false.================")
-	types.SetDcrmValidateData(signtx.Hash().Hex(),string(jsondvr))
-	p2pdcrm.Broatcast(string(jsondvr) + msgtypesep + "lilolockinres")
-    }*/
-    
-    //log.Debug("===============validate_txhash,return true.================")
-    //res := RpcDcrmRes{ret:"true",err:nil}
-    //ch <- res
 }
 
 type SendRawTxRes struct {
@@ -3315,6 +3467,32 @@ func GetDcrmAddr(hash string,cointype string) string {
 			return ""
 		}
 
+		//for lockout info 
+		func GetDbDirForLockoutInfo() string {
+
+		    if datadir != "" {
+			return datadir+"/lockoutinfo"
+		    }
+
+		    s := DefaultDataDir()
+		    log.Debug("==========GetDbDirForLockoutInfo,","datadir",s,"","===========")
+		    s += "/lockoutinfo"
+		    return s
+		}
+
+		//for write dcrmaddr 
+		func GetDbDirForWriteDcrmAddr() string {
+
+		    if datadir != "" {
+		    	return datadir+"/dcrmaddrs"
+		    }
+
+		    s := DefaultDataDir()
+		    log.Debug("==========GetDbDirForWriteDcrmAddr,","datadir",s,"","===========")
+		    s += "/dcrmaddrs"
+		    return s
+		}
+
 		//for node info save
 		func GetDbDirForNodeInfoSave() string {
 
@@ -3463,233 +3641,24 @@ func GetDcrmAddr(hash string,cointype string) string {
 			return
 		    }
 
-		    hash := crypto.Keccak256Hash([]byte(strings.ToLower(fusionaddr) + ":" + strings.ToLower(cointype))).Hex()
-		    val,ok := types.GetDcrmValidateDataKReady(strings.ToLower(dcrmaddr))
-			if !ok {
-				addr := GetDcrmAddr(hash,cointype)
-				if addr == "" || !strings.EqualFold(addr,dcrmaddr) {
-					log.Debug("the dcrm addr is not right.")
-					var ret2 Err
-					ret2.info = "the dcrm addr is not right."
-					res := RpcDcrmRes{ret:"",err:ret2}
-					ch <- res
-					return
-				}
-
-			} else if !strings.EqualFold(val,hash) {
-					log.Debug("the dcrm addr is not right.")
-					var ret2 Err
-					ret2.info = "the dcrm addr is not right."
-					res := RpcDcrmRes{ret:"",err:ret2}
-					ch <- res
-					return
-			}
-			
+		    has,err := IsFusionAccountExsitDcrmAddr(fusionaddr,cointype,dcrmaddr)
+		    if err == nil && has == true {
+			log.Debug("the dcrm addr confirm validate success.")
 			res := RpcDcrmRes{ret:"true",err:nil}
-			ch <- res
-
-		    /*log.Debug("","hashkey",hashkey)
-		    if ValidateDcrm(hashkey) {
-			signtx := new(types.Transaction)
-			signtxerr := signtx.UnmarshalJSON([]byte((tx)))
-			log.Debug("===========dcrm_confirmaddr,","tx",tx,"","===============")
-			
-			if signtxerr == nil {
-			    log.Debug("===========dcrm_confirmaddr,signtxerr == nil===============")
-
-			    var data string
-			    val,ok := types.GetDcrmValidateDataKReady(hashkey)
-			    log.Debug("===========dcrm_confirmaddr,","val",val,"","===============")
-			    if ok == true {
-				log.Debug("===========dcrm_confirmaddr,ok == true.===============")
-				vals := strings.Split(val,sep6)
-				for _,v := range vals {
-				    var a DcrmValidateRes
-				    ok2 := json.Unmarshal([]byte(v), &a)
-				    log.Debug("===========dcrm_confirmaddr,","ok2",ok2,"v",v,"","===============")
-				    if ok2 == nil && a.ValidateRes == "pass" {
-					data = v
-					break
-				    }
-				}
-
-				var a DcrmValidateRes
-				ok2 := json.Unmarshal([]byte(data), &a)
-				log.Debug("===========dcrm_confirmaddr,","ok2",ok2,"data",data,"","===============")
-				if ok2 == nil {
-				    dcrmparms := strings.Split(a.DcrmParms,sep)
-				    log.Debug("===========dcrm_confirmaddr,","dcrmparms[1]",dcrmparms[1],"","===============")
-				    log.Debug("===========dcrm_confirmaddr,","fusionaddr",fusionaddr,"","===============")
-				    log.Debug("===========dcrm_confirmaddr,","dcrmparms[2]",dcrmparms[2],"","===============")
-				    log.Debug("===========dcrm_confirmaddr,","dcrmaddr",dcrmaddr,"","===============")
-				    log.Debug("===========dcrm_confirmaddr,","dcrmparms[3]",dcrmparms[3],"","===============")
-				    log.Debug("===========dcrm_confirmaddr,","cointype",cointype,"","===============")
-				    if strings.EqualFold(dcrmparms[1],fusionaddr) == true && strings.EqualFold(dcrmparms[2],dcrmaddr) == true && strings.EqualFold(dcrmparms[3],cointype) == true {
-					_,err := submitTransaction(signtx)
-					if err != nil {
-					    res := RpcDcrmRes{ret:"",err:err}
-					    ch <- res
-					    return
-					}
-
-					res := RpcDcrmRes{ret:"true",err:nil}
-					ch <- res
-					return
-				    }
-				}
-
-			    }
-			}
-		    }*/
-		    
-		    //log.Debug("===========dcrm_confirmaddr,return false.===============")
-		    //res := RpcDcrmRes{ret:"false",err:errors.New("dcrm addr confirm fail.")}
-		    //ch <- res
-		}
-
-		/*func DcrmValidateResGet(hashkey string,cointype string,datatype string) string {
-		    if hashkey == "" || datatype == "" || cointype == "" {
-			return ""
-		    }
-
-		    var data string
-		    val,ok := types.GetDcrmValidateDataKReady(hashkey)
-		    if ok == true {
-			vals := strings.Split(val,sep6)
-			for _,v := range vals {
-			    var a DcrmValidateRes
-			    ok2 := json.Unmarshal([]byte(v), &a)
-			    if ok2 == nil && a.ValidateRes == "pass" {
-				data = v
-				break
-			    }
-			}
-
-			if data == "" {
-			    return ""
-			}
-
-			var a DcrmValidateRes
-			ok2 := json.Unmarshal([]byte(data), &a)
-			if ok2 == nil {
-			    dcrmparms := strings.Split(a.DcrmParms,sep)
-			    if datatype == "liloreqaddr" {
-				return dcrmparms[2]
-			    }
-			    //
-			}
-
-		    }
-
-		    //try to ger from db
-		    if strings.EqualFold(cointype,"ETH") == true {
-			lock.Lock()
-			dbpath := GetDbDir()
-			log.Debug("===========DcrmValidateResGet,","db path",dbpath,"","===============")
-			db, err := leveldb.OpenFile(dbpath, nil) 
-			if err != nil { 
-			    log.Debug("===========DcrmValidateResGet,ERROR: Cannot open LevelDB.==================")
-			    lock.Unlock()
-			    return  "" 
-			} 
-			defer db.Close() 
-
-			var b bytes.Buffer 
-			b.WriteString("") 
-			b.WriteByte(0) 
-			b.WriteString("") 
-			iter := db.NewIterator(nil, nil) 
-			for iter.Next() { 
-			    key := string(iter.Key())
-			    value := string(iter.Value())
-			    log.Debug("===========DcrmValidateResGet,","key",key,"","===============")
-
-			    s := strings.Split(value,sep)
-			    if len(s) != 0 {
-				var m AccountListInfo
-				ok := json.Unmarshal([]byte(s[0]), &m)
-				if ok == nil {
-				    ////
-				} else {
-				    dcrmaddrs := []rune(key)
-				    if len(dcrmaddrs) == 42 { //ETH
-					//s := []string{fusionaddr,pubkey,string(ys),string(encX.Bytes()),txhash_reqaddr} ////fusionaddr ??
-					if strings.EqualFold(hashkey,s[4]) == true {
-					    lock.Unlock()
-					    return key
-					}
-				    } else { //BTC
-					////
-				    }
-				}
-			    }
-			} 
-			
-		    iter.Release() 
-		    lock.Unlock()
-		}
-
-		if strings.EqualFold(cointype,"BTC") == true {
-		    lock.Lock()
-		    dbpath := GetDbDir()
-		    log.Debug("===========DcrmValidateResGet,","db path",dbpath,"","===============")
-		    db, err := leveldb.OpenFile(dbpath, nil) 
-		    if err != nil { 
-			log.Debug("===========DcrmValidateResGet,ERROR: Cannot open LevelDB.==================")
-			lock.Unlock()
-			return  "" 
-		    } 
-		    defer db.Close() 
-
-		    var b bytes.Buffer 
-		    b.WriteString("") 
-		    b.WriteByte(0) 
-		    b.WriteString("") 
-		    iter := db.NewIterator(nil, nil) 
-		    for iter.Next() { 
-			key := string(iter.Key())
-			value := string(iter.Value())
-			log.Debug("===========DcrmValidateResGet,","key",key,"","===============")
-
-			s := strings.Split(value,sep)
-			if len(s) != 0 {
-			    var m AccountListInfo
-			    ok := json.Unmarshal([]byte(s[0]), &m)
-			    if ok == nil {
-				////
-			    } else {
-				dcrmaddrs := []rune(key)
-				if len(dcrmaddrs) == 42 { //ETH
-				    /////
-				} else { //BTC
-				    //s := []string{fusionaddr,pubkey,string(ys),string(encX.Bytes()),txhash_reqaddr} ////fusionaddr ??
-				    if strings.EqualFold(hashkey,s[4]) == true {
-					lock.Unlock()
-					return key 
-				    }
-				}
-			    }
-			}
-		    } 
-		    
-		    iter.Release() 
-		    lock.Unlock()
-		}
-
-		    return ""
-		}*/
-
-		func dcrm_liloreqAddress(msgprex string,fusionaddr string,pubkey string,cointype string,ch chan interface{}) {
-
-		    h := crypto.Keccak256Hash([]byte(strings.ToLower(fusionaddr) + ":" + strings.ToLower(cointype))).Hex()
-		    dcrmaddr := GetDcrmAddr(h,cointype)
-		    if dcrmaddr != "" { ///bug:call DcrmReqAddr two times continuous and error will occur.
-			res := RpcDcrmRes{ret:dcrmaddr,err:nil}
 			ch <- res
 			return
 		    }
 		    
-			GetEnodesInfo()
+		    log.Debug("the dcrm addr confirm validate fail.")
+		    var ret2 Err
+		    ret2.info = "the dcrm addr confirm validate fail."
+		    res := RpcDcrmRes{ret:"",err:ret2}
+		    ch <- res
+		}
+
+		func dcrm_liloreqAddress(msgprex string,fusionaddr string,pubkey string,cointype string,ch chan interface{}) {
+
+		    GetEnodesInfo()
 
 		    /*pub := []rune(pubkey)
 		    if len(pub) != 132 { //132 = 4 + 64 + 64
@@ -3800,58 +3769,10 @@ func GetDcrmAddr(hash string,cointype string) string {
 			stmp = bitaddr
 		    }
 		    
-		    if stmp != "" {  //fusionaddr string,pubkey string,cointype
-			/*log.Debug("dcrm_liloreqAddress","new dcrm addr",stmp)
-			SendMsgToDcrmGroup(msgprex + sep + stmp + msgtypesep + "lilodcrmaddr")
-			<-workers[id].bdcrmres
-			log.Debug("==========dcrm_liloreqAddress,new dcrmaddr receiv success=====================")
-			answer := "pass"
-			i := 0
-			for i = 0;i<NodeCnt-1;i++ {
-			    va := <-workers[id].dcrmres
-			    if va != stmp {
-				answer = "no_pass"
-				break
-			    }
-			}
-			
-			log.Debug("==========dcrm_liloreqAddress,get answer.=====================")
-			//tmp:  hash:prex:fusion:stmp:coin:tx
-			tmp := msgprex + sep + fusionaddr + sep + stmp + sep + cointype
-			cnt,_ := p2pdcrm.GetGroup()
-			dvr := DcrmValidateRes{Txhash:txhash_reqaddr,Tx:tx,Workid:strconv.Itoa(id),Enode:cur_enode,DcrmParms: tmp,ValidateRes:answer,DcrmCnt:cnt,DcrmEnodes:"TODO"}
-			jsondvr,_:= json.Marshal(dvr)
-
-			val,ok := types.GetDcrmValidateDataKReady(txhash_reqaddr)
-			if ok == true && !IsExsitDcrmValidateData(string(jsondvr)) {
-			    val = val + sep6 + string(jsondvr)
-
-			    if !IsExsitDcrmValidateData(string(jsondvr)) {
-				types.SetDcrmValidateData(txhash_reqaddr,val)
-				p2pdcrm.Broatcast(string(jsondvr) + msgtypesep + "lilodcrmaddrres")
-			    }
-
-			    //tmps := strings.Split(val,sep2)
-			    if ValidateDcrm(txhash_reqaddr) {
-				log.Debug("===========dcrm_liloreqAddress,dcrm addr validate pass.=======")
-				signtx := new(types.Transaction)
-				signtxerr := signtx.UnmarshalJSON([]byte((tx)))
-				if signtxerr == nil {
-				    //submitTransaction(signtx)
-				}
-			    }
-
-			} else if !IsExsitDcrmValidateData(string(jsondvr)) {
-			    types.SetDcrmValidateData(txhash_reqaddr,string(jsondvr))
-			    p2pdcrm.Broatcast(string(jsondvr) + msgtypesep + "lilodcrmaddrres")
-			}*/
-			
-			//log.Debug("=============","stmp",stmp,"lower",strings.ToLower(stmp),"","=============")
-			//log.Debug("=============","stmp",stmp,"hash",crypto.Keccak256Hash([]byte(strings.ToLower(fusionaddr) + ":" + strings.ToLower(cointype))).Hex(),"","=============")
-			types.SetDcrmValidateData(strings.ToLower(stmp),crypto.Keccak256Hash([]byte(strings.ToLower(fusionaddr) + ":" + strings.ToLower(cointype))).Hex())
+		    if stmp != "" {
+			WriteDcrmAddrToLocalDB(fusionaddr,cointype,stmp)
 		    }
 
-		    //log.Debug("==========dcrm_liloreqAddress,ret stmp.=====================")
 		    hash := crypto.Keccak256Hash([]byte(strings.ToLower(fusionaddr) + ":" + strings.ToLower(cointype))).Hex()
 		    s := []string{fusionaddr,pubkey,string(ys),string(encX.Bytes()),hash} ////fusionaddr ??
 		    ss := strings.Join(s,sep)
@@ -4167,9 +4088,9 @@ func GetDcrmAddr(hash string,cointype string) string {
 
 	    func validate_lockout(msgprex string,txhash_lockout string,lilotx string,fusionfrom string,dcrmfrom string,realfusionfrom string,realdcrmfrom string,lockoutto string,value string,cointype string,ch chan interface{}) {
 	    log.Debug("=============validate_lockout============")
-	    
-	    val,ok := types.GetDcrmValidateDataKReady(txhash_lockout)
-	    if ok == true && val != "" {
+	   
+	    val,ok := GetLockoutInfoFromLocalDB(txhash_lockout)
+	    if ok == nil && val != "" {
 		res := RpcDcrmRes{ret:val,err:nil}
 		ch <- res
 		return
@@ -4208,7 +4129,8 @@ func GetDcrmAddr(hash string,cointype string) string {
 		}*/
 	
 		retva := lockout_tx_hash + ":" + realdcrmfrom
-		types.SetDcrmValidateData(txhash_lockout,retva)
+		//types.SetDcrmValidateData(txhash_lockout,retva)
+		WriteLockoutInfoToLocalDB(txhash_lockout,retva)
 		res := RpcDcrmRes{ret:retva,err:nil}
 		ch <- res
 		return
@@ -4226,70 +4148,12 @@ func GetDcrmAddr(hash string,cointype string) string {
 		}
 
 		retva := lockout_tx_hash + ":" + realdcrmfrom
-		types.SetDcrmValidateData(txhash_lockout,retva)
+		//types.SetDcrmValidateData(txhash_lockout,retva)
+		WriteLockoutInfoToLocalDB(txhash_lockout,retva)
 		res := RpcDcrmRes{ret:retva,err:nil}
 		ch <- res
 		return
 	    }
-	    
-	    /*id := getworkerid(msgprex,cur_enode)
-	    SendMsgToDcrmGroup(msgprex + sep + ret.ret + msgtypesep + "lilodcrmsign")
-	    <-workers[id].lockout_bdcrmres
-	    answer := "pass"
-	    i := 0
-	    for i = 0;i<NodeCnt-1;i++ {
-		va := <-workers[id].lockout_dcrmres
-		if va != ret.ret {
-		    answer = "no_pass"
-		    break
-		}
-	    }
-
-	    log.Debug("==============validate_lockout,start fill dcrm pool.===================")
-	    tmp := msgprex + sep + txhash_lockout + sep + lilotx + sep + fusionfrom + sep + dcrmfrom + sep + realfusionfrom + sep + realdcrmfrom + sep + lockoutto + sep + value + sep + cointype + sep + ret.ret
-	    cnt,_ := p2pdcrm.GetGroup()
-	    dvr := DcrmValidateRes{Txhash:lockout_tx_hash,Tx:lockout_tx,Workid:strconv.Itoa(id),Enode:cur_enode,DcrmParms:tmp,ValidateRes:answer,DcrmCnt:cnt,DcrmEnodes:"TODO"}
-	    jsondvr,_:= json.Marshal(dvr)
-
-	    //lock.Lock()//bug
-	    val,ok := types.GetDcrmValidateDataKReady(lockout_tx_hash)
-	    if ok == true && !IsExsitDcrmValidateData(string(jsondvr)) {
-		log.Debug("=============validate_lockout","ok == true,fill data",string(jsondvr),"old val",val,"","=============")
-		val = val + sep6 + string(jsondvr)
-
-		if !IsExsitDcrmValidateData(string(jsondvr)) {
-		    types.SetDcrmValidateData(lockout_tx_hash,val)
-		    p2pdcrm.Broatcast(string(jsondvr) + msgtypesep + "lilodcrmsignres")
-		}
-		
-		log.Debug("==============validate_lockout,Broatcast finish.===================")
-		if ValidateDcrm(lockout_tx_hash) {
-		    log.Debug("==============validate_lockout,ValidateDcrm finish.===================")
-		    signtx := new(types.Transaction)
-		    signtxerr := signtx.UnmarshalJSON([]byte((lilotx)))
-		    if signtxerr == nil {
-			log.Debug("validate_lockout,do SendTxForLockout","hash",lockout_tx_hash)
-			_,failed := SendTxForLockout(realfusionfrom,realdcrmfrom,lockoutto,value,cointype,ret.ret)
-			if failed == nil {
-			    log.Debug("========validate_lockout,send tx success.=====")
-			    v := DcrmLockin{Tx:lilotx,Hashkey:lockout_tx_hash}
-			    if _,err := Validate_Txhash(&v);err != nil {
-				    log.Debug("===============validate_lockout,lockout validate fail.=============")
-				    res := RpcDcrmRes{ret:"",err:err}
-				    ch <- res
-				    return
-			    }
-			}
-		    }
-		}
-		
-	    } else if !IsExsitDcrmValidateData(string(jsondvr)) {
-		log.Debug("=============validate_lockout","ok == false,fill data",string(jsondvr),"","=============")
-		types.SetDcrmValidateData(lockout_tx_hash,string(jsondvr))
-		p2pdcrm.Broatcast(string(jsondvr) + msgtypesep + "lilodcrmsignres")
-	    }*/
-	    //lock.Unlock()//bug
-
 	}
 
 		func dcrm_sign(msgprex string,sig string,txhash string,dcrmaddr string,cointype string,ch chan interface{}) {
