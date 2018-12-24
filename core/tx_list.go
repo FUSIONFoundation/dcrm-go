@@ -249,8 +249,15 @@ func (m *txSortedMap) Ready(pool *TxPool,start uint64) types.Transactions {  //+
 		    if err == nil {
 			ready = append(ready, m.items[next])
 			m.Remove(next)
+
+			//bug
+			types.DeleteDcrmValidateData(tx.Hash().Hex())
+
 		    } else if strings.EqualFold(err.Error(),"get btc transaction fail.") == false && strings.EqualFold(err.Error(),"get eth transaction fail.") == false { //bug
 		    	m.Remove(next)
+			//bug
+			types.DeleteDcrmValidateData(tx.Hash().Hex())
+
 		    }
 		} else { //bug:if no val and tx is invalide
 		    	m.Remove(next)

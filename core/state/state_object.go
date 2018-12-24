@@ -21,8 +21,9 @@ import (
 	"fmt"
 	"io"
 	"math/big"
-	"encoding/json"//caihaijun
+	//"encoding/json"//caihaijun
 	"strings"//caihaijun
+	"errors"//caihaijun
 
 	"github.com/fusion/go-fusion/common"
 	"github.com/fusion/go-fusion/crypto"
@@ -222,6 +223,7 @@ func (self *stateObject) GetCommittedState(db Database, key common.Hash) common.
 }
 
 //++++++++++++++++++caihaijun++++++++++++++++++++
+
 type DcrmAccountData struct {
     COINTYPE string
     BALANCE  string
@@ -229,21 +231,21 @@ type DcrmAccountData struct {
     NONCE string
 }
 
-func (self *stateObject) GetDcrmAccountBalance(db Database, key common.Hash,cointype string) *big.Int {
+func (self *stateObject) GetDcrmAccountBalance(db Database, key common.Hash,index int) *big.Int {
     s := self.GetStateDcrmAccountData(db,key)
     if s == nil { 
 	return nil
     }
     
-    var a DcrmAccountData
-    json.Unmarshal(s, &a)
-    if strings.EqualFold(cointype, a.COINTYPE) == true {
+    ss := string(s)
+    _,amount,err := getDataByIndex(ss,index)
+    if err == nil {
+	h := crypto.Keccak256Hash([]byte(strings.ToLower("BTC"))) //bug
 	var ba *big.Int
-	if strings.EqualFold(cointype, "BTC") == true {
-	    //log.Debug("GetDcrmAccountBalance","a.BALANCE",a.BALANCE)
-	    ba = new(big.Int).SetBytes([]byte(a.BALANCE))
+	if strings.EqualFold(h.Hex(),key.Hex()) == true {
+	    ba = new(big.Int).SetBytes([]byte(amount))
 	} else {
-	    ba,_ = new(big.Int).SetString(a.BALANCE,10)
+	    ba,_ = new(big.Int).SetString(amount,10)
 	}
 	return ba
     }
@@ -251,47 +253,69 @@ func (self *stateObject) GetDcrmAccountBalance(db Database, key common.Hash,coin
     return nil
 }
 
-func (self *stateObject) GetDcrmAddress(db Database, txhash common.Hash,cointype string) string {
-    s := self.GetStateDcrmAccountData(db,txhash)
+func getDataByIndex(value string,index int) (string,string,error) {
+	if value == "" || index < 0 {
+		return "","",errors.New("get data fail.")
+	}
+
+	v := strings.Split(value,"|")
+	if len(v) < (index + 1) {
+		return "","",errors.New("get data fail.")
+	}
+
+	vv := v[index]
+	ss := strings.Split(vv,":")
+	return ss[0],ss[1],nil
+}
+
+func IsExsitDcrmAddrInData(value string,dcrmaddr string) (bool,error) {
+	if value == "" || dcrmaddr == "" {
+		return false,errors.New("param error.")
+	}
+
+	v := strings.Split(value,"|")
+	if len(v) < 1 {
+		return false,errors.New("data error.")
+	}
+
+	for _,vv := range v {
+	    ss := strings.Split(vv,":")
+	    if strings.EqualFold(ss[0],dcrmaddr) {
+		return true,nil
+	    }
+	}
+
+	return false,nil
+}
+
+func (self *stateObject) GetDcrmAddress(db Database, hash common.Hash,index int) string {
+    if index < 0 {
+	return ""
+    }
+
+    s := self.GetStateDcrmAccountData(db,hash)
     if s == nil { 
 	return "" 
     }
-    
-    return string(s) 
-}
-
-func (self *stateObject) GetDcrmHashKey(db Database, key common.Hash,cointype string) string {
-   // log.Debug("========stateObject.GetDcrmHashKey================")
-    s := self.GetStateDcrmAccountData(db,key)
-    if s == nil { 
-	return ""
-    }
-    
-   // log.Debug("========stateObject.GetDcrmHashKey,data is not nil.================")
-    var a DcrmAccountData
-    json.Unmarshal(s, &a)
-    if strings.EqualFold(cointype, a.COINTYPE) == true {
-	return a.HASHKEY
+   
+    ss := string(s)
+    addr,_,err := getDataByIndex(ss,index)
+    if err == nil && !strings.EqualFold(addr,"xxx") {
+	return addr
     }
 
     return ""
 }
 
-func (self *stateObject) GetDcrmNonce(db Database, key common.Hash,cointype string) string {
-    //log.Debug("========stateObject.GetDcrmNonce================")
-    s := self.GetStateDcrmAccountData(db,key)
-    if s == nil { 
-	return ""
-    }
-    
-    //log.Debug("========stateObject.GetDcrmNonce,data is not nil.================")
-    var a DcrmAccountData
-    json.Unmarshal(s, &a)
-    if strings.EqualFold(cointype, a.COINTYPE) == true {
-	return a.NONCE
-    }
+func (self *stateObject) IsExsitDcrmAddress(db Database, hash common.Hash,dcrmaddr string) (bool,error) {
 
-    return ""
+    s := self.GetStateDcrmAccountData(db,hash)
+    if s == nil { 
+	return false,nil 
+    }
+   
+    ss := string(s)
+    return IsExsitDcrmAddrInData(ss,dcrmaddr)
 }
 
 func (self *stateObject) GetStateDcrmAccountData(db Database, key common.Hash) []byte {

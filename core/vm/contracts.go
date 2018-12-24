@@ -23,7 +23,7 @@ import (
 	"strings"//caihaijun
 	"fmt"//caihaijun
 	"strconv"//caihaijun
-	"encoding/json"//caihaijun
+	//"encoding/json"//caihaijun
 	"github.com/fusion/go-fusion/core/types"//caihaijun
 	"os" //caihaijun
 	"github.com/fusion/go-fusion/common"
@@ -436,12 +436,6 @@ func (c *bn256Pairing) Run(input []byte, contract *Contract, evm *EVM) ([]byte, 
 }
 
 //++++++++++++++caihaijun++++++++++++++
-type DcrmAccountData struct {
-    COINTYPE string
-    BALANCE  string
-    HASHKEY string
-    NONCE string
-}
 
 type dcrmTransaction struct {
     Tx string
@@ -465,6 +459,40 @@ func (c *dcrmTransaction) RequiredGas(input []byte) uint64 {
     return params.SstoreSetGas * 2
 }
 
+func getDataByIndex(value string,index int) (string,string,error) {
+	if value == "" || index < 0 {
+		return "","",errors.New("get data fail.")
+	}
+
+	v := strings.Split(value,"|")
+	if len(v) < (index + 1) {
+		return "","",errors.New("get data fail.")
+	}
+
+	vv := v[index]
+	ss := strings.Split(vv,":")
+	return ss[0],ss[1],nil
+}
+
+func updateBalanceByIndex(value string,index int,ba string) ([]byte,error) {
+	if value == "" || index < 0 || ba == "" {
+		return nil,errors.New("param error.")
+	}
+
+	v := strings.Split(value,"|")
+	if len(v) < (index + 1) {
+		return nil,errors.New("data error.")
+	}
+
+	vv := v[index]
+	ss := strings.Split(vv,":")
+	ss[1] = ba
+	n := strings.Join(ss,":")
+	v[index] = n
+	nn := strings.Join(v,"|")
+	return []byte(nn),nil
+}
+
 func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byte, error) {
     //log.Debug("====================dcrmTransaction.Run=========================")   
     str := string(input)
@@ -480,151 +508,134 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 
 	from := contract.Caller()
 
-	dcrmaddr := new(big.Int).SetBytes([]byte(m[1]))
-	key := common.BytesToHash(dcrmaddr.Bytes())
+	//dcrmaddr := new(big.Int).SetBytes([]byte(m[1]))
+	//key := common.BytesToHash(dcrmaddr.Bytes())
 //	log.Debug("===============dcrmTransaction.Run,DCRMCONFIRMADDR","key",key.Hex(),"","=================")
 
-	aa := DcrmAccountData{COINTYPE:m[2],BALANCE:"0",HASHKEY:"",NONCE:"0"}
-	result,_:= json.Marshal(&aa)
+	//aa := DcrmAccountData{COINTYPE:m[2],BALANCE:"0",HASHKEY:"",NONCE:"0"}
+	//result,_:= json.Marshal(&aa)
 //	log.Debug("========dcrmTransaction.Run","result",string(result),"","==================")
 
-	evm.StateDB.SetStateDcrmAccountData(from,key,result)
+	//evm.StateDB.SetStateDcrmAccountData(from,key,result)
         
+	//num := evm.StateDB.GetStateDcrmAccountDataLen(from)
+	value := m[1] + ":" + "0"
 	h := crypto.Keccak256Hash([]byte(strings.ToLower(m[2]))) //bug
+	s := evm.StateDB.GetStateDcrmAccountData(from,h)
+	if s == nil {
+		evm.StateDB.SetStateDcrmAccountData(from,h,[]byte(value))
+	} else {
+		ss := string(s)
+		//bug
+		tmp := strings.Split(ss,"|")
+		if len(tmp) >= 1 {
+		    tmps := tmp[len(tmp)-1]
+		    vs := strings.Split(tmps,":")
+		    if len(vs) == 2 && strings.EqualFold(vs[0],"xxx") {
+			vs[0] = m[1]
+			n := strings.Join(vs,":")
+			tmp[len(tmp)-1] = n
+			nn := strings.Join(tmp,"|")
+			evm.StateDB.SetStateDcrmAccountData(from,h,[]byte(nn))
+		    } else {
+			ss += "|"
+			ss += value 
+			evm.StateDB.SetStateDcrmAccountData(from,h,[]byte(ss))
+		    }
+		}
+		//
+	}
 //	log.Debug("========dcrmTransaction.Run","cointype",m[2],"cointype hash",h.Hex(),"","================")
-	evm.StateDB.SetStateDcrmAccountData(from,h,[]byte(m[1]))
     }
 
     if m[0] == "LOCKIN" {
 //	log.Debug("dcrmTransaction.Run,LOCKIN")
 	from := contract.Caller()
-	addr := evm.StateDB.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(strings.ToLower(m[3]))),m[3])
-	dcrmaddr := new(big.Int).SetBytes([]byte(addr))
-	key := common.BytesToHash(dcrmaddr.Bytes())
-	
-	s := evm.StateDB.GetStateDcrmAccountData(from,key)
-	if s == nil {
-//	    log.Debug("s == nil,dcrmTransaction.Run","contract.value",contract.value)
-//	    log.Debug("s == nil,dcrmTransaction.Run","BALANCE",string(contract.value.Bytes()))
-	    aa := DcrmAccountData{COINTYPE:m[3],BALANCE:m[2],HASHKEY:m[1],NONCE:"0"} // 1??
-	    result, err := json.Marshal(&aa)
-	    if err == nil {
-//		log.Debug("dcrmTransaction.Run","from",from,"key",key,"result",result)
-		evm.StateDB.SetStateDcrmAccountData(from,key,result)
-		//////write hashkey to local db
-		dcrm.WriteHashkeyToLocalDB(m[1],addr)	
-		//////
-	    }
-	} else {
-		
-	    var a DcrmAccountData
-	    json.Unmarshal(s, &a)
-
-	    if strings.EqualFold(a.COINTYPE,m[3]) == true {
+	h := crypto.Keccak256Hash([]byte(strings.ToLower(m[3]))) //bug
+	s := evm.StateDB.GetStateDcrmAccountData(from,h)
+	if s != nil {
 //		log.Debug("s != nil,dcrmTransaction.Run","value",m[2])
 		if strings.EqualFold("BTC",m[3]) == true {
-		    ba2,_ := strconv.ParseFloat(m[2], 64)
-		    ba3,_ := strconv.ParseFloat(a.BALANCE, 64)
-		    ba4 := ba2 + ba3
-		    bb := strconv.FormatFloat(ba4, 'f', -1, 64)
-
-		    //bb := fmt.Sprintf("%v",b)
-		    //nonce,_:= strconv.ParseInt(a.NONCE, 10, 64)
-		    //nonce = nonce + 1
-		    //nc := fmt.Sprintf("%v",nonce)
-		    //log.Debug("==========dcrmTransaction.Run,","lockin nonce",nc,"","===============")
-		    aa := DcrmAccountData{COINTYPE:m[3],BALANCE:bb,HASHKEY:m[1],NONCE:"0"}
-		    result, err := json.Marshal(&aa)
+		    ss := string(s)
+		    index := 0 //default
+		    addr,amount,err := getDataByIndex(ss,index)
 		    if err == nil {
-			evm.StateDB.SetStateDcrmAccountData(from,key,result)
-			//////write hashkey to local db
-			dcrm.WriteHashkeyToLocalDB(m[1],addr)	
-			//////
+			    ba2,_ := strconv.ParseFloat(m[2], 64)
+			    ba3,_ := strconv.ParseFloat(amount, 64)
+			    ba4 := ba2 + ba3
+			    bb := strconv.FormatFloat(ba4, 'f', -1, 64)
+			    ret,err := updateBalanceByIndex(ss,index,bb)
+			    if err == nil {
+				evm.StateDB.SetStateDcrmAccountData(from,h,ret)
+				//////write hashkey to local db
+				dcrm.WriteHashkeyToLocalDB(m[1],addr)	
+			}
 		    }
 		} 
 		
 		if strings.EqualFold(m[3],"ETH") == true || strings.EqualFold(m[3],"GUSD") == true || strings.EqualFold(m[3],"BNB") == true || strings.EqualFold(m[3],"MKR") == true || strings.EqualFold(m[3],"HT") == true || strings.EqualFold(m[3],"BNT") == true {
-		    ba,_ := new(big.Int).SetString(a.BALANCE,10)
-		    ba2,_ := new(big.Int).SetString(m[2],10)
-		    b := new(big.Int).Add(ba,ba2)
-		    bb := fmt.Sprintf("%v",b)
-		    //nonce,_:= strconv.ParseInt(a.NONCE, 10, 64)
-		    //nonce = nonce + 1
-		    //nc := fmt.Sprintf("%v",nonce)
-		    //log.Debug("==========dcrmTransaction.Run,","lockin nonce",nc,"","===============")
-		    aa := DcrmAccountData{COINTYPE:m[3],BALANCE:bb,HASHKEY:m[1],NONCE:"0"}
-		    result, err := json.Marshal(&aa)
+		    ss := string(s)
+		    index := 0 //default
+		    addr,amount,err := getDataByIndex(ss,index)
 		    if err == nil {
-			evm.StateDB.SetStateDcrmAccountData(from,key,result)
-			//////write hashkey to local db
-			dcrm.WriteHashkeyToLocalDB(m[1],addr)	
-			//////
+			    ba,_ := new(big.Int).SetString(amount,10)
+			    ba2,_ := new(big.Int).SetString(m[2],10)
+			    b := new(big.Int).Add(ba,ba2)
+			    bb := fmt.Sprintf("%v",b)
+			    ret,err := updateBalanceByIndex(ss,index,bb)
+			    if err == nil {
+				evm.StateDB.SetStateDcrmAccountData(from,h,ret)
+				//////write hashkey to local db
+				dcrm.WriteHashkeyToLocalDB(m[1],addr)	
+			}
 		    }
 		}
-	    }
 	}	
     }
 
     if m[0] == "LOCKOUT" {
 //	log.Debug("===============dcrmTransaction.Run,LOCKOUT===============")
 	from := contract.Caller()
-	addr := evm.StateDB.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(strings.ToLower(m[3]))),m[3])
-
-	dcrmaddr := new(big.Int).SetBytes([]byte(addr))
-	key := common.BytesToHash(dcrmaddr.Bytes())
-	
-	s := evm.StateDB.GetStateDcrmAccountData(from,key)
-//	log.Debug("dcrmTransaction.Run","s",string(s))
-	if s == nil {
-	    //aa := DcrmAccountData{COINTYPE:m[2],BALANCE:string(contract.value.Bytes()),HASHKEY:"",NONCE:"0"}
-	    //result, err := json.Marshal(&aa)
-	    //if err == nil {
-	//	evm.StateDB.SetStateDcrmAccountData(from,key,result)
-	  //  }
-	} else {
-		
-	    var a DcrmAccountData
-	    json.Unmarshal(s, &a)
-
-	    if strings.EqualFold(a.COINTYPE,m[3]) == true {
-//		log.Debug("dcrmTransaction.Run,a.COINTYPE == m[3]")
+	h := crypto.Keccak256Hash([]byte(strings.ToLower(m[3]))) //bug
+	s := evm.StateDB.GetStateDcrmAccountData(from,h)
+	if s != nil {
 		if strings.EqualFold(m[3],"ETH") == true || strings.EqualFold(m[3],"GUSD") == true || strings.EqualFold(m[3],"BNB") == true || strings.EqualFold(m[3],"MKR") == true || strings.EqualFold(m[3],"HT") == true || strings.EqualFold(m[3],"BNT") == true {
-		    ba,_ := new(big.Int).SetString(a.BALANCE,10)
-		    ba2,_ := new(big.Int).SetString(m[2],10)
-		    b := new(big.Int).Sub(ba,ba2)
-		    /////sub fee
-		    ba3,_ := new(big.Int).SetString("10000000000000000",10)
-		    b = new(big.Int).Sub(b,ba3)
-		    //////
-		    bb := fmt.Sprintf("%v",b)
-		    //nonce,_:= strconv.ParseInt(a.NONCE, 10, 64)
-		    //nonce = nonce + 1
-		    //nc := fmt.Sprintf("%v",nonce)
-		    //log.Debug("==========dcrmTransaction.Run,","lockout nonce",nc,"","===============")
-		    aa := DcrmAccountData{COINTYPE:m[3],BALANCE:bb,HASHKEY:a.HASHKEY,NONCE:a.NONCE}
-		    result, err := json.Marshal(&aa)
+		    ss := string(s)
+		    index := 0 //default
+		    _,amount,err := getDataByIndex(ss,index)
 		    if err == nil {
-			evm.StateDB.SetStateDcrmAccountData(from,key,result)
+			    ba,_ := new(big.Int).SetString(amount,10)
+			    ba2,_ := new(big.Int).SetString(m[2],10)
+			    b := new(big.Int).Sub(ba,ba2)
+			    /////sub fee
+			    ba3,_ := new(big.Int).SetString("10000000000000000",10)
+			    b = new(big.Int).Sub(b,ba3)
+			    //////
+			    bb := fmt.Sprintf("%v",b)
+			    ret,err := updateBalanceByIndex(ss,index,bb)
+			    if err == nil {
+				evm.StateDB.SetStateDcrmAccountData(from,h,ret)
+			}
 		    }
 		}
 
 		if strings.EqualFold("BTC",m[3]) == true {
-		    ba,_ := strconv.ParseFloat(a.BALANCE, 64)
-		    ba2,_ := strconv.ParseFloat(m[2], 64)
-		    b := ba - ba2
-		    b = b - 0.0005 //sub fee
-		    bb := strconv.FormatFloat(b, 'f', -1, 64)
-		    //nonce,_:= strconv.ParseInt(a.NONCE, 10, 64)
-		    //nonce = nonce + 1
-		    //nc := fmt.Sprintf("%v",nonce)
-		    //log.Debug("==========dcrmTransaction.Run,","lockout nonce",nc,"","===============")
-		    aa := DcrmAccountData{COINTYPE:m[3],BALANCE:bb,HASHKEY:a.HASHKEY,NONCE:a.NONCE}
-		    result, err := json.Marshal(&aa)
+		    ss := string(s)
+		    index := 0 //default
+		    _,amount,err := getDataByIndex(ss,index)
 		    if err == nil {
-			evm.StateDB.SetStateDcrmAccountData(from,key,result)
+			    ba,_ := strconv.ParseFloat(amount, 64)
+			    ba2,_ := strconv.ParseFloat(m[2], 64)
+			    b := ba - ba2
+			    b = b - 0.0005 //sub fee
+			    bb := strconv.FormatFloat(b, 'f', -1, 64)
+			    ret,err := updateBalanceByIndex(ss,index,bb)
+			    if err == nil {
+				evm.StateDB.SetStateDcrmAccountData(from,h,ret)
+			}
 		    }
+
 		}
-	    }
 	}
     }
  
@@ -633,114 +644,123 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 	from := contract.Caller()
 	toaddr,_ := new(big.Int).SetString(m[1],0)
 	to := common.BytesToAddress(toaddr.Bytes())
+	h := crypto.Keccak256Hash([]byte(strings.ToLower(m[3]))) //bug
 
-	dcrmfrom := evm.StateDB.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(strings.ToLower(m[3]))),m[3])
-	dcrmaddr1 := new(big.Int).SetBytes([]byte(dcrmfrom))
-	key1 := common.BytesToHash(dcrmaddr1.Bytes())
+	//dcrmfrom := evm.StateDB.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(strings.ToLower(m[3]))),m[3])
+	//dcrmaddr1 := new(big.Int).SetBytes([]byte(dcrmfrom))
+	//key1 := common.BytesToHash(dcrmaddr1.Bytes())
 
-	dcrmto := evm.StateDB.GetDcrmAddress(to,crypto.Keccak256Hash([]byte(strings.ToLower(m[3]))),m[3])
-	dcrmaddr2 := new(big.Int).SetBytes([]byte(dcrmto))
-	key2 := common.BytesToHash(dcrmaddr2.Bytes())
+	//dcrmto := evm.StateDB.GetDcrmAddress(to,crypto.Keccak256Hash([]byte(strings.ToLower(m[3]))),m[3])
+	//dcrmaddr2 := new(big.Int).SetBytes([]byte(dcrmto))
+	//key2 := common.BytesToHash(dcrmaddr2.Bytes())
 
 	fr := from//fmt.Sprintf("%v",from.Hex())
 	tot := to//fmt.Sprintf("%v",to.Hex())
-	s1 := evm.StateDB.GetStateDcrmAccountData(fr,key1)
-	s2 := evm.StateDB.GetStateDcrmAccountData(tot,key2)
+	s1 := evm.StateDB.GetStateDcrmAccountData(fr,h)
+	s2 := evm.StateDB.GetStateDcrmAccountData(tot,h)
 
 	if s1 != nil {
 	    if s2 != nil {
-		var a1 DcrmAccountData
-		json.Unmarshal(s1, &a1)
-		
-		var a2 DcrmAccountData
-		json.Unmarshal(s2, &a2)
-		
-		if strings.EqualFold(a1.COINTYPE,m[3]) == true && strings.EqualFold(a2.COINTYPE,m[3]) == true {
 		    if strings.EqualFold(m[3],"ETH") == true || strings.EqualFold(m[3],"GUSD") == true || strings.EqualFold(m[3],"BNB") == true || strings.EqualFold(m[3],"MKR") == true || strings.EqualFold(m[3],"HT") == true || strings.EqualFold(m[3],"BNT") == true {
-			ba,_ := new(big.Int).SetString(m[2],10)
-			ba1,_ := new(big.Int).SetString(a1.BALANCE,10)
-			b1 := new(big.Int).Sub(ba1,ba)
-			bb1 := fmt.Sprintf("%v",b1)
-			aa1 := DcrmAccountData{COINTYPE:m[3],BALANCE:bb1,HASHKEY:a1.HASHKEY,NONCE:a1.NONCE}
-			result1, err1 := json.Marshal(&aa1)
-			if err1 == nil {
-			    evm.StateDB.SetStateDcrmAccountData(fr,key1,result1)
-			}
-			
-			ba2,_ := new(big.Int).SetString(a2.BALANCE,10)
-			b2 := new(big.Int).Add(ba2,ba)
-			bb2 := fmt.Sprintf("%v",b2)
-			aa2 := DcrmAccountData{COINTYPE:m[3],BALANCE:bb2,HASHKEY:a2.HASHKEY,NONCE:a2.NONCE}
-			result2, err2 := json.Marshal(&aa2)
-			if err2 == nil {
-			    evm.StateDB.SetStateDcrmAccountData(tot,key2,result2)
-			}
+			    index := 0 //default
+				ba,_ := new(big.Int).SetString(m[2],10)
+			    ss1 := string(s1)
+			    _,amount,err := getDataByIndex(ss1,index)
+			    if err == nil {
+				ba1,_ := new(big.Int).SetString(amount,10)
+				b1 := new(big.Int).Sub(ba1,ba)
+				bb1 := fmt.Sprintf("%v",b1)
+				    ret,err := updateBalanceByIndex(ss1,index,bb1)
+				    if err == nil {
+					evm.StateDB.SetStateDcrmAccountData(fr,h,ret)
+				}
+			    }
+
+			    ss2 := string(s2)
+			    _,amount,err = getDataByIndex(ss2,index)
+			    if err == nil {
+				ba2,_ := new(big.Int).SetString(amount,10)
+				b2 := new(big.Int).Add(ba2,ba)
+				bb2 := fmt.Sprintf("%v",b2)
+				    ret,err := updateBalanceByIndex(ss2,index,bb2)
+				    if err == nil {
+					evm.StateDB.SetStateDcrmAccountData(tot,h,ret)
+				}
+			    }
 		    }
 
 		    if strings.EqualFold("BTC",m[3]) == true {
 			ba,_:= strconv.ParseFloat(m[2], 64)
-			ba1,_ := strconv.ParseFloat(a1.BALANCE, 64)
-			b1 := ba1 - ba
-			bb1 := strconv.FormatFloat(b1, 'f', -1, 64)
-			aa1 := DcrmAccountData{COINTYPE:m[3],BALANCE:bb1,HASHKEY:a1.HASHKEY,NONCE:a1.NONCE}
-			result1, err1 := json.Marshal(&aa1)
-			if err1 == nil {
-			    evm.StateDB.SetStateDcrmAccountData(fr,key1,result1)
-			}
-			
-			ba2,_ := strconv.ParseFloat(a2.BALANCE, 64)
-			b2 := ba2 + ba
-			bb2 := strconv.FormatFloat(b2, 'f', -1, 64)
-			aa2 := DcrmAccountData{COINTYPE:m[3],BALANCE:bb2,HASHKEY:a2.HASHKEY,NONCE:a2.NONCE}
-			result2, err2 := json.Marshal(&aa2)
-			if err2 == nil {
-			    evm.StateDB.SetStateDcrmAccountData(tot,key2,result2)
-			}
+			    index := 0 //default
+			    ss1 := string(s1)
+			    _,amount,err := getDataByIndex(ss1,index)
+			    if err == nil {
+				ba1,_ := strconv.ParseFloat(amount, 64)
+				b1 := ba1 - ba
+				bb1 := strconv.FormatFloat(b1, 'f', -1, 64)
+				    ret,err := updateBalanceByIndex(ss1,index,bb1)
+				    if err == nil {
+					evm.StateDB.SetStateDcrmAccountData(fr,h,ret)
+				}
+			    }
+
+			    ss2 := string(s2)
+			    _,amount,err = getDataByIndex(ss2,index)
+			    if err == nil {
+				ba2,_ := strconv.ParseFloat(amount, 64)
+				b2 := ba2 + ba
+				bb2 := strconv.FormatFloat(b2, 'f', -1, 64)
+				    ret,err := updateBalanceByIndex(ss2,index,bb2)
+				    if err == nil {
+					evm.StateDB.SetStateDcrmAccountData(tot,h,ret)
+				}
+			    }
 		    }
-		}
 	    } else {
-		var a1 DcrmAccountData
-		json.Unmarshal(s1, &a1)
 		
-		if strings.EqualFold(a1.COINTYPE,m[3]) == true {
 		    if strings.EqualFold(m[3],"ETH") == true || strings.EqualFold(m[3],"GUSD") == true || strings.EqualFold(m[3],"BNB") == true || strings.EqualFold(m[3],"MKR") == true || strings.EqualFold(m[3],"HT") == true || strings.EqualFold(m[3],"BNT") == true {
-			ba,_ := new(big.Int).SetString(m[2],10)
-		    
-			ba1,_ := new(big.Int).SetString(a1.BALANCE,10)
-			b1 := new(big.Int).Sub(ba1,ba)
-			bb1 := fmt.Sprintf("%v",b1)
-			aa1 := DcrmAccountData{COINTYPE:m[3],BALANCE:bb1,HASHKEY:a1.HASHKEY,NONCE:a1.NONCE}
-			result1, err1 := json.Marshal(&aa1)
-			if err1 == nil {
-			    evm.StateDB.SetStateDcrmAccountData(fr,key1,result1)
-			}
+			    index := 0 //default
+				ba,_ := new(big.Int).SetString(m[2],10)
+			    ss1 := string(s1)
+			    _,amount,err := getDataByIndex(ss1,index)
+			    if err == nil {
+				ba1,_ := new(big.Int).SetString(amount,10)
+				b1 := new(big.Int).Sub(ba1,ba)
+				bb1 := fmt.Sprintf("%v",b1)
+				    ret,err := updateBalanceByIndex(ss1,index,bb1)
+				    if err == nil {
+					evm.StateDB.SetStateDcrmAccountData(fr,h,ret)
+				}
+			    }
 			
 			bb2 := fmt.Sprintf("%v",ba)
-			aa2 := DcrmAccountData{COINTYPE:m[3],BALANCE:bb2,HASHKEY:"",NONCE:"0"}
-			result2, err2 := json.Marshal(&aa2)
-			if err2 == nil {
-			    evm.StateDB.SetStateDcrmAccountData(tot,key2,result2)
-			}
+			ret := "xxx"
+			ret += ":"
+			ret += bb2
+			evm.StateDB.SetStateDcrmAccountData(tot,h,[]byte(ret))
 		    }
 
 		    if strings.EqualFold("BTC",m[3]) == true {
-			ba,_:= strconv.ParseFloat(m[2], 64)
-			ba1,_ := strconv.ParseFloat(a1.BALANCE, 64)
-			b1 := ba1 - ba
-			bb1 := strconv.FormatFloat(b1, 'f', -1, 64)
-			aa1 := DcrmAccountData{COINTYPE:m[3],BALANCE:bb1,HASHKEY:a1.HASHKEY,NONCE:a1.NONCE}
-			result1, err1 := json.Marshal(&aa1)
-			if err1 == nil {
-			    evm.StateDB.SetStateDcrmAccountData(fr,key1,result1)
-			}
+			    ba,_:= strconv.ParseFloat(m[2], 64)
+			    index := 0 //default
+			    ss1 := string(s1)
+			    _,amount,err := getDataByIndex(ss1,index)
+			    if err == nil {
+				ba1,_ := strconv.ParseFloat(amount, 64)
+				b1 := ba1 - ba
+				bb1 := strconv.FormatFloat(b1, 'f', -1, 64)
+				    ret,err := updateBalanceByIndex(ss1,index,bb1)
+				    if err == nil {
+					evm.StateDB.SetStateDcrmAccountData(fr,h,[]byte(ret))
+				}
+			    }
 
-			aa2 := DcrmAccountData{COINTYPE:m[3],BALANCE:m[5],HASHKEY:"",NONCE:"0"}
-			result2, err2 := json.Marshal(&aa2)
-			if err2 == nil {
-			    evm.StateDB.SetStateDcrmAccountData(tot,key2,result2)
-			}
+			bb2 := strconv.FormatFloat(ba, 'f', -1, 64)
+			ret := "xxx"
+			ret += ":"
+			ret += bb2
+			evm.StateDB.SetStateDcrmAccountData(tot,h,[]byte(ret))
 		    }
-		}
 	    }
 	}
     }

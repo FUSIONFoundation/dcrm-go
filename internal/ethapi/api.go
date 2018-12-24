@@ -538,18 +538,6 @@ func (s *PublicFsnAPI) DcrmGetAccountList(ctx context.Context,pubkey string) (st
 }
 
 //==========================================
-type dcrmtxdata struct {
-    NONCE string
-    PRICE string
-    GASLIMIT string
-    RECIPIENT string
-    AMOUNT string
-    PAYLOAD string
-    R string
-    S string
-    V string
-}
-
 type DcrmAddrRes struct {
     FusionAccount string
     DcrmAddr string
@@ -593,11 +581,8 @@ func (s *PublicFsnAPI) DcrmReqAddr(ctx context.Context,fusionaddr string,cointyp
 	return string(b),nil
     }
 
-    hash := crypto.Keccak256Hash([]byte(strings.ToLower(fusionaddr) + ":" + strings.ToLower(cointype))).Hex()
-    //log.Debug("================DcrmReqAddr Keccak256Hash================")
-    dcrmaddr = dcrm.GetDcrmAddr(hash,cointype)
-    //log.Debug("================DcrmReqAddr GetDcrmAddr================")
-    if dcrmaddr != "" { ///bug:call DcrmReqAddr two times continuous and error will occur.
+    has,err := dcrm.IsFusionAccountExsitDcrmAddr(fusionaddr,cointype,"")
+    if err == nil && has == true {
 	return "the account has request dcrm address already.",nil //TODO
     }
 
@@ -689,79 +674,7 @@ func (s *PublicFsnAPI) DcrmGetAddr(ctx context.Context,fusionaddr string,cointyp
     
     fromaddr,_ := new(big.Int).SetString(fusionaddr,0)
     from := common.BytesToAddress(fromaddr.Bytes())
-    ret := state.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),cointype)
-    return ret,nil
-}
-
-func (s *PublicFsnAPI) DcrmGetHashKey(ctx context.Context,fusionaddr string,cointype string) (string,error) {
-
-    if cointype == "" || fusionaddr == "" {
-	return "param error.",nil
-    }
-    if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false && strings.EqualFold(cointype,"GUSD") == false && strings.EqualFold(cointype,"BNB") == false && strings.EqualFold(cointype,"MKR") == false && strings.EqualFold(cointype,"HT") == false && strings.EqualFold(cointype,"BNT") == false {
-	return "coin type is not supported.",nil
-    }
-    fusions := []rune(fusionaddr)
-    if string(fusions[0:2]) == "0x" && len(fusions) != 42 { //42 = 2 + 20*2 =====>0x + addr
-	return "param error.fusion addr must start with 0x and len = 42.",nil
-    }
-    if string(fusions[0:2]) != "0x" {
-	return "param error.fusion addr must start with 0x and len = 42.",nil
-    }
-
-    state, _, err := s.b.StateAndHeaderByNumber(ctx,rpc.LatestBlockNumber)
-    if state == nil || err != nil {
-	    return "db is not ready.", err
-    }
-    
-    dcrmaddr,e := s.DcrmGetAddr(ctx,fusionaddr,cointype)
-    if dcrmaddr == "" || e != nil {
-	return "fail: hash key is not exist.",e 
-    }
-
-    fromaddr,_ := new(big.Int).SetString(fusionaddr,0)
-    from := common.BytesToAddress(fromaddr.Bytes())
-
-    d := new(big.Int).SetBytes([]byte(dcrmaddr))
-    key := common.BytesToHash(d.Bytes())
-
-    ret := state.GetDcrmHashKey(from,key,cointype)
-    return ret,nil
-}
-
-func (s *PublicFsnAPI) DcrmGetNonce(ctx context.Context,fusionaddr string,cointype string) (string,error) {
-
-    if cointype == "" || fusionaddr == "" {
-	return "param error.",nil
-    }
-    if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false && strings.EqualFold(cointype,"GUSD") == false && strings.EqualFold(cointype,"BNB") == false && strings.EqualFold(cointype,"MKR") == false && strings.EqualFold(cointype,"HT") == false && strings.EqualFold(cointype,"BNT") == false {
-	return "coin type is not supported.",nil
-    }
-    fusions := []rune(fusionaddr)
-    if string(fusions[0:2]) == "0x" && len(fusions) != 42 { //42 = 2 + 20*2 =====>0x + addr
-	return "param error.fusion addr must start with 0x and len = 42.",nil
-    }
-    if string(fusions[0:2]) != "0x" {
-	return "param error.fusion addr must start with 0x and len = 42.",nil
-    }
-
-    state, _, err := s.b.StateAndHeaderByNumber(ctx,rpc.LatestBlockNumber)
-    if state == nil || err != nil {
-	    return "db is not ready.", err
-    }
-    
-    dcrmaddr,e := s.DcrmGetAddr(ctx,fusionaddr,cointype)
-    if dcrmaddr == "" || e != nil {
-	return "get nonce error.",e 
-    }
-
-    fromaddr,_ := new(big.Int).SetString(fusionaddr,0)
-    from := common.BytesToAddress(fromaddr.Bytes())
-
-    d := new(big.Int).SetBytes([]byte(dcrmaddr))
-    key := common.BytesToHash(d.Bytes())
-
-    ret := state.GetDcrmNonce(from,key,cointype)
+    ret := state.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
     return ret,nil
 }
 
@@ -837,10 +750,10 @@ func (s *PublicFsnAPI) DcrmGetBalance(ctx context.Context,fusionaddr string,coin
 	    return "param error.fusion addr must start with 0x and len = 42.",nil
 	}
 
-	dcrmaddr,e := s.DcrmGetAddr(ctx,fusionaddr,cointype)
-	if e != nil || dcrmaddr == "" {
-	    return "the account has not request dcrm addr before.",nil
-	}
+	//dcrmaddr,e := s.DcrmGetAddr(ctx,fusionaddr,cointype)
+	//if e != nil || dcrmaddr == "" {
+	  //  return "the account has not request dcrm addr before.",nil
+	//}
 
 	dcrmaddrs := []rune(dcrmaddr)
 	if (strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true) && len(dcrmaddrs) != 42 { //42 = 2 + 20*2 =====>0x + addr
@@ -858,10 +771,10 @@ func (s *PublicFsnAPI) DcrmGetBalance(ctx context.Context,fusionaddr string,coin
 	fromaddr,_ := new(big.Int).SetString(fusionaddr,0)
 	from := common.BytesToAddress(fromaddr.Bytes())
 	
-	addr2 := new(big.Int).SetBytes([]byte(dcrmaddr))
-	key := common.BytesToHash(addr2.Bytes())
+	//addr2 := new(big.Int).SetBytes([]byte(dcrmaddr))
+	//key := common.BytesToHash(addr2.Bytes())
 
-	ret := state.GetDcrmAccountBalance(from,key,cointype)
+	ret := state.GetDcrmAccountBalance(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
 	log.Debug("DcrmGetBalance","ret",ret)
 
 	var ret2 string

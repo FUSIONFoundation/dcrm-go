@@ -120,6 +120,12 @@ func (d *DcrmValidateData) Set(k,v string) {
   d.dcrmvalidatelist[k]=v
 }
 
+func (d *DcrmValidateData) Delete(k string) {
+  d.Lock.Lock()
+  defer d.Lock.Unlock()
+    delete(d.dcrmvalidatelist,k)
+}
+
 func (d *DcrmValidateData) GetKReady(k string) (string,bool) {
   d.Lock.Lock()
   defer d.Lock.Unlock()
@@ -149,6 +155,14 @@ func GetDcrmValidateDataKReady(k string) (string,bool) {
     }
 
     return dcrmvalidatedata.GetKReady(strings.ToLower(k))
+}
+
+func DeleteDcrmValidateData(k string) {
+    if dcrmvalidatedata == nil {
+	return
+    }
+    
+    dcrmvalidatedata.Delete(strings.ToLower(k))
 }
 
 /*func ValidateDcrm(val string) bool {
