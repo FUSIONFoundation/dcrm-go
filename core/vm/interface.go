@@ -50,7 +50,7 @@ type StateDB interface {
 	//+++++++++++++caihaijun+++++++++++++++++
 	GetStateDcrmAccountData(common.Address,common.Hash) []byte
 	SetStateDcrmAccountData(common.Address, common.Hash, []byte)
-	GetDcrmAccountBalance(common.Address, common.Hash,int) *big.Int
+	GetDcrmAccountBalance(common.Address, common.Hash,int) (*big.Int,error)
 	GetCommittedStateDcrmAccountData(common.Address, common.Hash) []byte
 	GetDcrmAddress(common.Address, common.Hash,int) string 
 	//+++++++++++++++++end+++++++++++++++++++

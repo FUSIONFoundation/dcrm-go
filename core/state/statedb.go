@@ -23,6 +23,7 @@ import (
 	"sort"
 	"sync"
 
+	"errors"//caihaijun
 	"github.com/fusion/go-fusion/common"
 	"github.com/fusion/go-fusion/core/types"
 	"github.com/fusion/go-fusion/crypto"
@@ -289,13 +290,13 @@ func (self *StateDB) SetStateDcrmAccountData(addr common.Address, key common.Has
 	}
 }
 
-func (self *StateDB) GetDcrmAccountBalance(a common.Address, b common.Hash,index int) *big.Int {
+func (self *StateDB) GetDcrmAccountBalance(a common.Address, b common.Hash,index int) (*big.Int,error) {
 	stateObject := self.getStateObject(a)
 	if stateObject != nil {
 		//log.Debug("==================statedb.GetDcrmAccountBalance,get stateObject is not nil.============")
 		return stateObject.GetDcrmAccountBalance(self.db, b,index)
 	}
-	return nil
+	return nil,errors.New("account is not exsit or block data error.")
 }
 
 func (self *StateDB) GetCommittedStateDcrmAccountData(addr common.Address, hash common.Hash) []byte {
