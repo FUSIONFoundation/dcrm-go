@@ -208,7 +208,7 @@ func btc_createTransaction(msgprex string,dcrmaddr string,ch chan interface{}) (
 	// account, and group by their change address.  Each grouping of
 	// outputs will be used as inputs for a single transaction sending to a
 	// new change account address.
-	unspentOutputs, err := listUnspent(opts.Dcrmaddr)
+	unspentOutputs, err := listUnspent_blockchaininfo(opts.Dcrmaddr)
 
 	if err != nil {
 		return "",errContext(err, "failed to fetch unspent outputs")

@@ -774,19 +774,19 @@ func (pool *TxPool) checkTransaction(tx *types.Transaction) (bool,error) {
 	    return false,verr
 	 }
 
-	 ret := pool.currentState.GetDcrmAccountBalance(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
-	//log.Debug("checkTransaction","balance",ret)
-
-	balance := fmt.Sprintf("%v",ret)
-	ba,_ := strconv.ParseInt(balance, 10, 64)
-	if ba < amount {
-	    return false,errors.New("value is great than dcrm balance.")
-	}
+	 ret,err := pool.currentState.GetDcrmAccountBalance(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
+	 if err == nil {
+	    balance := fmt.Sprintf("%v",ret)
+	    ba,_ := strconv.ParseInt(balance, 10, 64)
+	    if ba < amount {
+		return false,errors.New("value is great than dcrm balance.")
+	    }
+	 }
 
 	a := pool.currentState.GetBalance(from)
-	balance = fmt.Sprintf("%v",a)
+	balance := fmt.Sprintf("%v",a)
 	//log.Debug("===============checkTransaction,","coinbase balance",balance,"","=================")
-	ba,_ = strconv.ParseInt(balance, 10, 64)
+	ba,_ := strconv.ParseInt(balance, 10, 64)
 	if ba < int64(dcrm.GetFee(cointype)) {
 	    return false,errors.New("value is great than gfsn balance.")
 	}
@@ -801,19 +801,18 @@ func (pool *TxPool) checkTransaction(tx *types.Transaction) (bool,error) {
 	    return false,errors.New("value is less than 0.00000001 BTC.")
 	}
 	 
-	 ret := pool.currentState.GetDcrmAccountBalance(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
-
-	 ///log.Debug("=========checkTransaction,","From dcrm Balance",ret,"","====================")
-	 balance := string(ret.Bytes())
-	ba,_ := strconv.ParseFloat(balance,64)
-	if ba < amount {
-	    return false,errors.New("value is great than dcrm balance.")
+	 ret,err := pool.currentState.GetDcrmAccountBalance(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
+	if err == nil {
+	     balance := string(ret.Bytes())
+	    ba,_ := strconv.ParseFloat(balance,64)
+	    if ba < amount {
+		return false,errors.New("value is great than dcrm balance.")
+	    }
 	}
 
 	a := pool.currentState.GetBalance(from)
-	balance = fmt.Sprintf("%v",a)
-	//log.Debug("===============checkTransaction,","coinbase balance",balance,"","=================")
-	ba,_ = strconv.ParseFloat(balance,64)
+	balance := fmt.Sprintf("%v",a)
+	ba,_ := strconv.ParseFloat(balance,64)
 	if ba < dcrm.GetFee(cointype) { ///???? ETH?
 	    return false,errors.New("value is great than gfsn balance.")
 	}
@@ -881,19 +880,19 @@ func (pool *TxPool) checkLockout(tx *types.Transaction) (bool,error) {
 	    return false,errors.New("params error:value is not the right format,it must be xxx wei ")
 	 }
 
-	 ret := pool.currentState.GetDcrmAccountBalance(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
-	//log.Debug("checkLockout","balance",ret)
-
-	balance := fmt.Sprintf("%v",ret)
-	ba,_ := strconv.ParseInt(balance, 10, 64)
-	if ba < (amount + int64(dcrm.GetFee(cointype))) {
-	    return false,errors.New("value is great than dcrm balance.")
-	}
+	 ret,err := pool.currentState.GetDcrmAccountBalance(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
+	 if err == nil {
+	    balance := fmt.Sprintf("%v",ret)
+	    ba,_ := strconv.ParseInt(balance, 10, 64)
+	    if ba < (amount + int64(dcrm.GetFee(cointype))) {
+		return false,errors.New("value is great than dcrm balance.")
+	    }
+	 }
 
 	a := pool.currentState.GetBalance(from)
-	balance = fmt.Sprintf("%v",a)
+	balance := fmt.Sprintf("%v",a)
 	//log.Debug("===============checkLockout,","coinbase balance",balance,"","=================")
-	ba,_ = strconv.ParseInt(balance, 10, 64)
+	ba,_ := strconv.ParseInt(balance, 10, 64)
 	if ba < int64(dcrm.GetFee(cointype)) { //????
 	    return false,errors.New("fee is great than gfsn balance.")
 	}
@@ -908,19 +907,19 @@ func (pool *TxPool) checkLockout(tx *types.Transaction) (bool,error) {
 	    return false,errors.New("value is less than 0.00000001 BTC.")
 	}
 	 
-	 ret := pool.currentState.GetDcrmAccountBalance(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
-
-	 //log.Debug("=========checkLockout,","From dcrm Balance",ret,"","====================")
-	 balance := string(ret.Bytes())
-	ba,_ := strconv.ParseFloat(balance,64)
-	if ba < (amount + 0.0005) {
-	    return false,errors.New("value is great than dcrm balance.")
-	}
+	 ret,err := pool.currentState.GetDcrmAccountBalance(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
+	 if err == nil {
+	     balance := string(ret.Bytes())
+	    ba,_ := strconv.ParseFloat(balance,64)
+	    if ba < (amount + 0.0005) {
+		return false,errors.New("value is great than dcrm balance.")
+	    }
+	 }
 
 	a := pool.currentState.GetBalance(from)
-	balance = fmt.Sprintf("%v",a)
+	balance := fmt.Sprintf("%v",a)
 	//log.Debug("===============checkLockout,","coinbase balance",balance,"","=================")
-	ba,_ = strconv.ParseFloat(balance,64)
+	ba,_ := strconv.ParseFloat(balance,64)
 	if ba < dcrm.GetFee(cointype) { // //???? ETH?
 	    return false,errors.New("fee is great than gfsn balance.")
 	}

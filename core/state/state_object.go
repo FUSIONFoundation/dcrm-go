@@ -231,10 +231,10 @@ type DcrmAccountData struct {
     NONCE string
 }
 
-func (self *stateObject) GetDcrmAccountBalance(db Database, key common.Hash,index int) *big.Int {
+func (self *stateObject) GetDcrmAccountBalance(db Database, key common.Hash,index int) (*big.Int,error) {
     s := self.GetStateDcrmAccountData(db,key)
     if s == nil { 
-	return nil
+	return nil,errors.New("the account has not confirm dcrm address or receiv the tx.")
     }
     
     ss := string(s)
@@ -247,20 +247,20 @@ func (self *stateObject) GetDcrmAccountBalance(db Database, key common.Hash,inde
 	} else {
 	    ba,_ = new(big.Int).SetString(amount,10)
 	}
-	return ba
+	return ba,nil
     }
 
-    return nil
+    return nil,err
 }
 
 func getDataByIndex(value string,index int) (string,string,error) {
 	if value == "" || index < 0 {
-		return "","",errors.New("get data fail.")
+		return "","",errors.New("get block data fail.")
 	}
 
 	v := strings.Split(value,"|")
 	if len(v) < (index + 1) {
-		return "","",errors.New("get data fail.")
+		return "","",errors.New("get block data fail.")
 	}
 
 	vv := v[index]

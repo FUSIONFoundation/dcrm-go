@@ -735,19 +735,19 @@ func (s *PublicFsnAPI) DcrmLockin(ctx context.Context,hashkey string,value strin
 
 func (s *PublicFsnAPI) DcrmGetBalance(ctx context.Context,fusionaddr string,cointype string) (string, error) {
 	if fusionaddr == "" || cointype == "" {
-	    return "param error.",nil
+	    return "",errors.New("param error.")
 	}
 
 	if strings.EqualFold(cointype,"ETH") == false && strings.EqualFold(cointype,"BTC") == false && strings.EqualFold(cointype,"GUSD") == false && strings.EqualFold(cointype,"BNB") == false && strings.EqualFold(cointype,"MKR") == false && strings.EqualFold(cointype,"HT") == false && strings.EqualFold(cointype,"BNT") == false {
-	    return "coin type is not supported.",nil
+	    return "",errors.New("coin type is not supported.")
 	}
 
 	fusions := []rune(fusionaddr)
 	if string(fusions[0:2]) == "0x" && len(fusions) != 42 { //42 = 2 + 20*2 =====>0x + addr
-	    return "param error.fusion addr must start with 0x and len = 42.",nil
+	    return "",errors.New("param error.fusion addr must start with 0x and len = 42.")
 	}
 	if string(fusions[0:2]) != "0x" {
-	    return "param error.fusion addr must start with 0x and len = 42.",nil
+	    return "",errors.New("param error.fusion addr must start with 0x and len = 42.")
 	}
 
 	/*dcrmaddr,e := s.DcrmGetAddr(ctx,fusionaddr,cointype)
@@ -774,8 +774,15 @@ func (s *PublicFsnAPI) DcrmGetBalance(ctx context.Context,fusionaddr string,coin
 	//addr2 := new(big.Int).SetBytes([]byte(dcrmaddr))
 	//key := common.BytesToHash(addr2.Bytes())
 
-	ret := state.GetDcrmAccountBalance(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
-	log.Debug("DcrmGetBalance","ret",ret)
+	ret,err := state.GetDcrmAccountBalance(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
+
+	if err != nil {
+	    return "",err
+	}
+
+	if ret == nil {
+	    return "",errors.New("get balance error.return value is nil.")
+	}
 
 	var ret2 string
 	if strings.EqualFold(cointype,"BTC") == true && ret != nil {
@@ -784,7 +791,7 @@ func (s *PublicFsnAPI) DcrmGetBalance(ctx context.Context,fusionaddr string,coin
 	    ret2 = fmt.Sprintf("%v",ret)
 	}
 
-	return ret2, state.Error()
+	return ret2,nil
 }
 
 func (s *PublicFsnAPI) DcrmSendTransaction(ctx context.Context,fusionto string,value string,cointype string) (common.Hash, error) {
