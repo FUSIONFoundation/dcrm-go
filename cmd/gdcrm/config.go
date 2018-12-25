@@ -109,7 +109,7 @@ func defaultNodeConfig() node.Config {
 	cfg.HTTPModules = append(cfg.HTTPModules, "lilo", "shh")
 	cfg.WSModules = append(cfg.WSModules, "eth", "shh")
 	cfg.WSModules = append(cfg.WSModules, "fsn", "shh")
-	cfg.IPCPath = "gfsn.ipc"
+	cfg.IPCPath = "gdcrm.ipc"
 	return cfg
 }
 
