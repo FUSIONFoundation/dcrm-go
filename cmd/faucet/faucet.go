@@ -197,6 +197,18 @@ func apiHandler(conn *websocket.Conn) {
 		log.Debug("faucet", "JSON.Receive", msg)
 		if len(msg.URL) == 0 {
 			fmt.Printf("faucet, address is null\n")
+			if errs := send(conn, map[string]interface{}{
+				"conn":    *conn,
+				"funded":   nonce,
+			}, time.Second); errs != nil {
+				log.Warn("Failed to send stats to client", "err", errs)
+				conn.Close()
+				break
+			}
+			continue
+		}
+		if errh := common.IsHexAddress(msg.URL); errh != true {
+			fmt.Printf("faucet, address is valid.\n")
 			continue
 		}
 		if msg.Captcha == "FSN" {
