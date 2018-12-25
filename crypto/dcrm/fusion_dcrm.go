@@ -214,9 +214,9 @@ func ReadDcrmAddrFromLocalDBByIndex(fusion string,cointype string,index int) (st
 	return "",errors.New("has not dcrmaddr in local DB.")
 }
 
-func IsFusionAccountExsitDcrmAddr(fusion string,cointype string,dcrmaddr string) (bool,error) {
+func IsFusionAccountExsitDcrmAddr(fusion string,cointype string,dcrmaddr string) (bool,string,error) {
     if fusion == "" || cointype == "" {
-	return false,errors.New("param error")
+	return false,"",errors.New("param error")
     }
     
     lock4.Lock()
@@ -225,7 +225,7 @@ func IsFusionAccountExsitDcrmAddr(fusion string,cointype string,dcrmaddr string)
     if db == nil {
 	log.Debug("==============IsFusionAccountExsitDcrmAddr,create db fail.============")
 	lock4.Unlock()
-	return false,errors.New("create db fail.")
+	return false,"",errors.New("create db fail.")
     }
     
     hash := crypto.Keccak256Hash([]byte(strings.ToLower(fusion) + ":" + strings.ToLower(cointype))).Hex()
@@ -233,15 +233,17 @@ func IsFusionAccountExsitDcrmAddr(fusion string,cointype string,dcrmaddr string)
 	has,_ := db.Has([]byte(hash))
 	if has == true {
 		log.Debug("========IsFusionAccountExsitDcrmAddr,has req dcrmaddr.==============")
+		value,_:= db.Get([]byte(hash))
+		v := strings.Split(string(value),":")
 		db.Close()
 		lock4.Unlock()
-		return true,nil
+		return true,string(v[0]),nil
 	}
 
 	log.Debug("========IsFusionAccountExsitDcrmAddr,has not req dcrmaddr.==============")
 	db.Close()
 	lock4.Unlock()
-	return false,nil
+	return false,"",nil
     }
     
     value,has:= db.Get([]byte(hash))
@@ -251,7 +253,7 @@ func IsFusionAccountExsitDcrmAddr(fusion string,cointype string,dcrmaddr string)
 	    log.Debug("========IsFusionAccountExsitDcrmAddr,data error.==============")
 	    db.Close()
 	    lock4.Unlock()
-	    return false,errors.New("data error.")
+	    return false,"",errors.New("data error.")
 	}
 
 	for _,item := range v {
@@ -259,7 +261,7 @@ func IsFusionAccountExsitDcrmAddr(fusion string,cointype string,dcrmaddr string)
 		log.Debug("========IsFusionAccountExsitDcrmAddr,success get dcrmaddr.==============")
 		db.Close()
 		lock4.Unlock()
-		return true,nil
+		return true,dcrmaddr,nil
 	    }
 	}
     }
@@ -267,7 +269,7 @@ func IsFusionAccountExsitDcrmAddr(fusion string,cointype string,dcrmaddr string)
     log.Debug("========IsFusionAccountExsitDcrmAddr,fail get dcrmaddr.==============")
     db.Close()
     lock4.Unlock()
-    return false,nil
+    return false,"",nil
 
 }
 
@@ -2431,12 +2433,14 @@ func dcrmcall(msg interface{}) <-chan string {
 
     if len(mm) == 2 && mm[1] == "rpc_req_dcrmaddr" {
 	tmps := strings.Split(mm[0],"-")
-	has,err := IsFusionAccountExsitDcrmAddr(tmps[1],tmps[3],"")
+	has,da,err := IsFusionAccountExsitDcrmAddr(tmps[1],tmps[3],"")
 	if err == nil && has == true {
 	    log.Debug("==========dcrmcall,req add fail.========")
-	    ss := tmps[0] + "-" + tmps[4] + "-" + "fail" + "-" + "the account has request dcrm address already." + msgtypesep + "rpc_req_dcrmaddr_res"  //???? "-" == error
+	    ss := tmps[0] + "-" + tmps[4] + "-" + "fail" + "-" + "the account has request dcrm address already.the dcrm address is:" + da + msgtypesep + "rpc_req_dcrmaddr_res"  //???? "-" == error
 
 	    ch <- ss 
+	    //ss := tmps[0] + "-" + tmps[4] + "-" + da + msgtypesep + "rpc_req_dcrmaddr_res"
+	    //ch <- ss 
 	    return ch
 	}
 
@@ -3582,7 +3586,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 			return
 		    }
 
-		    has,err := IsFusionAccountExsitDcrmAddr(fusionaddr,cointype,dcrmaddr)
+		    has,_,err := IsFusionAccountExsitDcrmAddr(fusionaddr,cointype,dcrmaddr)
 		    if err == nil && has == true {
 			log.Debug("the dcrm addr confirm validate success.")
 			res := RpcDcrmRes{ret:"true",err:nil}

@@ -563,7 +563,7 @@ func (s *PublicFsnAPI) DcrmReqAddr(ctx context.Context,fusionaddr string,cointyp
     
     dcrmaddr,e := s.DcrmGetAddr(ctx,fusionaddr,cointype)
     if e == nil && dcrmaddr != "" {
-		return "the account has confirm dcrm address already.",nil
+	return "the account has confirm dcrm address already.the dcrm address is:" + dcrmaddr,nil
     }
 
     if !dcrm.IsInGroup() {
@@ -581,9 +581,9 @@ func (s *PublicFsnAPI) DcrmReqAddr(ctx context.Context,fusionaddr string,cointyp
 	return string(b),nil
     }
 
-    has,err := dcrm.IsFusionAccountExsitDcrmAddr(fusionaddr,cointype,"")
+    has,da,err := dcrm.IsFusionAccountExsitDcrmAddr(fusionaddr,cointype,"")
     if err == nil && has == true {
-	return "the account has request dcrm address already.",nil //TODO
+	return "the account has request dcrm address already.the dcrm address is:" + da,nil //TODO
     }
 
     //log.Debug("===========DcrmReqAddr,in group.==========")
