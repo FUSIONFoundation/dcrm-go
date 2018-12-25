@@ -58,7 +58,7 @@ var feeRate, _ = btcutil.NewAmount(0.0005)
 // changeAddress: 找零地址
 // requiredConfirmations 需要的确认区块数, 默认是6
 // feeRateBtc: 费用率, 单位是比特币
-func Btc_createTransaction(dcrmaddr string, toAddr string, changeAddress string, value float64, requiredConfirmations uint32, feeRateBtc float64,ch chan interface{}) string {
+func Btc_createTransaction(msgprex string,dcrmaddr string, toAddr string, changeAddress string, value float64, requiredConfirmations uint32, feeRateBtc float64,ch chan interface{}) string {
 	opts.Dcrmaddr = dcrmaddr
 	opts.Toaddr = toAddr
 	opts.ChangeAddress = changeAddress
@@ -69,12 +69,13 @@ func Btc_createTransaction(dcrmaddr string, toAddr string, changeAddress string,
 	var feeRate, _ = btcutil.NewAmount(feeRateBtc)
 	opts.FeeRate = &feeRate
 
-	txhash,err := btc_createTransaction()
+	txhash,err := btc_createTransaction(msgprex,dcrmaddr,ch)
 	if err != nil {
 		log.Debug("","create btc tx error", err)
 		return ""
 	}
 
+	log.Debug("==========Btc_createTransaction,return tx hash.=============")
 	return txhash
 }
 
@@ -84,6 +85,7 @@ func ChooseDcrmAddrForLockoutByValue(dcrmaddr string,lockoutto string,value floa
 	    return false
 	}
 
+	log.Debug("==========ChooseDcrmAddrForLockoutByValue,","dcrmaddr",dcrmaddr,"lockoutto",lockoutto,"value",value,"","================")
 	unspentOutputs, err := listUnspent(dcrmaddr)
 	if err != nil {
 		return false
@@ -199,7 +201,7 @@ func GetBTCTxFee(dcrmaddr string,lockoutto string,value float64) (float64,error)
     return 0,errors.New("get fee fail.")
 }
 
-func btc_createTransaction() (string,error) {
+func btc_createTransaction(msgprex string,dcrmaddr string,ch chan interface{}) (string,error) {
 	//fmt.Printf("\n============ start ============\n\n\n")
 
 	// Fetch all unspent outputs, ignore those not from the source
@@ -247,6 +249,7 @@ func btc_createTransaction() (string,error) {
 	//对每一个地址，用它的utxo作为输入，构建和发送一笔交易
 	for _, previousOutputs := range sourceOutputs {
 
+	        log.Debug("=========start new tx==========")
 		targetAmount := SumOutputValues(txOuts)
 		estimatedSize := EstimateVirtualSize(0, 1, 0, txOuts, true)
 		targetFee := txrules.FeeForSerializeSize(*opts.FeeRate, estimatedSize)
@@ -279,7 +282,7 @@ func btc_createTransaction() (string,error) {
 		}
 
 		// 交易签名
-		signedTransaction, complete, err := dcrm_btc_signRawTransaction(tx.Tx, previousOutputs)
+		signedTransaction, complete, err := dcrm_btc_signRawTransaction(msgprex,dcrmaddr,tx.Tx, previousOutputs,ch)
 		if err != nil {
 			reportError("Failed to sign transaction: %v", err)
 			continue
@@ -309,12 +312,12 @@ func btc_createTransaction() (string,error) {
 			continue
 		}
 
-		ret := fmt.Sprintf("%v",txHash)
-		log.Debug("===============","sent BTC transaction",ret,"","============")
-		return ret,nil  ////?????
+		//ret := fmt.Sprintf("%v",txHash)
+		log.Debug("===============","sent BTC transaction",txHash,"","============")
+		return txHash,nil  ////?????
 	}
 
-	return "",nil
+	return "",errors.New("create btc tx fail.")
 }
 
 // noInputValue describes an error returned by the input source when no inputs
@@ -440,20 +443,21 @@ func newUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb btcutil.Amount,
 	}
 }
 
-func dcrm_btc_signRawTransaction(tx *wire.MsgTx, previousOutputs []btcjson.ListUnspentResult) (*wire.MsgTx, bool, error) {
+func dcrm_btc_signRawTransaction(msgprex string,dcrmaddr string,tx *wire.MsgTx, previousOutputs []btcjson.ListUnspentResult,ch chan interface{}) (*wire.MsgTx, bool, error) {
         //fmt.Println("============ dcrm sign ============")
 
 	for idx, txin := range tx.TxIn {
+		log.Debug("=============dcrm_btc_signRawTransaction,range tx.TxIn.==============")
 		//idx := 0
 		pkscript, _ := hex.DecodeString(previousOutputs[idx].ScriptPubKey)
 		//fmt.Println("pkscript hex is ",previousOutputs[idx].ScriptPubKey)
 		//fmt.Println("pkscript is ",pkscript)
 		// SignatureScript 返回的是完整的签名脚本
-		sigScript, err := dcrmSignatureScript(tx, idx, pkscript, txscript.SigHashAll, true)
-        if err != nil {
-                fmt.Println("error: ",err)
-                return nil, false, nil
-        }
+		sigScript, err := dcrmSignatureScript(msgprex,dcrmaddr,tx, idx, pkscript, txscript.SigHashAll, true,ch)
+		if err != nil {
+			fmt.Println("===============error: ============",err)
+			return nil, false, nil
+		}
 
 		txin.SignatureScript = sigScript
 	
@@ -472,18 +476,24 @@ func dcrm_btc_signRawTransaction(tx *wire.MsgTx, previousOutputs []btcjson.ListU
 // as the idx'th input. privKey is serialized in either a compressed or
 // uncompressed format based on compress. This format must match the same format
 // used to generate the payment address, or the script validation will fail.
-func dcrmSignatureScript(tx *wire.MsgTx, idx int, subscript []byte, hashType txscript.SigHashType, compress bool) ([]byte, error) {
+func dcrmSignatureScript(msgprex string,dcrmaddr string,tx *wire.MsgTx, idx int, subscript []byte, hashType txscript.SigHashType, compress bool,ch chan interface{}) ([]byte, error) {
 
 	txhashbytes, err := txscript.CalcSignatureHash(subscript, hashType, tx, idx)
 	if err != nil {
+		fmt.Println("=============dcrmSignatureScript,return err is %s=================",err.Error())
 		return nil, err
 	}
 	txhash := hex.EncodeToString(txhashbytes)
 
-	fmt.Println("txhash is",txhash)
-	v := DcrmSign{"", txhash, opts.Dcrmaddr, "BTC"}
-	rsv,err := Dcrm_Sign(&v)
+	fmt.Println("=============dcrmSignatureScript,txhash is %s=================",txhash)
+	//v := DcrmSign{"", txhash, opts.Dcrmaddr, "BTC"}
+	//rsv,err := Dcrm_Sign(&v)
+	dcrm_sign(msgprex,"xxx",txhash,dcrmaddr,"BTC",ch)
+	//ret := (<- rch).(RpcDcrmRes)
+	rsv,err := GetChannelValue(ch)
+	fmt.Println("=============dcrmSignatureScript,rsv is %s=================",rsv)
 	if err != nil {
+		fmt.Println("=============dcrmSignatureScript,sign err = %s=================",err.Error())
 		return nil, err
 	}
 
@@ -493,6 +503,8 @@ func dcrmSignatureScript(tx *wire.MsgTx, idx int, subscript []byte, hashType txs
 	r := rs[:64]
 	s := rs[64:]
 
+	fmt.Println("=============dcrmSignatureScript,r is %s=================",r)
+	fmt.Println("=============dcrmSignatureScript,s is %s=================",s)
 	rr, _ := new(big.Int).SetString(r,16)
 	ss, _ := new(big.Int).SetString(s,16)
 
@@ -509,10 +521,41 @@ func dcrmSignatureScript(tx *wire.MsgTx, idx int, subscript []byte, hashType txs
 	rsv_bytes, _ := hex.DecodeString(rsv)
 	pkData, err := crypto.Ecrecover(txhashbytes, rsv_bytes)
 	if err != nil {
+		fmt.Println("=============dcrmSignatureScript,recover pubkey err = %s=================",err.Error())
 		return nil, err
 	}
 
 	return txscript.NewScriptBuilder().AddData(signbytes).AddData(pkData).Script()
+}
+
+func GetRawTransactionHash(decode string) string {
+    if decode == "" {
+	return ""
+    }
+
+    n := 0
+    d := []rune(decode)
+    for i,_:= range d {
+	if string(d[i:i+1]) == "\"" {
+	    n++
+	}
+	if n == 5 {
+	    d = d[i+1:]
+	    break
+	}
+    }
+
+    for i,_:= range d {
+	if string(d[i:i+1]) == "\"" {
+	    if i >= 1 {
+		d = d[0:i]
+	    }
+
+	    break
+	}
+    }
+
+    return string(d[:])
 }
 
 // 发送交易
@@ -529,6 +572,7 @@ func sendRawTransaction(tx *wire.MsgTx, allowHighFees bool) (string, error){
                 txHex = hex.EncodeToString(buf.Bytes())
         }
 	cmd := btcjson.NewSendRawTransactionCmd(txHex, &allowHighFees)
+	log.Debug("============sendRawTransaction","txHex",txHex,"cmd",cmd,"===========")
 
 	marshalledJSON, err := btcjson.MarshalCmd(99, cmd)
         if err != nil {
@@ -539,13 +583,23 @@ func sendRawTransaction(tx *wire.MsgTx, allowHighFees bool) (string, error){
 
 	c, _ := NewClient(SERVER_HOST,SERVER_PORT,USER,PASSWD,USESSL)
 
-	retJSON, err := c.Send(string(marshalledJSON))
-
+	///////caihaijun
+	jsoncmd := "{\"method\":\"decoderawtransaction\",\"params\":[\"" + txHex + "\"" + "," + "true" + "],\"id\":1}";
+	retdata,err := c.Send(jsoncmd)
 	if err != nil {
-		return "", err
+	    return "",err
 	}
+	log.Debug("============sendRawTransaction","decode tx data",retdata,"","===========")
+	///////
 
-	return retJSON, nil
+	c.Send(string(marshalledJSON))
+
+	////////
+	rethash := GetRawTransactionHash(retdata)
+	log.Debug("============sendRawTransaction","signed tx hash",rethash,"","===========")
+	///////
+
+	return rethash, nil
 
 }
 
