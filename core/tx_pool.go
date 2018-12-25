@@ -836,6 +836,7 @@ func (pool *TxPool) validateTransaction(tx *types.Transaction) (bool,error) {
 
 //lockout
 func (pool *TxPool) checkLockout(tx *types.Transaction) (bool,error) {
+    log.Debug("============txPool.checkLockout=================")
     inputs := strings.Split(string(tx.Data()),":")
     if len(inputs) == 0 {
 	return false,errors.New("tx input data is empty.")
@@ -947,6 +948,7 @@ func (pool *TxPool) checkLockout(tx *types.Transaction) (bool,error) {
 }
 
 func (pool *TxPool) validateLockout(tx *types.Transaction) (bool,error) {
+    log.Debug("============txPool.validateLockout=================")
     inputs := strings.Split(string(tx.Data()),":")
     
     lockoutto := inputs[1]
@@ -966,6 +968,7 @@ func (pool *TxPool) validateLockout(tx *types.Transaction) (bool,error) {
     }
 
     if !dcrm.IsInGroup() {
+	log.Debug("============txPool.validateLockout,is not in group.=================")
 	msg := tx.Hash().Hex() + sep9 + string(result) + sep9 + from.Hex() + sep9 + dcrmfrom + sep9 + "xxx" + sep9 + "xxx" + sep9 + lockoutto + sep9 + value + sep9 + cointype
 	retva,err := dcrm.SendReqToGroup(msg,"rpc_lockout")
 	if err != nil {
@@ -973,6 +976,7 @@ func (pool *TxPool) validateLockout(tx *types.Transaction) (bool,error) {
 		return false, err
 	}
 	
+	log.Debug("============txPool.validateLockout,send tx success.=================")
 	types.SetDcrmValidateData(tx.Hash().Hex(),retva)//bug
 	return true,nil
     }
@@ -1049,8 +1053,8 @@ func (pool *TxPool) checkLockin(tx *types.Transaction) (bool,error) {
     }
 
     hashkeys := []rune(hashkey)
-    if  string(hashkeys[0:2]) != "0x" {
-	return false,errors.New("params error:tx hash must be start with 0x.")
+    if  (strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true) && string(hashkeys[0:2]) != "0x" {
+	return false,errors.New("params error:eth or erc20 tx hash must be start with 0x.")
     }
 
     from, err := types.Sender(pool.signer, tx)
@@ -1085,7 +1089,6 @@ func (pool *TxPool) checkLockin(tx *types.Transaction) (bool,error) {
 	return true,nil
     }
 
-    //check again from block.
     has,err := dcrm.IsHashkeyExsitInLocalDB(hashkey)
     if err != nil {
 	return false,err
@@ -1100,6 +1103,7 @@ func (pool *TxPool) checkLockin(tx *types.Transaction) (bool,error) {
 }
 
 func (pool *TxPool) ValidateLockin2(tx *types.Transaction,retva string) (bool,error) {
+    log.Debug("=============txPool.ValidateLockin2.==============")
     if retva == "" {
 	return false,errors.New("hash key and real dcrm from is miss.")
     }
@@ -1125,21 +1129,27 @@ func (pool *TxPool) ValidateLockin2(tx *types.Transaction,retva string) (bool,er
     result,err := tx.MarshalJSON()
 
     if !dcrm.IsInGroup() {
+	log.Debug("=============txPool.ValidateLockin2,is not in group.==============")
 	msg := tx.Hash().Hex() + sep9 + string(result) + sep9 + from.Hex() + sep9 + hashkey + sep9 + value + sep9 + cointype + sep9 + inputs[1] + sep9 + realdcrmfrom
 	
 	_,err := dcrm.SendReqToGroup(msg,"rpc_lockin")
 	if err != nil {
+	    log.Debug("=============txPool.ValidateLockin2,validate fail.==============")
 	    return false, err
 	}
 	
+	log.Debug("=============txPool.ValidateLockin2,validate success.==============")
 	return true,nil
     }
 
+    log.Debug("=============txPool.ValidateLockin2,it is in group.==============")
     v := dcrm.DcrmLockin{Tx:string(result),LockinAddr:inputs[1],Hashkey:hashkey,RealDcrmFrom:realdcrmfrom}
     if _,err = dcrm.Validate_Txhash(&v);err != nil {
+	    log.Debug("=============txPool.ValidateLockin2,validate fail.==============")
 	    return false, err
     }
 
+    log.Debug("=============txPool.ValidateLockin2,validate success.==============")
     return true,nil 
 }
 

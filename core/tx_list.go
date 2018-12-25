@@ -236,17 +236,12 @@ func (m *txSortedMap) Ready(pool *TxPool,start uint64) types.Transactions {  //+
 		    m.Remove(next)
 		}
 
-		///////////////////
-		//time.Sleep(time.Duration(2)*time.Second)//tmp
-		///////////////////
 	    } else if mm[0] == "LOCKOUT" {
+		log.Debug("=============txPool.Ready,do lockout.==============")
 		if ok == true && val != "" {
-		    //log.Debug("=======txpool.ready,get lockout hash in outside======")
-		    //result,err := tx.MarshalJSON()
-		    //v := dcrm.DcrmLockin{Tx:string(result),LockinAddr:mm[1],Hashkey:val}
-		    //_,err = dcrm.Validate_Txhash(&v)
 		    _,err := pool.ValidateLockin2(tx,val)
 		    if err == nil {
+			log.Debug("=============txPool.Ready,success.==============")
 			ready = append(ready, m.items[next])
 			m.Remove(next)
 
@@ -254,18 +249,17 @@ func (m *txSortedMap) Ready(pool *TxPool,start uint64) types.Transactions {  //+
 			types.DeleteDcrmValidateData(tx.Hash().Hex())
 
 		    } else if strings.EqualFold(err.Error(),"get btc transaction fail.") == false && strings.EqualFold(err.Error(),"get eth transaction fail.") == false { //bug
+			log.Debug("=============txPool.Ready,remove the tx from pool.==============")
 		    	m.Remove(next)
 			//bug
 			types.DeleteDcrmValidateData(tx.Hash().Hex())
 
 		    }
 		} else { //bug:if no val and tx is invalide
+			log.Debug("=============txPool.Ready,remove the tx from pool only.==============")
 		    	m.Remove(next)
 		}
 
-		//////////////
-		//time.Sleep(time.Duration(3)*time.Second)//tmp
-		//////////////
 	    } else {
 		ready = append(ready, m.items[next])
 		m.Remove(next)
