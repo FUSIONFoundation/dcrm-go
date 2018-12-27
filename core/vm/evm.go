@@ -314,7 +314,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	//+++++++++++++++++++++end++++++++++++++++++++
 
 	if !bytes.Equal(to.Address().Bytes(), types.DcrmPrecompileAddr.Bytes()) {//+++++++caihaijun+++++++++
-	    log.Debug("=============evm.Call,Transfer===============")//caihaijun
+	    //log.Debug("=============evm.Call,Transfer===============")//caihaijun
 	    evm.Transfer(evm.StateDB, caller.Address(), to.Address(), value)
 	}//caihaijun
 
