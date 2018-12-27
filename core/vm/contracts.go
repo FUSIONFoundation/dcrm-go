@@ -659,6 +659,12 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 	s1 := evm.StateDB.GetStateDcrmAccountData(fr,h)
 	s2 := evm.StateDB.GetStateDcrmAccountData(tot,h)
 
+	//bug
+	if strings.EqualFold(fr.Hex(),tot.Hex()) {
+	    return nil,nil
+	}
+	//
+
 	if s1 != nil {
 	    if s2 != nil {
 		    if strings.EqualFold(m[3],"ETH") == true || strings.EqualFold(m[3],"GUSD") == true || strings.EqualFold(m[3],"BNB") == true || strings.EqualFold(m[3],"MKR") == true || strings.EqualFold(m[3],"HT") == true || strings.EqualFold(m[3],"BNT") == true {
