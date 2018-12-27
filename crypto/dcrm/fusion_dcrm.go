@@ -542,6 +542,49 @@ func GetFee(cointype string) float64 {
     return 0
 }
 
+//////
+func IsDcrmAddr(addr string) bool {
+
+	lock.Lock()
+	dbpath := GetDbDir()
+	db, err := leveldb.OpenFile(dbpath, nil) 
+	if err != nil { 
+	    lock.Unlock()
+	    return false 
+	} 
+    
+	var b bytes.Buffer 
+	b.WriteString("") 
+	b.WriteByte(0) 
+	b.WriteString("") 
+	iter := db.NewIterator(nil, nil) 
+	for iter.Next() { 
+	    key := string(iter.Key())
+	    value := string(iter.Value())
+
+	    s := strings.Split(value,sep)
+	    if len(s) != 0 {
+		var m AccountListInfo
+		ok := json.Unmarshal([]byte(s[0]), &m)
+		if ok == nil {
+		    ////
+		} else if strings.EqualFold(key,addr) {
+		    iter.Release() 
+		    db.Close() 
+		    lock.Unlock()
+		    return true
+		}
+	    }
+	} 
+	
+	iter.Release() 
+	db.Close() 
+	lock.Unlock()
+    
+	return false 
+}
+//////
+
 func ChooseRealFusionAccountForLockout(amount string,lockoutto string,cointype string) (string,string,error) {
 
     if strings.EqualFold(cointype,"ETH") == true {
