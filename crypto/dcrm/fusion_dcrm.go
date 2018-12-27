@@ -4100,6 +4100,15 @@ func GetDcrmAddr(hash string,cointype string) string {
 		    ch <- res
 		    return
 		}
+		//bug
+		rets := []rune(ret)
+		if len(rets) != 130 {
+		    var ret2 Err
+		    ret2.info = "wrong size for dcrm sig."
+		    res := RpcDcrmRes{ret:"",err:ret2}
+		    ch <- res
+		    return
+		}
 
 		lockout_tx_hash,_,outerr := GetTxHashForLockout(realfusionfrom,realdcrmfrom,lockoutto,value,cointype,ret)
 		if outerr != nil {
@@ -5574,6 +5583,41 @@ func Tool_DecimalByteSlice2HexString(DecimalSlice []byte) string {
 func GetSignString(r *big.Int,s *big.Int,v int32,i int) string {
     rr :=  r.Bytes()
     sss :=  s.Bytes()
+
+    //bug
+    if len(rr) == 31 && len(sss) == 32 {
+	log.Debug("======r len is 31===========")
+	sigs := make([]byte,65)
+	sigs[0] = byte(0)
+	math.ReadBits(r,sigs[1:32])
+	math.ReadBits(s,sigs[32:64])
+	sigs[64] = byte(i)
+	ret := Tool_DecimalByteSlice2HexString(sigs)
+	return ret
+    }
+    if len(rr) == 31 && len(sss) == 31 {
+	log.Debug("======r and s len is 31===========")
+	sigs := make([]byte,65)
+	sigs[0] = byte(0)
+	sigs[32] = byte(0)
+	math.ReadBits(r,sigs[1:32])
+	math.ReadBits(s,sigs[33:64])
+	sigs[64] = byte(i)
+	ret := Tool_DecimalByteSlice2HexString(sigs)
+	return ret
+    }
+    if len(rr) == 32 && len(sss) == 31 {
+	log.Debug("======s len is 31===========")
+	sigs := make([]byte,65)
+	sigs[32] = byte(0)
+	math.ReadBits(r,sigs[0:32])
+	math.ReadBits(s,sigs[33:64])
+	sigs[64] = byte(i)
+	ret := Tool_DecimalByteSlice2HexString(sigs)
+	return ret
+    }
+    //
+
     n := len(rr) + len(sss) + 1
     sigs := make([]byte,n)
     math.ReadBits(r,sigs[0:len(rr)])
