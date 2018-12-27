@@ -48,7 +48,7 @@ var opts = struct {
 	Toaddr: "",
 	ChangeAddress: "",
 	Value: 0,
-	RequiredConfirmations: 6,
+	RequiredConfirmations: BTC_BLOCK_CONFIRMS,
 	FeeRate: &feeRate,
 }
 var feeRate, _ = btcutil.NewAmount(0.0005)

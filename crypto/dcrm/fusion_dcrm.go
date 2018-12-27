@@ -127,6 +127,8 @@ var (
     lock4 sync.Mutex
     //for get lockout info 
     lock5 sync.Mutex
+
+    BTC_BLOCK_CONFIRMS int64
 )
 
 func GetLockoutInfoFromLocalDB(hashkey string) (string,error) {
@@ -2366,6 +2368,7 @@ func init(){
 	log.Root().SetHandler(glogger)
 
 	erc20_client = nil
+	BTC_BLOCK_CONFIRMS = 1
 }
 
 func RestoreNodeInfo() {
@@ -2818,7 +2821,7 @@ func ValidBTCTx(returnJson string,txhash string,realdcrmfrom string,realdcrmto s
 		    amount := vp.Value
 		    vv := fmt.Sprintf("%v",amount)
 		    if islockout {
-			if btcres_noinputs.Result.Confirmations >= 6 {
+			if btcres_noinputs.Result.Confirmations >= BTC_BLOCK_CONFIRMS {
 			    res := RpcDcrmRes{ret:"true",err:nil}
 			    ch <- res
 			    return
@@ -2829,7 +2832,7 @@ func ValidBTCTx(returnJson string,txhash string,realdcrmfrom string,realdcrmto s
 			ch <- res
 			return
 		    } else {
-			if vv == value && btcres_noinputs.Result.Confirmations >= 6 {
+			if vv == value && btcres_noinputs.Result.Confirmations >= BTC_BLOCK_CONFIRMS {
 			    res := RpcDcrmRes{ret:"true",err:nil}
 			    ch <- res
 			    return
@@ -2862,7 +2865,7 @@ func ValidBTCTx(returnJson string,txhash string,realdcrmfrom string,realdcrmto s
 		    amount := vp.Value
 		    vv := fmt.Sprintf("%v",amount)
 		    if islockout {
-			if btcres.Result.Confirmations >= 6 {
+			if btcres.Result.Confirmations >= BTC_BLOCK_CONFIRMS {
 			    res := RpcDcrmRes{ret:"true",err:nil}
 			    ch <- res
 			    return
@@ -2873,7 +2876,7 @@ func ValidBTCTx(returnJson string,txhash string,realdcrmfrom string,realdcrmto s
 			ch <- res
 			return
 		    } else {
-			if vv == value && btcres.Result.Confirmations >= 6 {
+			if vv == value && btcres.Result.Confirmations >= BTC_BLOCK_CONFIRMS {
 			    res := RpcDcrmRes{ret:"true",err:nil}
 			    ch <- res
 			    return
