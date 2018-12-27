@@ -4140,7 +4140,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 		amount,_ := strconv.ParseFloat(value, 64)
 		def_fee := 0.0005 //default fee
 		rch := make(chan interface{},1)
-		lockout_tx_hash := Btc_createTransaction(msgprex,realdcrmfrom,lockoutto,realdcrmfrom,amount,6,def_fee,rch)
+		lockout_tx_hash := Btc_createTransaction(msgprex,realdcrmfrom,lockoutto,realdcrmfrom,amount*100000000,uint32(BTC_BLOCK_CONFIRMS),def_fee,rch)
 		log.Debug("===========btc tx,get return hash",lockout_tx_hash,"","===========")
 		if lockout_tx_hash == "" {
 		    log.Debug("=============create btc tx fail.=================")
