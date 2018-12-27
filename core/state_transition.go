@@ -21,6 +21,7 @@ import (
 	"math"
 	"math/big"
 
+	//"fmt"//caihaijun
 	"github.com/fusion/go-fusion/common"
 	"github.com/fusion/go-fusion/core/vm"
 	"github.com/fusion/go-fusion/core/types"//caihaijun
@@ -223,7 +224,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	if contractCreation {
 		ret, _, st.gas, vmerr = evm.Create(sender, st.data, st.gas, st.value)
 	} else {
-	    //fmt.Printf("===========TransitionDb,=================\n")//caihaijun
+		//fmt.Printf("===========TransitionDb,=================\n")//caihaijun
 		// Increment the nonce for the next transaction
 		st.state.SetNonce(msg.From(), st.state.GetNonce(sender.Address())+1)
 		ret, st.gas, vmerr = evm.Call(sender, st.to(), st.data, st.gas, st.value)
