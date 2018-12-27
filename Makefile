@@ -17,6 +17,9 @@ gdcrm:
 	@echo "Done building."
 	@echo "Run \"$(GOBIN)/gdcrm\" to launch gdcrm."
 
+faucet:
+	build/env.sh go run build/ci.go install ./cmd/faucet
+
 swarm:
 	build/env.sh go run build/ci.go install ./cmd/swarm
 	@echo "Done building."
