@@ -4284,8 +4284,6 @@ func GetDcrmAddr(hash string,cointype string) string {
 			ret2.info = "get worker.bencxshare timeout."
 			res := RpcDcrmRes{ret:"",err:ret2}
 			ch <- res
-			db.Close()
-			lock.Unlock()
 			return
 		    }
 		    enc := calcEncPrivKey(msgprex,encXShare,id)
