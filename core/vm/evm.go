@@ -237,6 +237,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		     ret,err := evm.StateDB.GetDcrmAccountBalance(caller.Address(),crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
 		     if err == nil {
 			if ret.Cmp(amount) < 0 {
+			    log.Debug("=============evm.Call,TRANSACTION,ErrInsufficientBalance===============")//caihaijun
 			    return nil, gas, ErrInsufficientBalance
 			}
 		     }
@@ -249,6 +250,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 			 ret,err := evm.StateDB.GetDcrmAccountBalance(caller.Address(),crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
 			if err == nil {
 			    if ret.Cmp(amount) < 0 {
+				log.Debug("=============evm.Call,TRANSACTION,ErrInsufficientBalance===============")//caihaijun
 				return nil, gas, ErrInsufficientBalance
 			    }
 			}
@@ -309,7 +311,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	//+++++++++++++++++++++end++++++++++++++++++++
 
 	if !bytes.Equal(to.Address().Bytes(), types.DcrmPrecompileAddr.Bytes()) {//+++++++caihaijun+++++++++
-	    //log.Debug("=============evm.Call,Transfer===============")//caihaijun
+	    log.Debug("=============evm.Call,Transfer===============")//caihaijun
 	    evm.Transfer(evm.StateDB, caller.Address(), to.Address(), value)
 	}//caihaijun
 

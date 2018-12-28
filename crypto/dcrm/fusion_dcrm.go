@@ -676,6 +676,7 @@ func ChooseRealFusionAccountForLockout(amount string,lockoutto string,cointype s
 		    } else { //BTC
 			va,_ := strconv.ParseFloat(amount, 64)
 			if ChooseDcrmAddrForLockoutByValue(key,lockoutto,va) {
+			    log.Debug("=========choose btc dcrm success.=============")
 			    iter.Release() 
 			    db.Close() 
 			    lock.Unlock()

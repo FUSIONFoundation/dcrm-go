@@ -1437,15 +1437,17 @@ func (pool *TxPool) journalTx(from common.Address, tx *types.Transaction) {
 //
 // Note, this method assumes the pool lock is held!
 func (pool *TxPool) promoteTx(addr common.Address, hash common.Hash, tx *types.Transaction) bool {
+	log.Debug("==================promoteTx=================")//caihaijun 
 	// Try to insert the transaction into the pending queue
 	if pool.pending[addr] == nil {
-		//log.Debug("==================promoteTx,pool.pending[addr] == nil=================")//caihaijun 
+		log.Debug("==================promoteTx,pool.pending[addr] == nil=================")//caihaijun 
 		pool.pending[addr] = newTxList(true)
 	}
 	list := pool.pending[addr]
 
 	inserted, old := list.Add(tx, pool.config.PriceBump)
 	if !inserted {
+		log.Debug("==================promoteTx,An older transaction was better, discard this=================")//caihaijun 
 		// An older transaction was better, discard this
 		pool.all.Remove(hash)
 		pool.priced.Removed()
@@ -1455,6 +1457,7 @@ func (pool *TxPool) promoteTx(addr common.Address, hash common.Hash, tx *types.T
 	}
 	// Otherwise discard any previous transaction and mark this
 	if old != nil {
+		log.Debug("==================promoteTx,discard any previous transaction and mark this=================")//caihaijun 
 		pool.all.Remove(old.Hash())
 		pool.priced.Removed()
 
@@ -1462,10 +1465,12 @@ func (pool *TxPool) promoteTx(addr common.Address, hash common.Hash, tx *types.T
 	}
 	// Failsafe to work around direct pending inserts (tests)
 	if pool.all.Get(hash) == nil {
+		log.Debug("==================promoteTx,Failsafe to work around direct pending inserts (tests)=================")//caihaijun 
 		pool.all.Add(tx)
 		pool.priced.Put(tx)
 	}
 	// Set the potentially new pending nonce and notify any subsystems of the new tx
+	log.Debug("==================promoteTx,Set the potentially new pending nonce and notify any subsystems of the new tx=================")//caihaijun 
 	pool.beats[addr] = time.Now()
 	pool.pendingState.SetNonce(addr, tx.Nonce()+1)
 

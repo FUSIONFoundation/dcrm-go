@@ -116,7 +116,7 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, author *commo
 		//log.Debug("===========ApplyTransaction,","get root",string(root),"","==============") //caihaijun
 	}
 	*usedGas += gas
-	//log.Debug("===========ApplyTransaction,","usedGas",*usedGas,"tx hash",tx.Hash(),"","==============") //caihaijun
+	log.Debug("===========ApplyTransaction,","usedGas",*usedGas,"tx hash",tx.Hash(),"","==============") //caihaijun
 
 	// Create a new receipt for the transaction, storing the intermediate root and gas used by the tx
 	// based on the eip phase, we're passing whether the root touch-delete accounts.

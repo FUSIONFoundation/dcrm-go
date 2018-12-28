@@ -86,7 +86,9 @@ func ChooseDcrmAddrForLockoutByValue(dcrmaddr string,lockoutto string,value floa
 	}
 
 	log.Debug("==========ChooseDcrmAddrForLockoutByValue,","dcrmaddr",dcrmaddr,"lockoutto",lockoutto,"value",value,"","================")
-	unspentOutputs, err := listUnspent_blockchaininfo(dcrmaddr)
+	//unspentOutputs, err := listUnspent_blockchaininfo(dcrmaddr)
+	unspentOutputs, err := listUnspent(dcrmaddr)
+	log.Debug("=========ChooseDcrmAddrForLockoutByValue,","unspentOutputs",unspentOutputs,"","================")
 	if err != nil {
 		return false
 	}
@@ -94,9 +96,11 @@ func ChooseDcrmAddrForLockoutByValue(dcrmaddr string,lockoutto string,value floa
 	
 	for _, unspentOutput := range unspentOutputs {
 		if !unspentOutput.Spendable {
+		    log.Debug("=========ChooseDcrmAddrForLockoutByValue,un-spendable=======")
 			continue
 		}
 		if unspentOutput.Confirmations < opts.RequiredConfirmations {
+			log.Debug("=========ChooseDcrmAddrForLockoutByValue,< confirms=======")
 			continue
 		}
 		sourceAddressOutputs := sourceOutputs[unspentOutput.Address]
