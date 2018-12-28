@@ -640,8 +640,22 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 }
 
 //+++++++++++++caihaijun+++++++++++++++
-
 func isValidBtcValue(s string) bool {
+    if s == "" {
+	return false
+    }
+
+    nums := []rune(s)
+    for k,_ := range nums {
+	if string(nums[k:k+1]) != "0" && string(nums[k:k+1]) != "1" && string(nums[k:k+1]) != "2" && string(nums[k:k+1]) != "3" && string(nums[k:k+1]) != "4" && string(nums[k:k+1]) != "5" && string(nums[k:k+1]) != "6" && string(nums[k:k+1]) != "7" && string(nums[k:k+1]) != "8" && string(nums[k:k+1]) != "9" {
+	    return false
+	}
+    }
+
+    return true
+}
+
+func isValidBtcValue2(s string) bool {
     if s == "" {
 	return false
     }
@@ -729,61 +743,48 @@ func (pool *TxPool) checkTransaction(tx *types.Transaction) (bool,error) {
     }
 
     if strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true {
-	amount, verr := strconv.ParseInt(value, 10, 64)
-	 if verr != nil {
-	    return false,verr
-	 }
+	if !isDecimalNumber(value) {
+	    return false,errors.New("value is not the right format.")
+	}
+
+	amount,_ := new(big.Int).SetString(value,10)
 
 	 ret,err := pool.currentState.GetDcrmAccountBalance(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
 	 if err == nil {
-	    balance := fmt.Sprintf("%v",ret)
-	    ba,_ := strconv.ParseInt(balance, 10, 64)
-	    if ba < amount {
+	    if ret.Cmp(amount) < 0 {
 		return false,errors.New("value is great than dcrm balance.")
 	    }
 	 }
 
 	a := pool.currentState.GetBalance(from)
-	balance := fmt.Sprintf("%v",a)
 	//log.Debug("===============checkTransaction,","coinbase balance",balance,"","=================")
-	ba,_ := strconv.ParseInt(balance, 10, 64)
-	if ba < int64(dcrm.GetFee(cointype)) {
+	if a.Cmp(dcrm.ETH_DEFAULT_FEE) < 0 {
 	    return false,errors.New("value is great than gfsn balance.")
 	}
     }
 
-    if strings.EqualFold(cointype,"BTC") == true {
-	amount,verr := strconv.ParseFloat(value, 64)
-	if verr != nil {
-	    return false,errors.New("params error:value is not the right format.")
+    if strings.EqualFold(cointype,"BTC") {
+	if !isValidBtcValue(value) {
+	    return false,errors.New("value is not the right format.")
 	}
-	if amount < 0.00000001 {
-	    return false,errors.New("value is less than 0.00000001 BTC.")
+
+	amount,_ := new(big.Int).SetString(value,10)
+	one,_ := new(big.Int).SetString("1",10)
+	if amount.Cmp(one) < 0 {
+	    return false,errors.New("value must great than or equal 1 satoshis.")
 	}
 	 
 	 ret,err := pool.currentState.GetDcrmAccountBalance(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
 	if err == nil {
-	     balance := string(ret.Bytes())
-	    ba,_ := strconv.ParseFloat(balance,64)
-	    if ba < amount {
+	    if ret.Cmp(amount) < 0 {
 		return false,errors.New("value is great than dcrm balance.")
 	    }
 	}
 
 	a := pool.currentState.GetBalance(from)
-	balance := fmt.Sprintf("%v",a)
-	ba,_ := strconv.ParseFloat(balance,64)
-	if ba < dcrm.GetFee(cointype) { ///???? ETH?
+	if a.Cmp(dcrm.ETH_DEFAULT_FEE) < 0 {
 	    return false,errors.New("value is great than gfsn balance.")
 	}
-    }
-
-    //bug
-    if strings.EqualFold(cointype,"BTC") == true && isValidBtcValue(value) == false {
-	    return false,errors.New("value is not the right format.")
-    }
-    if (strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true) && isDecimalNumber(value) == false {
-	    return false,errors.New("value is not the right format.")
     }
 
     return true,nil
@@ -835,62 +836,52 @@ func (pool *TxPool) checkLockout(tx *types.Transaction) (bool,error) {
     }
 
     if strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true {
-	amount, verr := strconv.ParseInt(value, 10, 64)
-	 if verr != nil {
-	    return false,errors.New("params error:value is not the right format,it must be xxx wei ")
-	 }
+	if !isDecimalNumber(value) {
+	    return false,errors.New("value is not the right format.")
+	}
+
+	amount,_ := new(big.Int).SetString(value,10)
 
 	 ret,err := pool.currentState.GetDcrmAccountBalance(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
 	 if err == nil {
-	    balance := fmt.Sprintf("%v",ret)
-	    ba,_ := strconv.ParseInt(balance, 10, 64)
-	    if ba < (amount + int64(dcrm.GetFee(cointype))) {
-		return false,errors.New("value is great than dcrm balance.")
+	     total := new(big.Int).Add(amount,dcrm.ETH_DEFAULT_FEE)
+	    if ret.Cmp(total) < 0 {
+		return false,errors.New("value + fee is great than dcrm balance.")
 	    }
 	 }
 
 	a := pool.currentState.GetBalance(from)
-	balance := fmt.Sprintf("%v",a)
-	//log.Debug("===============checkLockout,","coinbase balance",balance,"","=================")
-	ba,_ := strconv.ParseInt(balance, 10, 64)
-	if ba < int64(dcrm.GetFee(cointype)) { //????
+	if a.Cmp(dcrm.ETH_DEFAULT_FEE) < 0 {
 	    return false,errors.New("fee is great than gfsn balance.")
 	}
     }
 
     if strings.EqualFold(cointype,"BTC") == true {
-	amount,verr := strconv.ParseFloat(value, 64)
-	if verr != nil {
-	    return false,errors.New("params error:value is not the right format.")
+	if !isValidBtcValue(value) {
+	    return false,errors.New("value is not the right format.")
 	}
-	if amount < 0.00000001 {
-	    return false,errors.New("value is less than 0.00000001 BTC.")
+
+	amount,_ := new(big.Int).SetString(value,10)
+	one,_ := new(big.Int).SetString("1",10)
+	if amount.Cmp(one) < 0 {
+	    return false,errors.New("value must great than or equal 1 satoshis.")
 	}
 	 
 	 ret,err := pool.currentState.GetDcrmAccountBalance(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
 	 if err == nil {
-	     balance := string(ret.Bytes())
-	    ba,_ := strconv.ParseFloat(balance,64)
-	    if ba < (amount + 0.0005) {
-		return false,errors.New("value is great than dcrm balance.")
+	     default_fee := dcrm.BTC_DEFAULT_FEE*100000000
+	     fee := strconv.FormatFloat(default_fee, 'f', -1, 64)
+	     def_fee,_ := new(big.Int).SetString(fee,10)
+	     total := new(big.Int).Add(amount,def_fee)
+	    if ret.Cmp(total) < 0 {
+		return false,errors.New("value + fee is great than dcrm balance.")
 	    }
 	 }
 
 	a := pool.currentState.GetBalance(from)
-	balance := fmt.Sprintf("%v",a)
-	//log.Debug("===============checkLockout,","coinbase balance",balance,"","=================")
-	ba,_ := strconv.ParseFloat(balance,64)
-	if ba < dcrm.GetFee(cointype) { // //???? ETH?
+	if a.Cmp(dcrm.ETH_DEFAULT_FEE) < 0 {
 	    return false,errors.New("fee is great than gfsn balance.")
 	}
-    }
-
-    //bug
-    if strings.EqualFold(cointype,"BTC") == true && isValidBtcValue(value) == false {
-	    return false,errors.New("value is not the right format.")
-    }
-    if (strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true) && isDecimalNumber(value) == false {
-	    return false,errors.New("value is not the right format.")
     }
 
     //lockoutto
@@ -942,7 +933,7 @@ func (pool *TxPool) validateLockout(tx *types.Transaction) (bool,error) {
 
     realfusionfrom,realdcrmfrom,err := dcrm.ChooseRealFusionAccountForLockout(value,lockoutto,cointype)
     if err != nil || realfusionfrom == "" || realdcrmfrom == "" {
-	return false,errors.New("fail:there are no suitable account to lockout.")
+	return false,errors.New("there are no suitable account to lockout.")
     }
 
     log.Debug("===============validateLockout,","real dcrm from",realdcrmfrom,"","=================")
@@ -986,29 +977,22 @@ func (pool *TxPool) checkLockin(tx *types.Transaction) (bool,error) {
     }
 
     if strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true {
-	_, verr := strconv.ParseInt(value, 10, 64)
-	 if verr != nil {
-	    return false,errors.New("params error:value is not the right format,it must be xxx wei ")
-	 }
-    }
-
-    if strings.EqualFold(cointype,"BTC") == true {
-	amount,verr := strconv.ParseFloat(value, 64)
-	if verr != nil {
-	    return false,errors.New("params error:value is not the right format.")
-	}
-
-	if amount < 0.00000001 {
-	    return false,errors.New("value is less than 0.00000001 BTC.")
+	if !isDecimalNumber(value) {
+	    return false,errors.New("value is not the right format.")
 	}
     }
 
-    //bug
-    if strings.EqualFold(cointype,"BTC") == true && isValidBtcValue(value) == false {
+    if strings.EqualFold(cointype,"BTC") {
+	if !isValidBtcValue(value) {
 	    return false,errors.New("value is not the right format.")
-    }
-    if (strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true) && isDecimalNumber(value) == false {
-	    return false,errors.New("value is not the right format.")
+	}
+
+	amount,_ := new(big.Int).SetString(value,10)
+
+	one,_ := new(big.Int).SetString("1",10)
+	if amount.Cmp(one) < 0 {
+	    return false,errors.New("value must great than or equal 1 satoshis.")
+	}
     }
 
     hashkeys := []rune(hashkey)
@@ -1113,7 +1097,7 @@ func (pool *TxPool) ValidateLockin2(tx *types.Transaction,retva string) (bool,er
 }
 
 func (pool *TxPool) ValidateLockin(tx *types.Transaction) (bool,error) {
-	///log.Debug("==========ValidateLockin.=================")//caihaijun
+	log.Debug("==========ValidateLockin.=================")//caihaijun
     inputs := strings.Split(string(tx.Data()),":")
     
     hashkey := inputs[1]

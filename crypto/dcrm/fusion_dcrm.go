@@ -129,6 +129,8 @@ var (
     lock5 sync.Mutex
 
     BTC_BLOCK_CONFIRMS int64
+    BTC_DEFAULT_FEE float64
+    ETH_DEFAULT_FEE *big.Int
 )
 
 func GetLockoutInfoFromLocalDB(hashkey string) (string,error) {
@@ -520,30 +522,6 @@ func GetChannelValue(obj interface{} ) (string,error) {
      return "",errors.New("get channel value fail.")
  }
 
-//func GetFee(dcrmaddr string,lockoutto string,value float64,cointype string) (float64,error) {
-func GetFee(cointype string) float64 {
-    if strings.EqualFold(cointype,"ETH") == true {
-	fee := 10000000000000000 //0.01 eth
-	return float64(fee)
-    }
-    
-    /*if strings.EqualFold(cointype,"BTC") == true {
-	fee,err := GetBTCTxFee(dcrmaddr,lockoutto,value)
-	if err != nil {
-	    return 0,err
-	}
-
-	return fee,nil
-    }*/
-
-    if strings.EqualFold(cointype,"BTC") == true {
-	fee := 10000000000000000 //0.01 eth
-	return float64(fee)
-    }
-    
-    return 0
-}
-
 //////
 func IsDcrmAddr(addr string) bool {
 
@@ -642,12 +620,9 @@ func ChooseRealFusionAccountForLockout(amount string,lockoutto string,cointype s
 			}
 
 			ba := (*big.Int)(&result)
-			balance := fmt.Sprintf("%v",ba)
-			log.Debug("==========ChooseRealFusionAccountForLockout,","dcrm addr",key,"balance",balance,"","=================")
-			n,_ := strconv.ParseFloat(balance, 64)
-			va,_ := strconv.ParseFloat(amount, 64)
-			fee := GetFee(cointype) 
-			if n > va + fee {
+			va,_ := new(big.Int).SetString(amount,10)
+			 total := new(big.Int).Add(va,ETH_DEFAULT_FEE)
+			if ba.Cmp(total) >= 0 {
 			    iter.Release() 
 			    db.Close() 
 			    cancel()
@@ -700,7 +675,7 @@ func ChooseRealFusionAccountForLockout(amount string,lockoutto string,cointype s
 			////////
 		    } else { //BTC
 			va,_ := strconv.ParseFloat(amount, 64)
-			if ChooseDcrmAddrForLockoutByValue(key,lockoutto,va) == true {
+			if ChooseDcrmAddrForLockoutByValue(key,lockoutto,va) {
 			    iter.Release() 
 			    db.Close() 
 			    lock.Unlock()
@@ -773,20 +748,9 @@ func getLockoutTx(realfusionfrom string,realdcrmfrom string,to string,value stri
     
     // Set receive address
     toAcc := common.HexToAddress(to)
-    //log.Debug("=========getLockouTx,","lockout to address",toAcc.Hex(),"","================")
 
-	//log.Debug("===========getLockoutTx,","realfusionfrom",realfusionfrom,"realdcrmfrom",realdcrmfrom,"","================")
-    if strings.EqualFold(cointype,"ETH") == true {
-	amount, verr := strconv.ParseInt(value, 10, 64)
-	if verr != nil {
-	    return nil 
-	}
-
-	//fromaddr,_ := new(big.Int).SetString(realfusionfrom,0)
-	//from := common.BytesToAddress(fromaddr.Bytes())
-
-	//d := new(big.Int).SetBytes([]byte(realdcrmfrom))
-	//key := common.BytesToHash(d.Bytes())
+    if strings.EqualFold(cointype,"ETH") {
+	amount,_ := new(big.Int).SetString(value,10)
 
 	//////////////
 	 client, err := rpc.Dial(ETH_SERVER)
@@ -805,23 +769,19 @@ func getLockoutTx(realfusionfrom string,realdcrmfrom string,to string,value stri
 	}
 
 	nonce := uint64(result)
-	//log.Debug("===========getLockoutTx,","coin type = ETH,nonce =",nonce,"","================")
 	///////////////
 	// New transaction
 	tx := types.NewTransaction(
 	    uint64(nonce),   // nonce 
 	    toAcc,  // receive address
-	    big.NewInt(amount), // amount
+	    //big.NewInt(amount), // amount
+	    amount,
 	    48000, // gasLimit
 	    big.NewInt(41000000000), // gasPrice
 	    []byte(`dcrm lockout`)) // data
 
 	return tx
     }
-
-    //if strings.EqualFold(cointype,"BTC") == true {
-//	//TODO
-  //  }
 
     return nil
 }
@@ -2369,6 +2329,8 @@ func init(){
 
 	erc20_client = nil
 	BTC_BLOCK_CONFIRMS = 1
+	BTC_DEFAULT_FEE = 0.0005
+	ETH_DEFAULT_FEE,_ = new(big.Int).SetString("10000000000000000",10)
 }
 
 func RestoreNodeInfo() {
@@ -2818,8 +2780,11 @@ func ValidBTCTx(returnJson string,txhash string,realdcrmfrom string,realdcrmto s
 	    for _,sa := range sas {
 		if sa == realdcrmto {
 		    log.Debug("======to addr equal.========")
-		    amount := vp.Value
-		    vv := fmt.Sprintf("%v",amount)
+		    amount := vp.Value*100000000
+		    //vv := fmt.Sprintf("%v",amount)
+		    vv := strconv.FormatFloat(amount, 'f', -1, 64)
+		    log.Debug("========ValidBTCTx,","vv",vv,"","=============")
+		    log.Debug("========ValidBTCTx,","value",value,"","=============")
 		    if islockout {
 			if btcres_noinputs.Result.Confirmations >= BTC_BLOCK_CONFIRMS {
 			    res := RpcDcrmRes{ret:"true",err:nil}
@@ -2832,11 +2797,13 @@ func ValidBTCTx(returnJson string,txhash string,realdcrmfrom string,realdcrmto s
 			ch <- res
 			return
 		    } else {
-			if vv == value && btcres_noinputs.Result.Confirmations >= BTC_BLOCK_CONFIRMS {
+			vvn,_ := new(big.Int).SetString(vv,10)
+			van,_ := new(big.Int).SetString(value,10)
+			if vvn != nil && van != nil && vvn.Cmp(van) == 0 && btcres_noinputs.Result.Confirmations >= BTC_BLOCK_CONFIRMS {
 			    res := RpcDcrmRes{ret:"true",err:nil}
 			    ch <- res
 			    return
-			} else if (vv == value) {
+			} else if vvn != nil && van != nil && vvn.Cmp(van) == 0 {
 			    var ret2 Err
 			    ret2.info = "get btc transaction fail."
 			    res := RpcDcrmRes{ret:"",err:ret2}
@@ -2862,8 +2829,9 @@ func ValidBTCTx(returnJson string,txhash string,realdcrmfrom string,realdcrmto s
 	    for _,sa := range sas {
 		if sa == realdcrmto {
 		    log.Debug("======to addr equal.========")
-		    amount := vp.Value
-		    vv := fmt.Sprintf("%v",amount)
+		    amount := vp.Value*100000000
+		    //vv := fmt.Sprintf("%v",amount)
+		    vv := strconv.FormatFloat(amount, 'f', -1, 64)
 		    if islockout {
 			if btcres.Result.Confirmations >= BTC_BLOCK_CONFIRMS {
 			    res := RpcDcrmRes{ret:"true",err:nil}
@@ -2876,11 +2844,13 @@ func ValidBTCTx(returnJson string,txhash string,realdcrmfrom string,realdcrmto s
 			ch <- res
 			return
 		    } else {
-			if vv == value && btcres.Result.Confirmations >= BTC_BLOCK_CONFIRMS {
+			vvn,_ := new(big.Int).SetString(vv,10)
+			van,_ := new(big.Int).SetString(value,10)
+			if vvn != nil && van != nil && vvn.Cmp(van) == 0 && btcres.Result.Confirmations >= BTC_BLOCK_CONFIRMS {
 			    res := RpcDcrmRes{ret:"true",err:nil}
 			    ch <- res
 			    return
-			} else if (vv == value) {
+			} else if vvn != nil && van != nil && vvn.Cmp(van) == 0 {
 			    var ret2 Err
 			    ret2.info = "get btc transaction fail."
 			    res := RpcDcrmRes{ret:"",err:ret2}
@@ -3954,7 +3924,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 		    return signedtx.Hash().String(),string(result),err
 		    }
 
-		    if strings.EqualFold(cointype,"ETH") == true {
+		    if strings.EqualFold(cointype,"ETH") {
 			// Set chainID
 			chainID := big.NewInt(int64(CHAIN_ID))
 			signer := types.NewEIP155Signer(chainID)
@@ -3974,10 +3944,6 @@ func GetDcrmAddr(hash string,cointype string) string {
 			result,err := sigTx.MarshalJSON()
 			return sigTx.Hash().String(),string(result),err
 		    }
-
-		    //if strings.EqualFold(cointype,"BTC") == true {
-		//	//TODO
-		  //  }
 
 		    return "","",errors.New("get tx hash for lockout error.")
 		    
@@ -4004,13 +3970,10 @@ func GetDcrmAddr(hash string,cointype string) string {
 		    return res,nil
 		    }
 
-		    if strings.EqualFold(cointype,"ETH") == true {
+		    if strings.EqualFold(cointype,"ETH") {
 			// Set chainID
 			chainID := big.NewInt(int64(CHAIN_ID))
 			signer := types.NewEIP155Signer(chainID)
-
-			// Get TXhash for DCRM sign
-			//log.Debug("SendTxForLockout","TXhash", signer.Hash(lockoutx).String())
 
 			// With signature to TX
 			message, merr := hex.DecodeString(signature)
@@ -4023,33 +3986,6 @@ func GetDcrmAddr(hash string,cointype string) string {
 				log.Debug("signer with signature error:")
 				return "",signErr
 			}
-
-			// Recover publickey
-			//recoverpkey, perr := crypto.Ecrecover(signer.Hash(lockoutx).Bytes(), message)
-			//if perr != nil {
-		//		log.Debug("recover signature error:")
-		//		return "",perr
-		//	}
-			//log.Debug("SendTxForLockout","recover publickey", hex.EncodeToString(recoverpkey))
-
-			// Recover address, transfer test eth to this address
-			//recoveraddress := common.BytesToAddress(crypto.Keccak256(recoverpkey[1:])[12:]).Hex()
-			//log.Debug("SendTxForLockout","recover address",recoveraddress)
-
-			//from, fromerr := types.Sender(signer,sigTx)
-		//	if fromerr != nil {
-			    //return "",fromerr
-	//		}
-			//log.Debug("SendTxForLockout","recover from address", from.Hex())
-
-			//log.Debug("SendTxForLockout","SignTx ChainId",sigTx.ChainId(),"nGas",sigTx.Gas(),"nGasPrice",sigTx.GasPrice(),"Nonce",sigTx.Nonce(),"Hash",sigTx.Hash().Hex(),"Data",sigTx.Data(),"Cost",sigTx.Cost())
-
-			// Get the RawTransaction
-	//		txdata, txerr := rlp.EncodeToBytes(sigTx)
-	//		if txerr != nil {
-	//		    return "",txerr
-	//		}
-			//log.Debug("TX with sig", "RawTransaction", common.ToHex(txdata))
 
 			// Connect geth RPC port: ./geth --rinkeby --rpc console
 			client, err := ethclient.Dial(ETH_SERVER)
@@ -4070,10 +4006,6 @@ func GetDcrmAddr(hash string,cointype string) string {
 			return sigTx.Hash().String(),nil
 		    }
 		    
-		    //if strings.EqualFold(cointype,"BTC") == true {
-		//	//TODO
-		  //  }
-
 		    return "",errors.New("send tx for lockout fail.")
 	    }
 
@@ -4121,13 +4053,6 @@ func GetDcrmAddr(hash string,cointype string) string {
 		}
 
 		SendTxForLockout(realfusionfrom,realdcrmfrom,lockoutto,value,cointype,ret)
-		/*_,failed := SendTxForLockout(realfusionfrom,realdcrmfrom,lockoutto,value,cointype,ret.ret)
-		if failed != nil {
-		    res := RpcDcrmRes{ret:lockout_tx_hash,err:nil}
-		    ch <- res
-		    return
-		}*/
-	
 		retva := lockout_tx_hash + ":" + realdcrmfrom
 		//types.SetDcrmValidateData(txhash_lockout,retva)
 		WriteLockoutInfoToLocalDB(txhash_lockout,retva)
@@ -4138,9 +4063,8 @@ func GetDcrmAddr(hash string,cointype string) string {
 
 	    if strings.EqualFold(cointype,"BTC") == true {
 		amount,_ := strconv.ParseFloat(value, 64)
-		def_fee := 0.0005 //default fee
 		rch := make(chan interface{},1)
-		lockout_tx_hash := Btc_createTransaction(msgprex,realdcrmfrom,lockoutto,realdcrmfrom,amount*100000000,uint32(BTC_BLOCK_CONFIRMS),def_fee,rch)
+		lockout_tx_hash := Btc_createTransaction(msgprex,realdcrmfrom,lockoutto,realdcrmfrom,amount,uint32(BTC_BLOCK_CONFIRMS),BTC_DEFAULT_FEE,rch)
 		log.Debug("===========btc tx,get return hash",lockout_tx_hash,"","===========")
 		if lockout_tx_hash == "" {
 		    log.Debug("=============create btc tx fail.=================")

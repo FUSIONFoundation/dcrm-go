@@ -24,8 +24,8 @@ import (
 	"strings"//caihaijun
 	"github.com/fusion/go-fusion/log"//caihaijun
 
-	"strconv" //caihaijun
-	"fmt" //caihaijun
+	//"strconv" //caihaijun
+	//"fmt" //caihaijun
 	"github.com/fusion/go-fusion/common"
 	"github.com/fusion/go-fusion/core/types"//caihaijun
 	"github.com/fusion/go-fusion/crypto"
@@ -233,27 +233,22 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		cointype := m[3]
 
 		if strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true {
-		    amount, verr := strconv.ParseInt(value, 10, 64)
-		     if verr == nil {
-			 ret,err := evm.StateDB.GetDcrmAccountBalance(caller.Address(),crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
-			 if err == nil {
-			    balance := fmt.Sprintf("%v",ret)
-			    ba,_ := strconv.ParseInt(balance, 10, 64)
-			    if ba < amount {
-				return nil, gas, ErrInsufficientBalance
-			    }
-			 }
+		    amount,_ := new(big.Int).SetString(value,10)
+		     ret,err := evm.StateDB.GetDcrmAccountBalance(caller.Address(),crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
+		     if err == nil {
+			if ret.Cmp(amount) < 0 {
+			    return nil, gas, ErrInsufficientBalance
+			}
 		     }
 		}
 		///
 		if strings.EqualFold(cointype,"BTC") == true {
-		    amount,verr := strconv.ParseFloat(value, 64)
-		    if verr == nil && amount >= 0.00000001 {
+		    amount,_ := new(big.Int).SetString(value,10)
+		    one,_ := new(big.Int).SetString("1",10)
+		    if amount.Cmp(one) >= 0 {
 			 ret,err := evm.StateDB.GetDcrmAccountBalance(caller.Address(),crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
 			if err == nil {
-			     balance := string(ret.Bytes())
-			    ba,_ := strconv.ParseFloat(balance,64)
-			    if ba < amount {
+			    if ret.Cmp(amount) < 0 {
 				return nil, gas, ErrInsufficientBalance
 			    }
 			}

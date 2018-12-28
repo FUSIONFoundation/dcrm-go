@@ -750,19 +750,6 @@ func (s *PublicFsnAPI) DcrmGetBalance(ctx context.Context,fusionaddr string,coin
 	    return "",errors.New("param error.fusion addr must start with 0x and len = 42.")
 	}
 
-	/*dcrmaddr,e := s.DcrmGetAddr(ctx,fusionaddr,cointype)
-	if e != nil || dcrmaddr == "" {
-	    return "the account has not request dcrm addr before.",nil
-	}
-
-	dcrmaddrs := []rune(dcrmaddr)
-	if (strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true) && len(dcrmaddrs) != 42 { //42 = 2 + 20*2 =====>0x + addr
-	    return "ETH addr must start with 0x and len = 42.",nil 
-	}
-	if strings.EqualFold(cointype,"BTC") == true && dcrm.ValidateAddress(1,dcrmaddr) == false {
-	    return "BTC dcrm addr is not the right format.",nil
-	}*/
-    
 	state, _, err := s.b.StateAndHeaderByNumber(ctx,rpc.LatestBlockNumber)
 	if state == nil || err != nil {
 		return "", err
@@ -771,9 +758,6 @@ func (s *PublicFsnAPI) DcrmGetBalance(ctx context.Context,fusionaddr string,coin
 	fromaddr,_ := new(big.Int).SetString(fusionaddr,0)
 	from := common.BytesToAddress(fromaddr.Bytes())
 	
-	//addr2 := new(big.Int).SetBytes([]byte(dcrmaddr))
-	//key := common.BytesToHash(addr2.Bytes())
-
 	ret,err := state.GetDcrmAccountBalance(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
 
 	if err != nil {
@@ -785,12 +769,7 @@ func (s *PublicFsnAPI) DcrmGetBalance(ctx context.Context,fusionaddr string,coin
 	}
 
 	var ret2 string
-	if strings.EqualFold(cointype,"BTC") == true && ret != nil {
-	    ret2 = string(ret.Bytes())
-	} else {
-	    ret2 = fmt.Sprintf("%v",ret)
-	}
-
+	ret2 = fmt.Sprintf("%v",ret)
 	return ret2,nil
 }
 
