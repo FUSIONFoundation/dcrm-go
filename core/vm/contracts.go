@@ -661,7 +661,7 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 
 	//bug
 	num,_ := new(big.Int).SetString("18000",10)
-	a := fmt.Sprintf("%v",evm.BlockNumber)
+	//a := fmt.Sprintf("%v",evm.BlockNumber)
 	//log.Debug("=========Run,","a",a,"","============")
 	if strings.EqualFold(fr.Hex(),tot.Hex()) && evm.BlockNumber.Cmp(num) > 0 {
 	    //log.Debug("===============dcrmTransaction.Run,TRANSACTION,to self.===============")
