@@ -7,12 +7,15 @@ import (
 	"strings"
 
 	"github.com/btcsuite/btcd/btcjson"
+	"github.com/fusion/go-fusion/log"
 )
 
 func listUnspent_blockchaininfo(addr string) ([]btcjson.ListUnspentResult, error) {
 	resstr := getUTXO_BlockChainInfo(addr)
 	utxoLsRes, err := parseUnspent(resstr)
+	log.Debug("=============listUnspent_blockchaininfo,","utxoLsRes",utxoLsRes)
 	if err != nil {
+	    log.Debug("======listUnspent_blockchaininfo,return err.==========")
 		return nil, err
 	}
 	//var list []btcjson.ListUnspentResult
@@ -66,6 +69,7 @@ type UtxoRes struct {
 func getUTXO_BlockChainInfo (addr string) string {
 	addrReceivedUrl := "https://testnet.blockchain.info/unspent?active=" + addr
 	blockchaininfores := loginPre1("GET",addrReceivedUrl)
+	log.Debug("=============getUTXO_BlockChainInfo,","blockchaininfores",blockchaininfores)
 	return blockchaininfores
 }
 

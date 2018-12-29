@@ -240,13 +240,7 @@ func (self *stateObject) GetDcrmAccountBalance(db Database, key common.Hash,inde
     ss := string(s)
     _,amount,err := getDataByIndex(ss,index)
     if err == nil {
-	h := crypto.Keccak256Hash([]byte(strings.ToLower("BTC"))) //bug
-	var ba *big.Int
-	if strings.EqualFold(h.Hex(),key.Hex()) == true {
-	    ba = new(big.Int).SetBytes([]byte(amount))
-	} else {
-	    ba,_ = new(big.Int).SetString(amount,10)
-	}
+	ba,_ := new(big.Int).SetString(amount,10)
 	return ba,nil
     }
 

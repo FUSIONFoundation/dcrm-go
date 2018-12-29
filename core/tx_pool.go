@@ -311,6 +311,7 @@ func (pool *TxPool) loop() {
 			pending, queued := pool.stats()
 			stales := pool.priced.stales
 			pool.mu.RUnlock()
+			//log.Debug("===========txpool.loop,","pending",pending,"prevPending",prevPending,"queued",queued,"prevQueued",prevQueued,"stales",stales,"prevStales",prevStales,"","==============")//caihaijun
 
 			if pending != prevPending || queued != prevQueued || stales != prevStales {
 				log.Debug("Transaction pool status report", "executable", pending, "queued", queued, "stales", stales)
@@ -640,8 +641,22 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 }
 
 //+++++++++++++caihaijun+++++++++++++++
-
 func isValidBtcValue(s string) bool {
+    if s == "" {
+	return false
+    }
+
+    nums := []rune(s)
+    for k,_ := range nums {
+	if string(nums[k:k+1]) != "0" && string(nums[k:k+1]) != "1" && string(nums[k:k+1]) != "2" && string(nums[k:k+1]) != "3" && string(nums[k:k+1]) != "4" && string(nums[k:k+1]) != "5" && string(nums[k:k+1]) != "6" && string(nums[k:k+1]) != "7" && string(nums[k:k+1]) != "8" && string(nums[k:k+1]) != "9" {
+	    return false
+	}
+    }
+
+    return true
+}
+
+func isValidBtcValue2(s string) bool {
     if s == "" {
 	return false
     }
@@ -729,61 +744,48 @@ func (pool *TxPool) checkTransaction(tx *types.Transaction) (bool,error) {
     }
 
     if strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true {
-	amount, verr := strconv.ParseInt(value, 10, 64)
-	 if verr != nil {
-	    return false,verr
-	 }
+	if !isDecimalNumber(value) {
+	    return false,errors.New("value is not the right format.")
+	}
+
+	amount,_ := new(big.Int).SetString(value,10)
 
 	 ret,err := pool.currentState.GetDcrmAccountBalance(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
 	 if err == nil {
-	    balance := fmt.Sprintf("%v",ret)
-	    ba,_ := strconv.ParseInt(balance, 10, 64)
-	    if ba < amount {
+	    if ret.Cmp(amount) < 0 {
 		return false,errors.New("value is great than dcrm balance.")
 	    }
 	 }
 
 	a := pool.currentState.GetBalance(from)
-	balance := fmt.Sprintf("%v",a)
 	//log.Debug("===============checkTransaction,","coinbase balance",balance,"","=================")
-	ba,_ := strconv.ParseInt(balance, 10, 64)
-	if ba < int64(dcrm.GetFee(cointype)) {
+	if a.Cmp(dcrm.ETH_DEFAULT_FEE) < 0 {
 	    return false,errors.New("value is great than gfsn balance.")
 	}
     }
 
-    if strings.EqualFold(cointype,"BTC") == true {
-	amount,verr := strconv.ParseFloat(value, 64)
-	if verr != nil {
-	    return false,errors.New("params error:value is not the right format.")
+    if strings.EqualFold(cointype,"BTC") {
+	if !isValidBtcValue(value) {
+	    return false,errors.New("value is not the right format.")
 	}
-	if amount < 0.00000001 {
-	    return false,errors.New("value is less than 0.00000001 BTC.")
+
+	amount,_ := new(big.Int).SetString(value,10)
+	one,_ := new(big.Int).SetString("1",10)
+	if amount.Cmp(one) < 0 {
+	    return false,errors.New("value must great than or equal 1 satoshis.")
 	}
 	 
 	 ret,err := pool.currentState.GetDcrmAccountBalance(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
 	if err == nil {
-	     balance := string(ret.Bytes())
-	    ba,_ := strconv.ParseFloat(balance,64)
-	    if ba < amount {
+	    if ret.Cmp(amount) < 0 {
 		return false,errors.New("value is great than dcrm balance.")
 	    }
 	}
 
 	a := pool.currentState.GetBalance(from)
-	balance := fmt.Sprintf("%v",a)
-	ba,_ := strconv.ParseFloat(balance,64)
-	if ba < dcrm.GetFee(cointype) { ///???? ETH?
+	if a.Cmp(dcrm.ETH_DEFAULT_FEE) < 0 {
 	    return false,errors.New("value is great than gfsn balance.")
 	}
-    }
-
-    //bug
-    if strings.EqualFold(cointype,"BTC") == true && isValidBtcValue(value) == false {
-	    return false,errors.New("value is not the right format.")
-    }
-    if (strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true) && isDecimalNumber(value) == false {
-	    return false,errors.New("value is not the right format.")
     }
 
     return true,nil
@@ -835,62 +837,52 @@ func (pool *TxPool) checkLockout(tx *types.Transaction) (bool,error) {
     }
 
     if strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true {
-	amount, verr := strconv.ParseInt(value, 10, 64)
-	 if verr != nil {
-	    return false,errors.New("params error:value is not the right format,it must be xxx wei ")
-	 }
+	if !isDecimalNumber(value) {
+	    return false,errors.New("value is not the right format.")
+	}
+
+	amount,_ := new(big.Int).SetString(value,10)
 
 	 ret,err := pool.currentState.GetDcrmAccountBalance(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
 	 if err == nil {
-	    balance := fmt.Sprintf("%v",ret)
-	    ba,_ := strconv.ParseInt(balance, 10, 64)
-	    if ba < (amount + int64(dcrm.GetFee(cointype))) {
-		return false,errors.New("value is great than dcrm balance.")
+	     total := new(big.Int).Add(amount,dcrm.ETH_DEFAULT_FEE)
+	    if ret.Cmp(total) < 0 {
+		return false,errors.New("value + fee is great than dcrm balance.")
 	    }
 	 }
 
 	a := pool.currentState.GetBalance(from)
-	balance := fmt.Sprintf("%v",a)
-	//log.Debug("===============checkLockout,","coinbase balance",balance,"","=================")
-	ba,_ := strconv.ParseInt(balance, 10, 64)
-	if ba < int64(dcrm.GetFee(cointype)) { //????
+	if a.Cmp(dcrm.ETH_DEFAULT_FEE) < 0 {
 	    return false,errors.New("fee is great than gfsn balance.")
 	}
     }
 
     if strings.EqualFold(cointype,"BTC") == true {
-	amount,verr := strconv.ParseFloat(value, 64)
-	if verr != nil {
-	    return false,errors.New("params error:value is not the right format.")
+	if !isValidBtcValue(value) {
+	    return false,errors.New("value is not the right format.")
 	}
-	if amount < 0.00000001 {
-	    return false,errors.New("value is less than 0.00000001 BTC.")
+
+	amount,_ := new(big.Int).SetString(value,10)
+	one,_ := new(big.Int).SetString("1",10)
+	if amount.Cmp(one) < 0 {
+	    return false,errors.New("value must great than or equal 1 satoshis.")
 	}
 	 
 	 ret,err := pool.currentState.GetDcrmAccountBalance(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
 	 if err == nil {
-	     balance := string(ret.Bytes())
-	    ba,_ := strconv.ParseFloat(balance,64)
-	    if ba < (amount + 0.0005) {
-		return false,errors.New("value is great than dcrm balance.")
+	     default_fee := dcrm.BTC_DEFAULT_FEE*100000000
+	     fee := strconv.FormatFloat(default_fee, 'f', -1, 64)
+	     def_fee,_ := new(big.Int).SetString(fee,10)
+	     total := new(big.Int).Add(amount,def_fee)
+	    if ret.Cmp(total) < 0 {
+		return false,errors.New("value + fee is great than dcrm balance.")
 	    }
 	 }
 
 	a := pool.currentState.GetBalance(from)
-	balance := fmt.Sprintf("%v",a)
-	//log.Debug("===============checkLockout,","coinbase balance",balance,"","=================")
-	ba,_ := strconv.ParseFloat(balance,64)
-	if ba < dcrm.GetFee(cointype) { // //???? ETH?
+	if a.Cmp(dcrm.ETH_DEFAULT_FEE) < 0 {
 	    return false,errors.New("fee is great than gfsn balance.")
 	}
-    }
-
-    //bug
-    if strings.EqualFold(cointype,"BTC") == true && isValidBtcValue(value) == false {
-	    return false,errors.New("value is not the right format.")
-    }
-    if (strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true) && isDecimalNumber(value) == false {
-	    return false,errors.New("value is not the right format.")
     }
 
     //lockoutto
@@ -942,7 +934,7 @@ func (pool *TxPool) validateLockout(tx *types.Transaction) (bool,error) {
 
     realfusionfrom,realdcrmfrom,err := dcrm.ChooseRealFusionAccountForLockout(value,lockoutto,cointype)
     if err != nil || realfusionfrom == "" || realdcrmfrom == "" {
-	return false,errors.New("fail:there are no suitable account to lockout.")
+	return false,errors.New("there are no suitable account to lockout.")
     }
 
     log.Debug("===============validateLockout,","real dcrm from",realdcrmfrom,"","=================")
@@ -986,29 +978,22 @@ func (pool *TxPool) checkLockin(tx *types.Transaction) (bool,error) {
     }
 
     if strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true {
-	_, verr := strconv.ParseInt(value, 10, 64)
-	 if verr != nil {
-	    return false,errors.New("params error:value is not the right format,it must be xxx wei ")
-	 }
-    }
-
-    if strings.EqualFold(cointype,"BTC") == true {
-	amount,verr := strconv.ParseFloat(value, 64)
-	if verr != nil {
-	    return false,errors.New("params error:value is not the right format.")
-	}
-
-	if amount < 0.00000001 {
-	    return false,errors.New("value is less than 0.00000001 BTC.")
+	if !isDecimalNumber(value) {
+	    return false,errors.New("value is not the right format.")
 	}
     }
 
-    //bug
-    if strings.EqualFold(cointype,"BTC") == true && isValidBtcValue(value) == false {
+    if strings.EqualFold(cointype,"BTC") {
+	if !isValidBtcValue(value) {
 	    return false,errors.New("value is not the right format.")
-    }
-    if (strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true) && isDecimalNumber(value) == false {
-	    return false,errors.New("value is not the right format.")
+	}
+
+	amount,_ := new(big.Int).SetString(value,10)
+
+	one,_ := new(big.Int).SetString("1",10)
+	if amount.Cmp(one) < 0 {
+	    return false,errors.New("value must great than or equal 1 satoshis.")
+	}
     }
 
     hashkeys := []rune(hashkey)
@@ -1113,7 +1098,7 @@ func (pool *TxPool) ValidateLockin2(tx *types.Transaction,retva string) (bool,er
 }
 
 func (pool *TxPool) ValidateLockin(tx *types.Transaction) (bool,error) {
-	///log.Debug("==========ValidateLockin.=================")//caihaijun
+	log.Debug("==========ValidateLockin.=================")//caihaijun
     inputs := strings.Split(string(tx.Data()),":")
     
     hashkey := inputs[1]
@@ -1343,7 +1328,7 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (bool, error) {
 	}
 	// If the transaction pool is full, discard underpriced transactions
 	if uint64(pool.all.Count()) >= pool.config.GlobalSlots+pool.config.GlobalQueue {
-	    fmt.Printf("===========pool.add fail22222============\n")//caihaijun
+	    //fmt.Printf("===========pool.add fail22222============\n")//caihaijun
 		// If the new transaction is underpriced, don't accept it
 		if !local && pool.priced.Underpriced(tx, pool.locals) {
 			log.Debug("===========pool.add,fail: underpriced transaction============")//caihaijun
@@ -1354,7 +1339,7 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (bool, error) {
 		// New transaction is better than our worse ones, make room for it
 		drop := pool.priced.Discard(pool.all.Count()-int(pool.config.GlobalSlots+pool.config.GlobalQueue-1), pool.locals)
 		for _, tx := range drop {
-		    log.Debug("===========pool.add,fail: freshly underpriced transaction============")//caihaijun
+		    //log.Debug("===========pool.add,fail: freshly underpriced transaction============")//caihaijun
 			log.Trace("Discarding freshly underpriced transaction", "hash", tx.Hash(), "price", tx.GasPrice())
 			underpricedTxCounter.Inc(1)
 			pool.removeTx(tx.Hash(), false)
@@ -1372,7 +1357,7 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (bool, error) {
 		}
 		// New transaction is better, replace old one
 		if old != nil {
-			log.Debug("===========pool.add,New transaction is better, replace old one============")//caihaijun
+			//log.Debug("===========pool.add,New transaction is better, replace old one============")//caihaijun
 			pool.all.Remove(old.Hash())
 			pool.priced.Removed()
 			pendingReplaceCounter.Inc(1)
@@ -1453,6 +1438,7 @@ func (pool *TxPool) journalTx(from common.Address, tx *types.Transaction) {
 //
 // Note, this method assumes the pool lock is held!
 func (pool *TxPool) promoteTx(addr common.Address, hash common.Hash, tx *types.Transaction) bool {
+	//log.Debug("==================promoteTx=================")//caihaijun 
 	// Try to insert the transaction into the pending queue
 	if pool.pending[addr] == nil {
 		//log.Debug("==================promoteTx,pool.pending[addr] == nil=================")//caihaijun 
@@ -1462,6 +1448,7 @@ func (pool *TxPool) promoteTx(addr common.Address, hash common.Hash, tx *types.T
 
 	inserted, old := list.Add(tx, pool.config.PriceBump)
 	if !inserted {
+		log.Debug("==================promoteTx,An older transaction was better, discard this=================")//caihaijun 
 		// An older transaction was better, discard this
 		pool.all.Remove(hash)
 		pool.priced.Removed()
@@ -1471,6 +1458,7 @@ func (pool *TxPool) promoteTx(addr common.Address, hash common.Hash, tx *types.T
 	}
 	// Otherwise discard any previous transaction and mark this
 	if old != nil {
+		//log.Debug("==================promoteTx,discard any previous transaction and mark this=================")//caihaijun 
 		pool.all.Remove(old.Hash())
 		pool.priced.Removed()
 
@@ -1478,10 +1466,12 @@ func (pool *TxPool) promoteTx(addr common.Address, hash common.Hash, tx *types.T
 	}
 	// Failsafe to work around direct pending inserts (tests)
 	if pool.all.Get(hash) == nil {
+		//log.Debug("==================promoteTx,Failsafe to work around direct pending inserts (tests)=================")//caihaijun 
 		pool.all.Add(tx)
 		pool.priced.Put(tx)
 	}
 	// Set the potentially new pending nonce and notify any subsystems of the new tx
+	//log.Debug("==================promoteTx,Set the potentially new pending nonce and notify any subsystems of the new tx=================")//caihaijun 
 	pool.beats[addr] = time.Now()
 	pool.pendingState.SetNonce(addr, tx.Nonce()+1)
 
@@ -1610,7 +1600,8 @@ func (pool *TxPool) removeTx(hash common.Hash, outofbound bool) {
 	}
 	// Remove the transaction from the pending lists and reset the account nonce
 	if pending := pool.pending[addr]; pending != nil {
-		if removed, invalids := pending.Remove(tx); removed {
+		//if removed, invalids := pending.Remove(tx); removed {//----caihaijun----
+		if removed, invalids := pending.Remove(pool,tx); removed { //caihaijun
 			// If no more pending transactions are left, remove the list
 			if pending.Empty() {
 				delete(pool.pending, addr)
@@ -1629,7 +1620,8 @@ func (pool *TxPool) removeTx(hash common.Hash, outofbound bool) {
 	}
 	// Transaction is in the future queue
 	if future := pool.queue[addr]; future != nil {
-		future.Remove(tx)
+		//future.Remove(tx)//-----caihaijun----
+		future.Remove(pool,tx)//++++++++caihaijun+++++++++
 		if future.Empty() {
 			delete(pool.queue, addr)
 		}
@@ -1640,6 +1632,7 @@ func (pool *TxPool) removeTx(hash common.Hash, outofbound bool) {
 // future queue to the set of pending transactions. During this process, all
 // invalidated transactions (low nonce, low balance) are deleted.
 func (pool *TxPool) promoteExecutables(accounts []common.Address) {
+	log.Debug("===========promoteExecutables=============")
 	// Track the promoted transactions to broadcast them at once
 	var promoted []*types.Transaction
 
@@ -1654,18 +1647,22 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 	for _, addr := range accounts {
 		list := pool.queue[addr]
 		if list == nil {
+		    log.Debug("===========promoteExecutables,list == nil=============")
 			continue // Just in case someone calls with a non existing account
 		}
 		// Drop all transactions that are deemed too old (low nonce)
 		for _, tx := range list.Forward(pool.currentState.GetNonce(addr)) {
+		    log.Debug("===========promoteExecutables,list.Forward=============")
 			hash := tx.Hash()
 			log.Trace("Removed old queued transaction", "hash", hash)
 			pool.all.Remove(hash)
 			pool.priced.Removed()
 		}
 		// Drop all transactions that are too costly (low balance or out of gas)
-		drops, _ := list.Filter(pool.currentState.GetBalance(addr), pool.currentMaxGas)
+		//drops, _ := list.Filter(pool.currentState.GetBalance(addr), pool.currentMaxGas)//-----caihaijun----
+		drops, _ := list.Filter(pool,pool.currentState.GetBalance(addr), pool.currentMaxGas) //+++++++caihaijun++++++++
 		for _, tx := range drops {
+		    //log.Debug("===========promoteExecutables,range drops=============")
 			hash := tx.Hash()
 			log.Trace("Removed unpayable queued transaction", "hash", hash)
 			pool.all.Remove(hash)
@@ -1675,6 +1672,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 		// Gather all executable transactions and promote them
 		//for _, tx := range list.Ready(pool.pendingState.GetNonce(addr)) {//----caihaijun-----
 		for _, tx := range list.Ready(pool,pool.pendingState.GetNonce(addr)) {     //caihaijun
+		    //log.Debug("===========promoteExecutables,list.Ready=============")
 			hash := tx.Hash()
 			if pool.promoteTx(addr, hash, tx) {
 				log.Trace("Promoting queued transaction", "hash", hash)
@@ -1683,7 +1681,9 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 		}
 		// Drop all transactions over the allowed limit
 		if !pool.locals.contains(addr) {
+		    //log.Debug("===========promoteExecutables,!pool.locals.contains(addr)=============")
 			for _, tx := range list.Cap(int(pool.config.AccountQueue)) {
+			    log.Debug("===========promoteExecutables,range list.Cap=============")
 				hash := tx.Hash()
 				pool.all.Remove(hash)
 				pool.priced.Removed()
@@ -1693,11 +1693,13 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 		}
 		// Delete the entire queue entry if it became empty.
 		if list.Empty() {
+			//log.Debug("===========promoteExecutables,list.Empty()=============")
 			delete(pool.queue, addr)
 		}
 	}
 	// Notify subsystem for new promoted transactions.
 	if len(promoted) > 0 {
+		//log.Debug("===========promoteExecutables,len(promoted) > 0=============")
 		go pool.txFeed.Send(NewTxsEvent{promoted})
 	}
 	// If the pending limit is overflown, start equalizing allowances
@@ -1706,6 +1708,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 		pending += uint64(list.Len())
 	}
 	if pending > pool.config.GlobalSlots {
+		//log.Debug("===========promoteExecutables,pending > pool.config.GlobalSlots=============")
 		pendingBeforeCap := pending
 		// Assemble a spam order to penalize large transactors first
 		spammers := prque.New(nil)
@@ -1732,6 +1735,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 					for i := 0; i < len(offenders)-1; i++ {
 						list := pool.pending[offenders[i]]
 						for _, tx := range list.Cap(list.Len() - 1) {
+						    //log.Debug("===========promoteExecutables,range list.Cap=============")
 							// Drop the transaction from the global pools too
 							hash := tx.Hash()
 							pool.all.Remove(hash)
@@ -1754,6 +1758,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 				for _, addr := range offenders {
 					list := pool.pending[addr]
 					for _, tx := range list.Cap(list.Len() - 1) {
+						//log.Debug("===========promoteExecutables,len(offenders) > 0 range list.Cap=============")
 						// Drop the transaction from the global pools too
 						hash := tx.Hash()
 						pool.all.Remove(hash)
@@ -1777,6 +1782,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 		queued += uint64(list.Len())
 	}
 	if queued > pool.config.GlobalQueue {
+		//log.Debug("===========promoteExecutables,queued > pool.config.GlobalQueue=============")
 		// Sort all accounts with queued transactions by heartbeat
 		addresses := make(addressesByHeartbeat, 0, len(pool.queue))
 		for addr := range pool.queue {
@@ -1796,6 +1802,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 			// Drop all transactions if they are less than the overflow
 			if size := uint64(list.Len()); size <= drop {
 				for _, tx := range list.Flatten() {
+				    //log.Debug("===========promoteExecutables,range list.Flatten()=============")
 					pool.removeTx(tx.Hash(), true)
 				}
 				drop -= size
@@ -1805,6 +1812,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 			// Otherwise drop only last few transactions
 			txs := list.Flatten()
 			for i := len(txs) - 1; i >= 0 && drop > 0; i-- {
+				//log.Debug("===========promoteExecutables,list.Flatten()=============")
 				pool.removeTx(txs[i].Hash(), true)
 				drop--
 				queuedRateLimitCounter.Inc(1)
@@ -1817,21 +1825,28 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 // executable/pending queue and any subsequent transactions that become unexecutable
 // are moved back into the future queue.
 func (pool *TxPool) demoteUnexecutables() {
+	//log.Debug("===========demoteUnexecutables=============")
 	// Iterate over all accounts and demote any non-executable transactions
 	for addr, list := range pool.pending {
 		nonce := pool.currentState.GetNonce(addr)
+		//log.Debug("=========demoteUnexecutables,","addr",addr,"nonce",nonce,"list",list,"","============")
 
 		// Drop all transactions that are deemed too old (low nonce)
 		for _, tx := range list.Forward(nonce) {
 			hash := tx.Hash()
+			//log.Debug("===========demoteUnexecutables,list.Forward,","remove hash",hash,"","==============")
 			log.Trace("Removed old pending transaction", "hash", hash)
 			pool.all.Remove(hash)
 			pool.priced.Removed()
 		}
+		
+		//log.Debug("=========demoteUnexecutables,","addr balance",pool.currentState.GetBalance(addr),"max gas",pool.currentMaxGas,"","============")
 		// Drop all transactions that are too costly (low balance or out of gas), and queue any invalids back for later
-		drops, invalids := list.Filter(pool.currentState.GetBalance(addr), pool.currentMaxGas)
+		//drops, invalids := list.Filter(pool.currentState.GetBalance(addr), pool.currentMaxGas) //-------caihaijun----
+		drops, invalids := list.Filter(pool,pool.currentState.GetBalance(addr), pool.currentMaxGas) //+++++++caihaijun++++++++
 		for _, tx := range drops {
 			hash := tx.Hash()
+			//log.Debug("===========promoteExecutables,range drops,","hash",hash,"","==============")
 			log.Trace("Removed unpayable pending transaction", "hash", hash)
 			pool.all.Remove(hash)
 			pool.priced.Removed()
@@ -1852,6 +1867,7 @@ func (pool *TxPool) demoteUnexecutables() {
 		}
 		// Delete the entire queue entry if it became empty.
 		if list.Empty() {
+			//log.Debug("===========promoteExecutables,Delete the entire queue entry if it became empty=============")
 			delete(pool.pending, addr)
 			delete(pool.beats, addr)
 		}

@@ -51,7 +51,7 @@ var opts = struct {
 	RequiredConfirmations: BTC_BLOCK_CONFIRMS,
 	FeeRate: &feeRate,
 }
-var feeRate, _ = btcutil.NewAmount(0.0005)
+var feeRate, _ = btcutil.NewAmount(BTC_DEFAULT_FEE)
 
 // 构建和发送一笔比特币交易
 // dcrmaddr: dcrm地址, toAddr: 接收转账的地址
@@ -86,7 +86,9 @@ func ChooseDcrmAddrForLockoutByValue(dcrmaddr string,lockoutto string,value floa
 	}
 
 	log.Debug("==========ChooseDcrmAddrForLockoutByValue,","dcrmaddr",dcrmaddr,"lockoutto",lockoutto,"value",value,"","================")
+	//unspentOutputs, err := listUnspent_blockchaininfo(dcrmaddr)
 	unspentOutputs, err := listUnspent(dcrmaddr)
+	log.Debug("=========ChooseDcrmAddrForLockoutByValue,","unspentOutputs",unspentOutputs,"","================")
 	if err != nil {
 		return false
 	}
@@ -94,9 +96,11 @@ func ChooseDcrmAddrForLockoutByValue(dcrmaddr string,lockoutto string,value floa
 	
 	for _, unspentOutput := range unspentOutputs {
 		if !unspentOutput.Spendable {
+		    log.Debug("=========ChooseDcrmAddrForLockoutByValue,un-spendable=======")
 			continue
 		}
 		if unspentOutput.Confirmations < opts.RequiredConfirmations {
+			log.Debug("=========ChooseDcrmAddrForLockoutByValue,< confirms=======")
 			continue
 		}
 		sourceAddressOutputs := sourceOutputs[unspentOutput.Address]
