@@ -727,13 +727,13 @@ func IsValidDcrmAddr(s string,cointype string) bool {
 
 }
 
-func getLockoutTx(realfusionfrom string,realdcrmfrom string,to string,value string,cointype string) *types.Transaction {
+func getLockoutTx(realfusionfrom string,realdcrmfrom string,to string,value string,cointype string) (*types.Transaction,error) {
     if strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true {
 	if erc20_client == nil { 
-	    erc20_client,_= ethclient.Dial(ETH_SERVER)
-	    if erc20_client == nil {
+	    erc20_client,err := ethclient.Dial(ETH_SERVER)
+	    if erc20_client == nil || err != nil {
 		    log.Debug("===========getLockouTx,rpc dial fail.==================")
-		    return nil
+		    return nil,err
 	    }
 	}
 	amount, _ := new(big.Int).SetString(value,10)
@@ -741,10 +741,10 @@ func getLockoutTx(realfusionfrom string,realdcrmfrom string,to string,value stri
 	tx, _, err := Erc20_newUnsignedTransaction(erc20_client, realdcrmfrom, to, amount, nil, gasLimit, cointype)
 	if err != nil {
 		log.Debug("===========getLockouTx,new tx fail.==================")
-		return nil
+		return nil,err
 	}
 
-	return tx
+	return tx,nil
     }
     
     // Set receive address
@@ -757,7 +757,7 @@ func getLockoutTx(realfusionfrom string,realdcrmfrom string,to string,value stri
 	 client, err := rpc.Dial(ETH_SERVER)
 	if err != nil {
 		log.Debug("===========getLockouTx,rpc dial fail.==================")
-		return nil
+		return nil,err
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -766,7 +766,7 @@ func getLockoutTx(realfusionfrom string,realdcrmfrom string,to string,value stri
 	var result hexutil.Uint64
 	err = client.CallContext(ctx, &result, "eth_getTransactionCount",realdcrmfrom,"latest")
 	if err != nil {
-	    return nil
+	    return nil,err
 	}
 
 	nonce := uint64(result)
@@ -781,10 +781,14 @@ func getLockoutTx(realfusionfrom string,realdcrmfrom string,to string,value stri
 	    big.NewInt(41000000000), // gasPrice
 	    []byte(`dcrm lockout`)) // data
 
-	return tx
+	if tx == nil {
+	    return nil,errors.New("new eth tx fail.")
+	}
+
+	return tx,nil
     }
 
-    return nil
+    return nil,errors.New("new eth tx fail.")
 }
 
 type DcrmValidateRes struct {
@@ -3916,10 +3920,10 @@ func GetDcrmAddr(hash string,cointype string) string {
 		func GetTxHashForLockout(realfusionfrom string,realdcrmfrom string,to string,value string,cointype string,signature string) (string,string,error) {
 		    //log.Debug("GetTxHashForLockout","real fusion from addr",realfusionfrom,"real from dcrm addr",realdcrmfrom,"value",value,"signature",signature,"cointype",cointype)
 
-		    lockoutx := getLockoutTx(realfusionfrom,realdcrmfrom,to,value,cointype)
+		    lockoutx,txerr := getLockoutTx(realfusionfrom,realdcrmfrom,to,value,cointype)
 		    
-		    if lockoutx == nil {
-			return "","",errors.New("tx error")
+		    if lockoutx == nil || txerr != nil {
+			return "","",txerr
 		    }
 
 		    if strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true {
@@ -3960,9 +3964,9 @@ func GetDcrmAddr(hash string,cointype string) string {
 		func SendTxForLockout(realfusionfrom string,realdcrmfrom string,to string,value string,cointype string,signature string) (string,error) {
 
 		    log.Debug("========SendTxForLockout=====")
-		    lockoutx := getLockoutTx(realfusionfrom,realdcrmfrom,to,value,cointype)
-		    if lockoutx == nil {
-			return "",errors.New("tx error")
+		    lockoutx,txerr := getLockoutTx(realfusionfrom,realdcrmfrom,to,value,cointype)
+		    if lockoutx == nil || txerr != nil {
+			return "",txerr
 		    }
 
 		    if strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true {
@@ -4028,7 +4032,13 @@ func GetDcrmAddr(hash string,cointype string) string {
 	    }
 
 	    if strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true {
-		lockoutx := getLockoutTx(realfusionfrom,realdcrmfrom,lockoutto,value,cointype)
+		lockoutx,txerr := getLockoutTx(realfusionfrom,realdcrmfrom,lockoutto,value,cointype)
+		//bug
+		if lockoutx == nil || txerr != nil {
+		    res := RpcDcrmRes{ret:"",err:txerr}
+		    ch <- res
+		    return
+		}
 	    
 		chainID := big.NewInt(int64(CHAIN_ID))
 		signer := types.NewEIP155Signer(chainID)
@@ -5062,8 +5072,8 @@ func Dcrm_ReqAddress(wr WorkReq) (string, error) {
     //ret := (<- rch).(RpcDcrmRes)
     ret,cherr := GetChannelValue(rch)
     if cherr != nil {
-	log.Debug("Dcrm_ReqAddress get rch timeout.")
-	return "",errors.New("Dcrm_ReqAddress get rch timeout.")
+	log.Debug("Dcrm_ReqAddress timeout.")
+	return "",errors.New("Dcrm_ReqAddress timeout.")
     }
     log.Debug("=========================keygen finish.=======================")
     return ret,cherr
@@ -5089,8 +5099,8 @@ func Dcrm_LiLoReqAddress(wr WorkReq) (string, error) {
     //ret := (<- rch).(RpcDcrmRes)
     ret,cherr := GetChannelValue(rch)
     if cherr != nil {
-	log.Debug("Dcrm_LiLoReqAddress get rch timeout.")
-	return "",errors.New("Dcrm_LiLoReqAddress get rch timeout.")
+	log.Debug("Dcrm_LiLoReqAddress timeout.")
+	return "",errors.New("Dcrm_LiLoReqAddress timeout.")
     }
     //log.Debug("Dcrm_LiLoReqAddress","ret",ret)
     return ret,cherr
@@ -5109,8 +5119,8 @@ func Dcrm_Sign(wr WorkReq) (string,error) {
     //ret := (<- rch).(RpcDcrmRes)
     ret,cherr := GetChannelValue(rch)
     if cherr != nil {
-	log.Debug("Dcrm_Sign get rch timeout.")
-	return "",errors.New("Dcrm_Sign get rch timeout.")
+	log.Debug("Dcrm_Sign get timeout.")
+	return "",errors.New("Dcrm_Sign timeout.")
     }
     return ret,cherr
     //rpc-req
