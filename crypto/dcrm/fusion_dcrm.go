@@ -3325,6 +3325,11 @@ func GetDcrmAddr(hash string,cointype string) string {
 }
 
 		func GetEnodesInfo() {
+		    //bug
+		    if cur_enode != "" {
+			return
+		    }
+
 		    cnt,_ := p2pdcrm.GetEnodes()
 		    enode_cnts = cnt
 		    cur_enode = p2pdcrm.GetSelfID().String()
