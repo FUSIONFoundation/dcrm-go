@@ -34,6 +34,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"sync"
 
 	"github.com/fusion/go-fusion/accounts"
 	"github.com/fusion/go-fusion/accounts/keystore"
@@ -44,12 +45,19 @@ import (
 	"github.com/fusion/go-fusion/ethclient"
 	"github.com/fusion/go-fusion/log"
 	"github.com/fusion/go-fusion/rpc"
+	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/syndtr/goleveldb/leveldb/errors"
 	"golang.org/x/net/websocket"
 )
 
 const (
-	//txAccount = "0x3a1b3b81ed061581558a81f11d63e03129347437"
-	txAccount = "0x0963a18ea497b7724340fdfe4ff6e060d3f9e388"
+	//txAccount = "0x3a1b3b81ed061581558a81f11d63e03129347437"//10240000 * e18
+	txAccount = "0x0963a18ea497b7724340fdfe4ff6e060d3f9e388"//10240000 * e18
+
+	faucetDbPath = "~/.faucet/faucet.db"
+	requestFSN = 20
+	refreshInterval = 5 * time.Minute
+	quotaNumber = 1000
 )
 
 var (
@@ -79,10 +87,34 @@ var (
 var (
 	ks      *keystore.KeyStore
 	account accounts.Account
+	faucetdb *faucet
+	refresh = time.NewTicker(refreshInterval)
+	refreshDone = make(chan struct{})
 )
 
+type faucet struct {
+	mutex   sync.Mutex        // protects db
+	db *leveldb.DB
+	size uint64
+}
+
+func initDb() {
+	db, err := leveldb.OpenFile(faucetDbPath, nil)
+	if _, corrupted := err.(*errors.ErrCorrupted); corrupted {
+                db, err = leveldb.RecoverFile(faucetDbPath, nil)
+        }
+        // (Re)check for errors and abort if opening of the db failed
+        if err != nil {
+		fmt.Printf("Open file %+v failed.\n", faucetDbPath)
+                return
+        }
+	faucetdb = &faucet{db:db,size:0}
+}
+
 func main() {
-	fmt.Println("==== Faucet() ====")
+	log.Debug("==== Faucet() ====\n")
+	initDb()
+
 	// Parse the flags and set up the logger to print everything requested
 	flag.Parse()
 	log.Root().SetHandler(log.LvlFilterHandler(log.Lvl(*logFlag), log.StreamHandler(os.Stderr, log.TerminalFormat(true))))
@@ -148,6 +180,7 @@ func main() {
 // listenAndServe registers the HTTP handlers for the faucet and boots it up
 // for service user funding requests.
 func listenAndServe(port int) error {
+	go loop()
 	http.HandleFunc("/", webHandler)
 	http.Handle("/api", websocket.Handler(apiHandler))
 
@@ -166,18 +199,11 @@ func webHandler(w http.ResponseWriter, r *http.Request) {
 func apiHandler(conn *websocket.Conn) {
 	fmt.Printf("\n==== apiHandler() ====\n")
 	// Start tracking the connection and drop at the end
-	defer conn.Close()
-	//var conns []*websocket.Conn
-	//conns = append(conns, conn)
+	defer func() {
+		conn.Close()
+		refreshDone = make(chan struct{})
+	}()
 
-	//defer func() {
-	//	for i, c := range conns {
-	//		if c == conn {
-	//			conns = append(conns[:i], conns[i+1:]...)
-	//			break
-	//		}
-	//	}
-	//}()
 	// Gather the initial stats from the network to report
 	var (
 		result hexutil.Uint64
@@ -186,7 +212,7 @@ func apiHandler(conn *websocket.Conn) {
 	rpcserver := fmt.Sprintf("http://%v:%v", *faucetServerFlag, *rpcPortFlag)
 	fmt.Printf("rpcserver: %+v\n", rpcserver)
 
-	var testcoin = new(big.Int).Mul(big.NewInt(20), big.NewInt(1000000000000000000))
+	var coinFSN = new(big.Int).Mul(big.NewInt(requestFSN), big.NewInt(1000000000000000000))
 	for {
 		var msg struct {
 			URL     string `json:"url"`
@@ -196,9 +222,10 @@ func apiHandler(conn *websocket.Conn) {
 		_ = websocket.JSON.Receive(conn, &msg)
 		log.Debug("faucet", "JSON.Receive", msg)
 		if len(msg.URL) == 0 {
-			fmt.Printf("faucet, address is null\n")
+			log.Debug("faucet, address is null\n")
+			send(conn, map[string]string{"state": "ERR", "msg": "Account is nil"}, time.Second)
 			if errs := send(conn, map[string]interface{}{
-				"conn":    *conn,
+				"state":    "ERROR",
 				"funded":   nonce,
 			}, time.Second); errs != nil {
 				log.Warn("Failed to send stats to client", "err", errs)
@@ -208,7 +235,19 @@ func apiHandler(conn *websocket.Conn) {
 			continue
 		}
 		if errh := common.IsHexAddress(msg.URL); errh != true {
-			fmt.Printf("faucet, address is valid.\n")
+			log.Debug("faucet, address is invalid.\n")
+			send(conn, map[string]string{"state": "ERR", "msg": "Account is invalid"}, time.Second)
+			continue
+		}
+		if faucetdb.size >= quotaNumber {
+			log.Debug("faucet", "request coin quota is full.","")
+			send(conn, map[string]string{"state": "ERR", "msg": "Coin(FSN) request quota is full, please try again tomorrow."}, time.Second)
+			continue
+		}
+		ret := keyIsExist([]byte(msg.URL))
+		if ret == true {
+			log.Debug("faucet", "account", msg.URL, "was had requested.", "")
+			send(conn, map[string]string{"state": "ERR", "msg": "The account was had requested coin(FSN)."}, time.Second)
 			continue
 		}
 		if msg.Captcha == "FSN" {
@@ -217,40 +256,43 @@ func apiHandler(conn *websocket.Conn) {
 			// Ensure the user didn't request funds too recently
 			clientc, errc := rpc.Dial(rpcserver)
 			if errc != nil {
-				fmt.Printf("client connection error:\n")
+				log.Debug("client connection error:\n")
 				continue
 			}
 			errc = clientc.CallContext(context.Background(), &result, "eth_getTransactionCount", common.HexToAddress(txAccount), "pending")
 			nonce = uint64(result)
 			log.Debug("faucet", "nonce", nonce)
-			tx := types.NewTransaction(nonce, common.HexToAddress(msg.URL), testcoin, 21000, big.NewInt(41000), nil)
+			tx := types.NewTransaction(nonce, common.HexToAddress(msg.URL), coinFSN, 21000, big.NewInt(41000), nil)
 			signed, err := ks.SignTx(account, tx, big.NewInt(40400))
 			if err != nil {
-				if err = sendError(conn, err); err != nil {
-					log.Warn("Failed to send transaction creation error to client", "err", err)
+				if err = send(conn, map[string]string{"state": "ERR", "msg": "SignTx failed."}, time.Second); err != nil {
+					log.Warn("Failed to Sign transaction", "err", err)
 					return
 				}
 			}
 			// Submit the transaction and mark as funded if successful
 			log.Debug("faucet", "HTTP-RPC client connected", rpcserver)
 
-			fmt.Printf("Faucet, addr:( %+v ), testcoin:( %v )\n", msg.URL, testcoin)
+			log.Debug("Faucet", "addr", msg.URL, "coinFSN", coinFSN)
 			// Send RawTransaction to ethereum network
 			client, err := ethclient.Dial(rpcserver)
 			if err != nil {
-				fmt.Printf("client connection error:\n")
+				log.Debug("client connection error.\n")
 				continue
 			}
 			err = client.SendTransaction(context.Background(), signed)
 			if err != nil {
+				send(conn, map[string]string{"state": "ERR", "msg": "Send Transaction Failed."}, time.Second)
 				log.Trace("faucet", "client send error", err)
 			} else {
-				fmt.Printf("Success.\n\n")
+				send(conn, map[string]string{"state": "OK", "msg": "Send Transaction Successed.\nIt takes about 1~2 blocks (15~30 second) to get to the account."}, time.Second)
 				log.Debug("faucet", "client send", "success")
+				if putKeyToDb([]byte(msg.URL)) != nil {
+					log.Debug("PutKeyToDb account: %+v failed.\n", msg.URL)
+				}
 			}
-			send(conn, map[string]string{"state": "Success"}, time.Second)
 		}
-		time.Sleep(2 * time.Second)
+		time.Sleep(100 * time.Millisecond)
 	}
 }
 
@@ -265,14 +307,67 @@ func send(conn *websocket.Conn, value interface{}, timeout time.Duration) error 
 	return websocket.JSON.Send(conn, value)
 }
 
-// sendError transmits an error to the remote end of the websocket, also setting
-// the write deadline to 1 second to prevent waiting forever.
-func sendError(conn *websocket.Conn, err error) error {
-	return send(conn, map[string]string{"error": err.Error()}, time.Second)
+func loop() {
+	log.Debug("==== loop() ====\n")
+	refreshDone = nil
+
+	for {
+		select {
+		case <-refresh.C:
+			refreshDb()
+		case <-refreshDone:
+			faucetdb.db.Close()
+			break
+		default:
+		}
+	}
 }
 
-// sendSuccess transmits a success message to the remote end of the websocket, also
-// setting the write deadline to 1 second to prevent waiting forever.
-func sendSuccess(conn *websocket.Conn, msg string) error {
-	return send(conn, map[string]string{"success": msg}, time.Second)
+func refreshDb(){
+	d := getDbDate()
+	at := fmt.Sprintf("%+v", time.Now())
+	n := strings.Split(at, " ")
+	if d != string(n[0]) {
+		emptyDb()
+	}
+}
+
+func emptyDb() {
+	log.Debug("==== emptyDb() ====\n")
+	iter := faucetdb.db.NewIterator(nil, nil)
+	defer iter.Release()
+	for iter.Next(){
+		faucetdb.db.Delete(iter.Key(), nil)
+	}
+	faucetdb.size = 0
+}
+
+func getDbDate() string{
+	log.Debug("==== getDbDate() ====\n")
+	iter := faucetdb.db.NewIterator(nil, nil)
+	defer iter.Release()
+	for iter.Next(){
+		d := strings.Split(string(iter.Value()), " ")
+		return string(d[0])
+	}
+	return ""
+}
+
+func keyIsExist(key []byte) bool {
+	_, err := faucetdb.db.Get(key, nil)
+	if err != nil {
+		return false
+	}
+	return true
+}
+
+func putKeyToDb(key []byte) error {
+	at := fmt.Sprintf("%+v", time.Now())
+	err := faucetdb.db.Put(key, []byte(at), nil)
+	if err != nil {
+		log.Debug("putKeyToDb", "put, key", key, "faied","")
+		return err
+	}
+	faucetdb.size += 1
+	return nil
 }

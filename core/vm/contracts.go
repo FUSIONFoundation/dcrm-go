@@ -504,17 +504,17 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 
     if m[0] == "DCRMCONFIRMADDR" {
 	
-//	log.Debug("===============dcrmTransaction.Run,DCRMCONFIRMADDR","from",contract.Caller().Hex(),"dcrm addr",m[1],"","=================")
+	//log.Debug("===============dcrmTransaction.Run,DCRMCONFIRMADDR","from",contract.Caller().Hex(),"dcrm addr",m[1],"","=================")
 
 	from := contract.Caller()
 
 	//dcrmaddr := new(big.Int).SetBytes([]byte(m[1]))
 	//key := common.BytesToHash(dcrmaddr.Bytes())
-//	log.Debug("===============dcrmTransaction.Run,DCRMCONFIRMADDR","key",key.Hex(),"","=================")
+	//log.Debug("===============dcrmTransaction.Run,DCRMCONFIRMADDR","key",key.Hex(),"","=================")
 
 	//aa := DcrmAccountData{COINTYPE:m[2],BALANCE:"0",HASHKEY:"",NONCE:"0"}
 	//result,_:= json.Marshal(&aa)
-//	log.Debug("========dcrmTransaction.Run","result",string(result),"","==================")
+	//log.Debug("========dcrmTransaction.Run","result",string(result),"","==================")
 
 	//evm.StateDB.SetStateDcrmAccountData(from,key,result)
         
@@ -545,11 +545,11 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 		}
 		//
 	}
-//	log.Debug("========dcrmTransaction.Run","cointype",m[2],"cointype hash",h.Hex(),"","================")
+	//log.Debug("========dcrmTransaction.Run","cointype",m[2],"cointype hash",h.Hex(),"","================")
     }
 
     if m[0] == "LOCKIN" {
-//	log.Debug("dcrmTransaction.Run,LOCKIN")
+	//log.Debug("dcrmTransaction.Run,LOCKIN")
 	from := contract.Caller()
 	h := crypto.Keccak256Hash([]byte(strings.ToLower(m[3]))) //bug
 	s := evm.StateDB.GetStateDcrmAccountData(from,h)
@@ -594,7 +594,7 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
     }
 
     if m[0] == "LOCKOUT" {
-//	log.Debug("===============dcrmTransaction.Run,LOCKOUT===============")
+	//log.Debug("===============dcrmTransaction.Run,LOCKOUT===============")
 	from := contract.Caller()
 	h := crypto.Keccak256Hash([]byte(strings.ToLower(m[3]))) //bug
 	s := evm.StateDB.GetStateDcrmAccountData(from,h)
@@ -644,7 +644,7 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
     }
  
     if m[0] == "TRANSACTION" {
-//	log.Debug("dcrmTransaction.Run,TRANSACTION")
+	//log.Debug("dcrmTransaction.Run,TRANSACTION")
 	from := contract.Caller()
 	toaddr,_ := new(big.Int).SetString(m[1],0)
 	to := common.BytesToAddress(toaddr.Bytes())
@@ -656,11 +656,16 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 	s2 := evm.StateDB.GetStateDcrmAccountData(tot,h)
 
 	//bug
-	if strings.EqualFold(fr.Hex(),tot.Hex()) {
+	num,_ := new(big.Int).SetString("18000",10)
+	//a := fmt.Sprintf("%v",evm.BlockNumber)
+	//log.Debug("=========Run,","a",a,"","============")
+	if strings.EqualFold(fr.Hex(),tot.Hex()) && evm.BlockNumber.Cmp(num) > 0 {
+	    //log.Debug("===============dcrmTransaction.Run,TRANSACTION,to self.===============")
 	    return nil,nil
 	}
 	//
 
+	//log.Debug("===============dcrmTransaction.Run,TRANSACTION,not to self.===============")
 	if s1 != nil {
 	    if s2 != nil {
 		    if strings.EqualFold(m[3],"ETH") == true || strings.EqualFold(m[3],"GUSD") == true || strings.EqualFold(m[3],"BNB") == true || strings.EqualFold(m[3],"MKR") == true || strings.EqualFold(m[3],"HT") == true || strings.EqualFold(m[3],"BNT") == true || strings.EqualFold("BTC",m[3]) {
