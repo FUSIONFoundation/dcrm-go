@@ -23,10 +23,12 @@ import (
 	"sort"
 	"strings" //caihaijun
 	//"time" //caihaijun
+	//"fmt" //caihaijun
 	"github.com/fusion/go-fusion/common"
 	"github.com/fusion/go-fusion/core/types"
 	"github.com/fusion/go-fusion/log"
 	//"github.com/fusion/go-fusion/crypto/dcrm"//caihaijun
+	"github.com/fusion/go-fusion/crypto" //caihaijun
 )
 
 //+++++++++++++caihaijun++++++++++++++
@@ -105,9 +107,11 @@ func (m *txSortedMap) Put(tx *types.Transaction) {
 func (m *txSortedMap) Forward(threshold uint64) types.Transactions {
 	var removed types.Transactions
 
+	//log.Debug("============txSortedMap.Forward,","threshold",threshold,"m.index len",m.index.Len(),"m.index[0]",(*m.index)[0],"","===========")
 	// Pop off heap items until the threshold is reached
 	for m.index.Len() > 0 && (*m.index)[0] < threshold {
 		nonce := heap.Pop(m.index).(uint64)
+		//log.Debug("============txSortedMap.Forward,","removed nonce",nonce,"","===========")
 		removed = append(removed, m.items[nonce])
 		delete(m.items, nonce)
 	}
@@ -120,14 +124,16 @@ func (m *txSortedMap) Forward(threshold uint64) types.Transactions {
 
 // Filter iterates over the list of transactions and removes all of them for which
 // the specified function evaluates to true.
-func (m *txSortedMap) Filter(filter func(*types.Transaction) bool) types.Transactions {
+//func (m *txSortedMap) Filter(filter func(*types.Transaction) bool) types.Transactions { //-----caihaijun-----
+func (m *txSortedMap) Filter(pool *TxPool,filter func(*TxPool,*types.Transaction) bool) types.Transactions { //++++++++caihaijun++++++++++
 	var removed types.Transactions
 
+	//log.Debug("==============txSortedMap.Filter==================")//caihaijun
 	// Collect all the transactions to filter out
 	for nonce, tx := range m.items {
+	    //log.Debug("==========txSortedMap.Filter,","nonce",nonce,"tx hash",tx.Hash().Hex(),"","===========")
 		//if filter(tx) {//-----caihaijun------
-		//if !bytes.Equal(tx.To().Bytes(), types.DcrmLockinPrecompileAddr.Bytes()) && filter(tx) { //++++++++++caihaijun++++++++++++
-		if !types.IsDcrmLockIn(tx.Data()) && !types.IsDcrmConfirmAddr(tx.Data()) && filter(tx) { //++++++++++caihaijun++++++++++++
+		if !types.IsDcrmLockIn(tx.Data()) && !types.IsDcrmConfirmAddr(tx.Data()) && filter(pool,tx) { //++++++++++caihaijun++++++++++++
 			removed = append(removed, tx)
 			delete(m.items, nonce)
 		}
@@ -237,11 +243,11 @@ func (m *txSortedMap) Ready(pool *TxPool,start uint64) types.Transactions {  //+
 		}
 
 	    } else if mm[0] == "LOCKOUT" {
-		log.Debug("=============txPool.Ready,do lockout.==============")
+		//log.Debug("=============txPool.Ready,do lockout.==============")
 		if ok == true && val != "" {
 		    _,err := pool.ValidateLockin2(tx,val)
 		    if err == nil {
-			log.Debug("=============txPool.Ready,success.==============")
+			//log.Debug("=============txPool.Ready,success.==============")
 			ready = append(ready, m.items[next])
 			m.Remove(next)
 
@@ -249,14 +255,14 @@ func (m *txSortedMap) Ready(pool *TxPool,start uint64) types.Transactions {  //+
 			types.DeleteDcrmValidateData(tx.Hash().Hex())
 
 		    } else if strings.EqualFold(err.Error(),"get btc transaction fail.") == false && strings.EqualFold(err.Error(),"get eth transaction fail.") == false { //bug
-			log.Debug("=============txPool.Ready,remove the tx from pool.==============")
+			//log.Debug("=============txPool.Ready,remove the tx from pool.==============")
 		    	m.Remove(next)
 			//bug
 			types.DeleteDcrmValidateData(tx.Hash().Hex())
 
 		    }
 		} else { //bug:if no val and tx is invalide
-			log.Debug("=============txPool.Ready,remove the tx from pool only.==============")
+			//log.Debug("=============txPool.Ready,remove the tx from pool only.==============")
 		    	m.Remove(next)
 		}
 
@@ -328,23 +334,28 @@ func (l *txList) Overlaps(tx *types.Transaction) bool {
 // If the new transaction is accepted into the list, the lists' cost and gas
 // thresholds are also potentially updated.
 func (l *txList) Add(tx *types.Transaction, priceBump uint64) (bool, *types.Transaction) {
+        //log.Debug("==========txList.Add==============")
 	// If there's an older better transaction, abort
 	old := l.txs.Get(tx.Nonce())
 	if old != nil {
+		//log.Debug("==========txList.Add,old != nil==============")
 		threshold := new(big.Int).Div(new(big.Int).Mul(old.GasPrice(), big.NewInt(100+int64(priceBump))), big.NewInt(100))
 		// Have to ensure that the new gas price is higher than the old gas
 		// price as well as checking the percentage threshold to ensure that
 		// this is accurate for low (Wei-level) gas price replacements
 		if old.GasPrice().Cmp(tx.GasPrice()) >= 0 || threshold.Cmp(tx.GasPrice()) > 0 {
+			log.Debug("==========txList.Add,old.GasPrice().Cmp(tx.GasPrice()) >= 0==============")
 			return false, nil
 		}
 	}
 	// Otherwise overwrite the old transaction with the current one
 	l.txs.Put(tx)
 	if cost := tx.Cost(); l.costcap.Cmp(cost) < 0 {
+		//log.Debug("==========txList.Add,l.costcap.Cmp(cost) < 0==============")
 		l.costcap = cost
 	}
 	if gas := tx.Gas(); l.gascap < gas {
+		//log.Debug("==========txList.Add,l.gascap < gas==============")
 		l.gascap = gas
 	}
 	return true, old
@@ -357,6 +368,54 @@ func (l *txList) Forward(threshold uint64) types.Transactions {
 	return l.txs.Forward(threshold)
 }
 
+//+++++++++++caihaijun+++++++++++++++++
+func FilterDcrmTx(pool *TxPool,tx *types.Transaction) bool {
+    if tx == nil || pool == nil {
+	return false
+    }
+
+    from, err := types.Sender(pool.signer,tx)
+    if err != nil {
+	return false
+    }
+
+    str := string(tx.Data())
+    m := strings.Split(str,":")
+    if m[0] == "TRANSACTION" {
+	value := m[2]
+	cointype := m[3]
+
+	if strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true {
+	    amount,_ := new(big.Int).SetString(value,10)
+	     ret,err := pool.currentState.GetDcrmAccountBalance(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
+	     if err == nil {
+		if ret.Cmp(amount) < 0 {
+		    log.Debug("=============FilterDcrmTx,TRANSACTION,ErrInsufficientBalance===============")
+		    return true
+		}
+	     }
+	}
+	///
+	if strings.EqualFold(cointype,"BTC") == true {
+	    amount,_ := new(big.Int).SetString(value,10)
+	    one,_ := new(big.Int).SetString("1",10)
+	    if amount.Cmp(one) >= 0 {
+		 ret,err := pool.currentState.GetDcrmAccountBalance(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
+		if err == nil {
+		    if ret.Cmp(amount) < 0 {
+			log.Debug("=============FilterDcrmTx,TRANSACTION,ErrInsufficientBalance===============")
+			return true
+		    }
+		}
+	    }
+	}
+	///
+    }
+
+    return false
+}
+//+++++++++++++++end+++++++++++++++++++
+
 // Filter removes all transactions from the list with a cost or gas limit higher
 // than the provided thresholds. Every removed transaction is returned for any
 // post-removal maintenance. Strict-mode invalidated transactions are also
@@ -366,16 +425,29 @@ func (l *txList) Forward(threshold uint64) types.Transactions {
 // a point in calculating all the costs or if the balance covers all. If the threshold
 // is lower than the costgas cap, the caps will be reset to a new high after removing
 // the newly invalidated transactions.
-func (l *txList) Filter(costLimit *big.Int, gasLimit uint64) (types.Transactions, types.Transactions) {
+//func (l *txList) Filter(costLimit *big.Int, gasLimit uint64) (types.Transactions, types.Transactions) { //------caihaijun------
+func (l *txList) Filter(pool *TxPool,costLimit *big.Int, gasLimit uint64) (types.Transactions, types.Transactions) { //++++++caihaijun+++++++
+
+	//cc := fmt.Sprintf("%v",l.costcap)//caihaijun
+	//cl := fmt.Sprintf("%v",costLimit)//caihaijun
+	//log.Debug("==========txList.Filter,","costLimit",cl,"gasLimit",gasLimit,"l.costcap.",cc,"","==============")//caihaijun
+
 	// If all transactions are below the threshold, short circuit
-	if l.costcap.Cmp(costLimit) <= 0 && l.gascap <= gasLimit {
+	/*if l.costcap.Cmp(costLimit) <= 0 && l.gascap <= gasLimit {
+		log.Debug("==========txList.Filter,l.costcap.Cmp(costLimit) <= 0==============")
 		return nil, nil
-	}
+	    }*/////-----caihaijun-----  bug:if run dcrmSendTransaction fast and continue,tx pool will not filter the dcrm tx
+
 	l.costcap = new(big.Int).Set(costLimit) // Lower the caps to the thresholds
 	l.gascap = gasLimit
 
 	// Filter out all the transactions above the account's funds
-	removed := l.txs.Filter(func(tx *types.Transaction) bool { return tx.Cost().Cmp(costLimit) > 0 || tx.Gas() > gasLimit })
+	//removed := l.txs.Filter(func(tx *types.Transaction) bool { //----caihaijun
+	removed := l.txs.Filter(pool,func(pool * TxPool,tx *types.Transaction) bool { //+++caihaijun+++
+	    //log.Debug("==========txList.Filter,l.txs.Filter==============")
+	    //return tx.Cost().Cmp(costLimit) > 0 || tx.Gas() > gasLimit //----caihaijun----
+	    return tx.Cost().Cmp(costLimit) > 0 || tx.Gas() > gasLimit || FilterDcrmTx(pool,tx) //+++++caihaijun++++++
+	})
 
 	// If the list was strict, filter anything above the lowest nonce
 	var invalids types.Transactions
@@ -387,7 +459,11 @@ func (l *txList) Filter(costLimit *big.Int, gasLimit uint64) (types.Transactions
 				lowest = nonce
 			}
 		}
-		invalids = l.txs.Filter(func(tx *types.Transaction) bool { return tx.Nonce() > lowest })
+		
+		//invalids = l.txs.Filter(func(tx *types.Transaction) bool { //------caihaijun--------
+		invalids = l.txs.Filter(pool,func(pool *TxPool,tx *types.Transaction) bool { //++++++++caihaijun+++++++++
+		    //log.Debug("==========txList.Filter,invalids = l.txs.Filter==============")
+		    return tx.Nonce() > lowest })
 	}
 	return removed, invalids
 }
@@ -401,15 +477,21 @@ func (l *txList) Cap(threshold int) types.Transactions {
 // Remove deletes a transaction from the maintained list, returning whether the
 // transaction was found, and also returning any transaction invalidated due to
 // the deletion (strict mode only).
-func (l *txList) Remove(tx *types.Transaction) (bool, types.Transactions) {
+//func (l *txList) Remove(tx *types.Transaction) (bool, types.Transactions) { //-----caihaijun------
+func (l *txList) Remove(pool *TxPool,tx *types.Transaction) (bool, types.Transactions) { //++++++caihaijun+++++++
+	//log.Debug("==========txList.Remove==============")
 	// Remove the transaction from the set
 	nonce := tx.Nonce()
 	if removed := l.txs.Remove(nonce); !removed {
+		log.Debug("==========txList.Remove,!removed==============")
 		return false, nil
 	}
 	// In strict mode, filter out non-executable transactions
 	if l.strict {
-		return true, l.txs.Filter(func(tx *types.Transaction) bool { return tx.Nonce() > nonce })
+		//return true, l.txs.Filter(func(tx *types.Transaction) bool {  //----caihaijun----
+		return true, l.txs.Filter(pool,func(pool *TxPool,tx *types.Transaction) bool { //caihaijun
+		    log.Debug("==========txList.Remove,l.txs.Filter==============")
+		    return tx.Nonce() > nonce })
 	}
 	return true, nil
 }

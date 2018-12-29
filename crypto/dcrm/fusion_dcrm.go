@@ -3015,10 +3015,10 @@ func validate_txhash(msgprex string,tx string,lockinaddr string,hashkey string,r
 		log.Debug("===============validate_txhash,","erc data",ercdatanum,"","=================")
 		for _,top := range logs.Topics {
 		    log.Debug("===============validate_txhash,","top",top.Hex(),"","=================")
-//		    log.Debug("===============validate_txhash,","realdcrmto",realdcrmto,"","=================")
+		    //log.Debug("===============validate_txhash,","realdcrmto",realdcrmto,"","=================")
 		    /////
 
-		    tb := []rune(top.Hex())
+		    /*tb := []rune(top.Hex())
 		    if strings.EqualFold(string(tb[0:2]),"0x") == true {
 			tb = tb[2:]
 		    } 
@@ -3035,6 +3035,13 @@ func validate_txhash(msgprex string,tx string,lockinaddr string,hashkey string,r
 		    } 
 		    
 		    if lockinvalue == ercdatanum && strings.EqualFold(string(tb),string(rdt)) == true {
+			log.Debug("==============validate_txhash,erc validate pass.===========")
+			answer = "pass"
+			break
+		    }*/
+		    aa,_ := new(big.Int).SetString(top.Hex(),0)
+		    bb,_ := new(big.Int).SetString(realdcrmto,0)
+		    if lockinvalue == ercdatanum && aa.Cmp(bb) == 0 {
 			log.Debug("==============validate_txhash,erc validate pass.===========")
 			answer = "pass"
 			break

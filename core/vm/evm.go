@@ -30,7 +30,7 @@ import (
 	"github.com/fusion/go-fusion/core/types"//caihaijun
 	"github.com/fusion/go-fusion/crypto"
 	"github.com/fusion/go-fusion/params"
-	//"github.com/fusion/go-fusion/log"//caihaijun
+	//"github.com/fusion/go-fusion/crypto/dcrm"//caihaijun
 )
 
 // emptyCodeHash is used by create to ensure deployment is disallowed to already
@@ -258,6 +258,14 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		}
 		///
 	    }
+	    /*if m[0] == "LOCKIN" {
+		hashkey := inputs[1]
+		value := inputs[2]
+		cointype := inputs[3]
+		has,err := dcrm.IsHashkeyExsitInLocalDB(hashkey)
+		if err != nil {
+		}
+	    }*/
 	}
 	//+++++++++++end++++++++++
 
@@ -311,7 +319,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	//+++++++++++++++++++++end++++++++++++++++++++
 
 	if !bytes.Equal(to.Address().Bytes(), types.DcrmPrecompileAddr.Bytes()) {//+++++++caihaijun+++++++++
-	    log.Debug("=============evm.Call,Transfer===============")//caihaijun
+	    //log.Debug("=============evm.Call,Transfer===============")//caihaijun
 	    evm.Transfer(evm.StateDB, caller.Address(), to.Address(), value)
 	}//caihaijun
 
