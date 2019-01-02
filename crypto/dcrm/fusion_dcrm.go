@@ -2328,6 +2328,10 @@ func init(){
 	//core.RegisterDcrmLockOutCallback(callDcrmLockOut)
 	p2pdcrm.RegisterDcrmCallback(dcrmcall)
 	p2pdcrm.RegisterDcrmRetCallback(dcrmret)
+	
+	log.Debug("==============restore nodeinfo==================")
+	RestoreNodeInfo()
+
 	InitNonDcrmChan()
 	glogger := log.NewGlogHandler(log.StreamHandler(os.Stderr, log.TerminalFormat(false)))
 	log.Root().SetHandler(glogger)
@@ -2357,7 +2361,7 @@ func RestoreNodeInfo() {
 		////////
 		init_times = 1
 		NodeCnt = c 
-		    log.Debug("","NodeCnt",NodeCnt)
+		    log.Debug("===========RestoreNodeInfo,","the node count",NodeCnt,"","==============")
 		    //paillier
 		    GetPaillierKey(crand.Reader,1024,pri,"")
 		    log.Debug("==============new paillier finish=================")
@@ -2366,6 +2370,7 @@ func RestoreNodeInfo() {
 		    log.Debug("==============new zk finish====================")
 		    //GetEnodesInfo()  
 		    enode_cnts = c 
+		    log.Debug("===========RestoreNodeInfo,","the node count",enode_cnts,"","==============")
 		    cur_enode = datas[4]
 		    InitChan()
 		////////
@@ -2604,8 +2609,11 @@ func Init(tmp string, paillier_dprivkey *big.Int,nodecnt int) {
 	if init_times >= 1 {
 		return
 	}
+
+    log.Debug("==============init_times=0=================")
    NodeCnt = nodecnt
-    log.Debug("","NodeCnt",NodeCnt)
+   enode_cnts = nodecnt //bug
+    log.Debug("=============Init,","the node count",NodeCnt,"","===========")
     //paillier
     GetPaillierKey(crand.Reader,1024,paillier_dprivkey, tmp)
     log.Debug("==============new paillier finish=================")
@@ -3325,13 +3333,13 @@ func GetDcrmAddr(hash string,cointype string) string {
 }
 
 		func GetEnodesInfo() {
+		    log.Debug("==============GetEnodesInfo,","enode_cnts",enode_cnts,"cur_enode",cur_enode,"","===============")
 		    //bug
 		    if cur_enode != "" {
 			return
 		    }
 
-		    cnt,_ := p2pdcrm.GetEnodes()
-		    enode_cnts = cnt
+		    enode_cnts,_ = p2pdcrm.GetEnodes()
 		    cur_enode = p2pdcrm.GetSelfID().String()
 		}
 
@@ -3657,6 +3665,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 			return
 		    }
 
+		    log.Debug("===========dcrm_liloreqAddress,","enode_cnts",enode_cnts,"NodeCnt",NodeCnt,"","==============")
 		    if int32(enode_cnts) != int32(NodeCnt) {
 			log.Debug("============the net group is not ready.please try again.================")
 			var ret2 Err

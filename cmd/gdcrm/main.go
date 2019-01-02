@@ -29,7 +29,7 @@ import (
 	"time"
 	//"net"
 
-	"github.com/fusion/go-fusion/crypto/dcrm" //caihaijun
+	//"github.com/fusion/go-fusion/crypto/dcrm" //caihaijun
 	"github.com/elastic/gosigar"
 	"github.com/fusion/go-fusion/accounts"
 	"github.com/fusion/go-fusion/accounts/keystore"
@@ -233,7 +233,9 @@ func init() {
 	app.Before = func(ctx *cli.Context) error {
 		runtime.GOMAXPROCS(runtime.NumCPU())
 
-		//utils.SetDatadir (ctx)
+
+		log.Debug("==============set data dir==================")//caihaijun
+		utils.SetDatadir (ctx) //caihaijun
 
 		logdir := ""
 		if ctx.GlobalBool(utils.DashboardEnabledFlag.Name) {
@@ -289,9 +291,6 @@ func geth(ctx *cli.Context) error {
 	if args := ctx.Args(); len(args) > 0 {
 		return fmt.Errorf("invalid command: %q", args[0])
 	}
-
-	utils.SetDatadir (ctx) //caihaijun
-	dcrm.RestoreNodeInfo() //caihaijun
 	
 	node := makeFullNode(ctx)
 	startNode(ctx, node)
