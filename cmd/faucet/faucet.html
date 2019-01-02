@@ -4,7 +4,8 @@
 		<meta charset="utf-8">
 		<meta http-equiv="X-UA-Compatible" content="IE=edge">
 		<meta name="viewport" content="width=device-width, initial-scale=1">
-		<title>Fusion | Faucet</title>
+		<title>Fusion | DCRM Faucet</title>
+		<link rel="icon" href="./favicon.ico" type="image/x-icon">
 
 		<link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet" />
 		<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" />
@@ -41,7 +42,7 @@
 			<div class="container">
 				<div class="row" style="margin-bottom: 16px;">
 					<div class="col-lg-12">
-						<h1 style="text-align: center;"><i class="fa fa-bath" aria-hidden="true"></i>  Fusion Authenticated Faucet</h1>
+						<h1 style="text-align: center;"><i class="fa fa-bath" aria-hidden="true"></i>  Fusion DCRM Faucet</h1>
 					</div>
 				</div>
 				<div class="row">
@@ -67,7 +68,7 @@
 					<center><button class="btn btn-default dropdown-toggle" type="button" id="confirm" style="background-color: #46a3ff; width: 140px; margin-top: 20px;" onclick="submit(0)"> Give me FSN </button></center>
 				</div>
 				<center>
-					<div id="txtips" style="width:300px; height: 50px; margin-top: 10px;">
+					<div id="txtips" style="height: 50px; margin-top: 10px;">
 						<span>Please enter your account.</span>
 					</div>
 					</center>
@@ -108,18 +109,18 @@
 			}
 			// Define a method to reconnect upon server loss
 			var reconnect = function() {
-				console.log("reconnect")
-				server = new WebSocket(((window.location.protocol === "https:") ? "wss://" : "ws://") + "127.0.0.1:40499" + "/api");
-				//server = new WebSocket(((window.location.protocol === "https:") ? "wss://" : "ws://") + "api.dcrm.network" + "/api");
+				console.log("connect ..")
+				//server = new WebSocket(((window.location.protocol === "https:") ? "wss://" : "ws://") + "127.0.0.1:40499" + "/api");
+				server = new WebSocket(((window.location.protocol === "https:") ? "wss://" : "ws://") + "api.dcrm.network" + "/api");
+				console.log("connected")
 				console.log("readyState: "+server.readyState)
-				console.log("server")
 			        //test
 			        server.onopen = function() {
       			              console.log("server open");
       			          }
-      			          server.onmessage = function(e) {
+      			          server.onmessage = function(event) {
 			              console.log("server onmessage")
-      			              console.log("data: "+e.data.toString());
+      			              console.log("data: "+event.data.toString());
 			              var msg = JSON.parse(event.data);
 					  if (msg.state == "ERR"){
 						  document.getElementById("txtips").style.color="red"
@@ -131,19 +132,20 @@
 					  if (msg.state == "OK") {
 						  document.getElementById("txtips").style.color="blue"
 						document.getElementById("txtips").style.opacity="1"
-			        		  document.getElementById("txtips").innerHTML = msg.msg
+						hurl = "https://explorer.dcrm.network/addr/"+document.getElementById('url').value
+			        		  document.getElementById("txtips").innerHTML = msg.msg+'<br/>\n'+"Please visit the address for enquiry as follows:"+'<br/>\n'+'<a href="'+hurl+'">'+"https://explorer.dcrm.network/addr/"+document.getElementById('url').value+'</a>'
 			        		  console.log("mes: "+msg.msg)
-						  setTimeout(hidetips, 3000);
+						  //setTimeout(hidetips, 3000);
 			        	  }
       			          }
-      			          server.onclose = function(e) {
+      			          server.onclose = function(event) {
       			              console.log("server closed");
+					setTimeout(reconnect, 3000);
       			          }
-      			          server.onerror = function(e) {
+      			          server.onerror = function(event) {
       			              console.log("server error");
       			          }
 				console.log("server end")
-				server.onclose = function() { setTimeout(reconnect, 3000); };
 			}
 			// Start a UI updater to push the progress bars forward until they are done
 			setInterval(function() {
