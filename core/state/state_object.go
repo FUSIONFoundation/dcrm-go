@@ -224,11 +224,20 @@ func (self *stateObject) GetCommittedState(db Database, key common.Hash) common.
 
 //++++++++++++++++++caihaijun++++++++++++++++++++
 
-type DcrmAccountData struct {
-    COINTYPE string
-    BALANCE  string
-    HASHKEY string
-    NONCE string
+func (self *stateObject) GetDcrmAccountLockinHashkey(db Database, key common.Hash,index int) (string,error) {
+    s := self.GetStateDcrmAccountData(db,key)
+    if s == nil { 
+	return "",errors.New("the account has not confirm dcrm address or receiv the tx.")
+    }
+    
+    ss := string(s)
+    log.Debug("========GetDcrmAccountLockinHashkey,","ss",s,"","============")//caihaijun
+    _,_,hashkey,err := getDataByIndex(ss,index)
+    if err == nil && hashkey != "null" {
+	return hashkey,nil
+    }
+
+    return "",err
 }
 
 func (self *stateObject) GetDcrmAccountBalance(db Database, key common.Hash,index int) (*big.Int,error) {
@@ -238,7 +247,7 @@ func (self *stateObject) GetDcrmAccountBalance(db Database, key common.Hash,inde
     }
     
     ss := string(s)
-    _,amount,err := getDataByIndex(ss,index)
+    _,amount,_,err := getDataByIndex(ss,index)
     if err == nil {
 	ba,_ := new(big.Int).SetString(amount,10)
 	return ba,nil
@@ -247,19 +256,26 @@ func (self *stateObject) GetDcrmAccountBalance(db Database, key common.Hash,inde
     return nil,err
 }
 
-func getDataByIndex(value string,index int) (string,string,error) {
+func getDataByIndex(value string,index int) (string,string,string,error) {
 	if value == "" || index < 0 {
-		return "","",errors.New("get block data fail.")
+		return "","","",errors.New("get block data fail.")
 	}
 
 	v := strings.Split(value,"|")
 	if len(v) < (index + 1) {
-		return "","",errors.New("get block data fail.")
+		return "","","",errors.New("get block data fail.")
 	}
 
 	vv := v[index]
 	ss := strings.Split(vv,":")
-	return ss[0],ss[1],nil
+	if len(ss) == 3 {
+	    return ss[0],ss[1],ss[2],nil
+	}
+	if len(ss) == 2 {//for prev version
+	    return ss[0],ss[1],"",nil
+	}
+
+	return "","","",errors.New("get block data fail.")
 }
 
 func IsExsitDcrmAddrInData(value string,dcrmaddr string) (bool,error) {
@@ -293,7 +309,7 @@ func (self *stateObject) GetDcrmAddress(db Database, hash common.Hash,index int)
     }
    
     ss := string(s)
-    addr,_,err := getDataByIndex(ss,index)
+    addr,_,_,err := getDataByIndex(ss,index)
     if err == nil && !strings.EqualFold(addr,"xxx") {
 	return addr
     }

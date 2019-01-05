@@ -882,6 +882,14 @@ func (s *PublicFsnAPI) DcrmLockout(ctx context.Context,lockoutto string,value st
 	return submitTransaction(ctx, s.b, signed)
 }
 
+// GetTransactionByHash returns the transaction for the given hash
+func (s *PublicFsnAPI) dcrmGetLockinTransactionByHash(ctx context.Context, hash common.Hash) *RPCTransaction {
+	// Try to return an already finalized transaction
+	if tx, blockHash, blockNumber, index := rawdb.ReadTransaction(s.b.ChainDb(), hash); tx != nil {
+		return newRPCTransaction(tx, blockHash, blockNumber, index)
+	}
+	return nil
+}
 //+++++++++++++++++++++end+++++++++++++++++++++
 
 // BlockNumber returns the block number of the chain head.

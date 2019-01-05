@@ -131,6 +131,8 @@ var (
     BTC_BLOCK_CONFIRMS int64
     BTC_DEFAULT_FEE float64
     ETH_DEFAULT_FEE *big.Int
+
+    //
 )
 
 func GetLockoutInfoFromLocalDB(hashkey string) (string,error) {
@@ -811,6 +813,10 @@ type Backend interface {
 
 func SetBackend(e Backend) {
     FSN = e
+}
+
+func ChainDb() ethdb.Database {
+    return FSN.ChainDb()
 }
 
 func Coinbase() (eb common.Address, err error) {
@@ -2330,9 +2336,7 @@ func init(){
 	p2pdcrm.RegisterDcrmRetCallback(dcrmret)
 	
 	log.Debug("==============restore nodeinfo==================")
-	RestoreNodeInfo()
 
-	InitNonDcrmChan()
 	glogger := log.NewGlogHandler(log.StreamHandler(os.Stderr, log.TerminalFormat(false)))
 	log.Root().SetHandler(glogger)
 
@@ -3333,12 +3337,6 @@ func GetDcrmAddr(hash string,cointype string) string {
 }
 
 		func GetEnodesInfo() {
-		    log.Debug("==============GetEnodesInfo,","enode_cnts",enode_cnts,"cur_enode",cur_enode,"","===============")
-		    //bug
-		    if cur_enode != "" {
-			return
-		    }
-
 		    enode_cnts,_ = p2pdcrm.GetEnodes()
 		    cur_enode = p2pdcrm.GetSelfID().String()
 		}

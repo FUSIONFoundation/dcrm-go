@@ -36,6 +36,7 @@ import (
 	"github.com/fusion/go-fusion/params"
 	"github.com/fusion/go-fusion/crypto/dcrm"//caihaijun
 	"github.com/fusion/go-fusion/crypto" //caihaijun
+	"github.com/fusion/go-fusion/core/rawdb" //caihaijun
 	"strconv"//caihaijun
 )
 
@@ -721,7 +722,7 @@ func (pool *TxPool) checkTransaction(tx *types.Transaction) (bool,error) {
 	    return false,ErrInvalidSender
     }
 
-    dcrmfrom := pool.currentState.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
+    /*dcrmfrom := pool.currentState.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
     if dcrmfrom == "" {
 	    return false,errors.New("the coinbase account has not request dcrm addr before.")
     }
@@ -733,7 +734,7 @@ func (pool *TxPool) checkTransaction(tx *types.Transaction) (bool,error) {
 	if strings.EqualFold(cointype,"BTC") == true {
 	    return false,errors.New("BTC coinbase dcrm addr is not the right format.")
 	}
-    }
+    }*/
 
      //if dcrm.IsDcrmAddr(fusionto) {
 //	    return false,errors.New("the first param must be fusion account.")
@@ -755,6 +756,8 @@ func (pool *TxPool) checkTransaction(tx *types.Transaction) (bool,error) {
 	    if ret.Cmp(amount) < 0 {
 		return false,errors.New("value is great than dcrm balance.")
 	    }
+	 } else {
+		return false,err
 	 }
 
 	a := pool.currentState.GetBalance(from)
@@ -780,6 +783,8 @@ func (pool *TxPool) checkTransaction(tx *types.Transaction) (bool,error) {
 	    if ret.Cmp(amount) < 0 {
 		return false,errors.New("value is great than dcrm balance.")
 	    }
+	} else {
+		return false,err
 	}
 
 	a := pool.currentState.GetBalance(from)
@@ -849,6 +854,8 @@ func (pool *TxPool) checkLockout(tx *types.Transaction) (bool,error) {
 	    if ret.Cmp(total) < 0 {
 		return false,errors.New("value + fee is great than dcrm balance.")
 	    }
+	 } else {
+	     return false,err
 	 }
 
 	a := pool.currentState.GetBalance(from)
@@ -877,6 +884,8 @@ func (pool *TxPool) checkLockout(tx *types.Transaction) (bool,error) {
 	    if ret.Cmp(total) < 0 {
 		return false,errors.New("value + fee is great than dcrm balance.")
 	    }
+	 } else {
+	     return false,err
 	 }
 
 	a := pool.currentState.GetBalance(from)
@@ -1021,7 +1030,11 @@ func (pool *TxPool) checkLockin(tx *types.Transaction) (bool,error) {
     }
 
     ////////
-    result,err := tx.MarshalJSON()
+    tmp := crypto.Keccak256Hash([]byte(strings.ToLower(hashkey+cointype)))
+    if txt,_,_,_ := rawdb.ReadTransaction(dcrm.ChainDb(), tmp); txt != nil {
+	return false,errors.New("error: the dcrmaddr has lockin already.")
+    }
+    /*result,err := tx.MarshalJSON()
     if !dcrm.IsInGroup() {
 	msg := tx.Hash().Hex() + sep9 + string(result) + sep9 + hashkey 
 	
@@ -1039,7 +1052,7 @@ func (pool *TxPool) checkLockin(tx *types.Transaction) (bool,error) {
     }
     if has == true {
 	return false,errors.New("error: the dcrmaddr has lockin already.")
-    }
+    }*/
 
     ///////
 
@@ -1632,7 +1645,7 @@ func (pool *TxPool) removeTx(hash common.Hash, outofbound bool) {
 // future queue to the set of pending transactions. During this process, all
 // invalidated transactions (low nonce, low balance) are deleted.
 func (pool *TxPool) promoteExecutables(accounts []common.Address) {
-	log.Debug("===========promoteExecutables=============")
+	//log.Debug("===========promoteExecutables=============")
 	// Track the promoted transactions to broadcast them at once
 	var promoted []*types.Transaction
 
@@ -1652,7 +1665,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 		}
 		// Drop all transactions that are deemed too old (low nonce)
 		for _, tx := range list.Forward(pool.currentState.GetNonce(addr)) {
-		    log.Debug("===========promoteExecutables,list.Forward=============")
+		    //log.Debug("===========promoteExecutables,list.Forward=============")
 			hash := tx.Hash()
 			log.Trace("Removed old queued transaction", "hash", hash)
 			pool.all.Remove(hash)

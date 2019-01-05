@@ -82,6 +82,7 @@ type StateDB struct {
 	nextRevisionId int
 
 	lock sync.Mutex
+
 }
 
 // Create a new state from a given trie.
@@ -288,6 +289,15 @@ func (self *StateDB) SetStateDcrmAccountData(addr common.Address, key common.Has
 	//	log.Debug("==================SetStateDcrmAccountData,get stateObject is not nil.============")
 		stateObject.SetStateDcrmAccountData(self.db, key, value)
 	}
+}
+
+func (self *StateDB) GetDcrmAccountLockinHashkey(a common.Address, b common.Hash,index int) (string,error) {
+	stateObject := self.getStateObject(a)
+	if stateObject != nil {
+		//log.Debug("==================statedb.GetDcrmAccountLockinHashkey,get stateObject is not nil.============")
+		return stateObject.GetDcrmAccountLockinHashkey(self.db, b,index)
+	}
+	return "",errors.New("account is not exsit or block data error.")
 }
 
 func (self *StateDB) GetDcrmAccountBalance(a common.Address, b common.Hash,index int) (*big.Int,error) {

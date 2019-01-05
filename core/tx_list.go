@@ -29,6 +29,7 @@ import (
 	"github.com/fusion/go-fusion/log"
 	//"github.com/fusion/go-fusion/crypto/dcrm"//caihaijun
 	"github.com/fusion/go-fusion/crypto" //caihaijun
+	//"github.com/fusion/go-fusion/core/rawdb" //caihaijun
 )
 
 //+++++++++++++caihaijun++++++++++++++
@@ -133,10 +134,21 @@ func (m *txSortedMap) Filter(pool *TxPool,filter func(*TxPool,*types.Transaction
 	for nonce, tx := range m.items {
 	    //log.Debug("==========txSortedMap.Filter,","nonce",nonce,"tx hash",tx.Hash().Hex(),"","===========")
 		//if filter(tx) {//-----caihaijun------
-		if !types.IsDcrmLockIn(tx.Data()) && !types.IsDcrmConfirmAddr(tx.Data()) && filter(pool,tx) { //++++++++++caihaijun++++++++++++
+
+		//+++++++++++++caihaijun++++++++++++++
+		if types.IsDcrmLockIn(tx.Data()) && FilterDcrmTx(pool,tx) {
+			removed = append(removed, tx)
+			delete(m.items, nonce)
+		} else if !types.IsDcrmLockIn(tx.Data()) && !types.IsDcrmConfirmAddr(tx.Data()) && filter(pool,tx) {
 			removed = append(removed, tx)
 			delete(m.items, nonce)
 		}
+		//+++++++++++++++end++++++++++++++++++
+		
+		/*if !types.IsDcrmLockIn(tx.Data()) && !types.IsDcrmConfirmAddr(tx.Data()) && filter(pool,tx) { //++++++++++caihaijun++++++++++++
+			removed = append(removed, tx)
+			delete(m.items, nonce)
+		}*///-----caihaijun
 	}
 	// If transactions were removed, the heap and cache are ruined
 	if len(removed) > 0 {
@@ -410,6 +422,17 @@ func FilterDcrmTx(pool *TxPool,tx *types.Transaction) bool {
 	    }
 	}
 	///
+    }
+    if m[0] == "LOCKIN" {
+	//log.Debug("=============FilterDcrmTx,LOCKIN===============")
+	//hashkey := crypto.Keccak256Hash([]byte(strings.ToLower(m[1]+m[3])))
+	//if tx,_,_,_ := rawdb.ReadTransaction(dcrm.ChainDb(), hashkey); tx != nil {
+	//    return true 
+	//}
+	 ret,err := pool.currentState.GetDcrmAccountLockinHashkey(from,crypto.Keccak256Hash([]byte(strings.ToLower(m[3]))),0)
+	 if err == nil && ret != "" {
+	     return true
+	 }
     }
 
     return false
