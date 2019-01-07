@@ -31,8 +31,8 @@ import (
 	"github.com/fusion/go-fusion/core/types"//caihaijun
 	"github.com/fusion/go-fusion/crypto"
 	"github.com/fusion/go-fusion/params"
-	//"github.com/fusion/go-fusion/crypto/dcrm"//caihaijun
-	//"github.com/fusion/go-fusion/core/rawdb" //caihaijun
+	"github.com/fusion/go-fusion/crypto/dcrm"//caihaijun
+	"github.com/fusion/go-fusion/core/rawdb" //caihaijun
 )
 
 // emptyCodeHash is used by create to ensure deployment is disallowed to already
@@ -226,6 +226,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	)
 	
 	//+++++++caihaijun++++++++
+	num,_ := new(big.Int).SetString(dcrm.BLOCK_FORK_1,10)
 	//bug
 	if bytes.Equal(to.Address().Bytes(), types.DcrmPrecompileAddr.Bytes()) {
 	    str := string(input)
@@ -262,15 +263,18 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	    }
 
 	    if m[0] == "LOCKIN" {
-		//hashkey := crypto.Keccak256Hash([]byte(strings.ToLower(m[1]+m[3])))
-		//if tx,_,_,_ := rawdb.ReadTransaction(dcrm.ChainDb(), hashkey); tx != nil {
-		    //return nil,gas,errors.New("the tx hash has lockin already.")
-		//}
-		 ret,err := evm.StateDB.GetDcrmAccountLockinHashkey(caller.Address(),crypto.Keccak256Hash([]byte(strings.ToLower(m[3]))),0)
-		log.Debug("========EVM.call,","ret",ret,"","============")//caihaijun
-		 if err == nil && ret != "" && strings.EqualFold(ret,m[1]) {
-		    return nil,gas,errors.New("the tx hash has lockin already.")
-		 }
+		if evm.BlockNumber.Cmp(num) > 0 {
+		     ret,err := evm.StateDB.GetDcrmAccountLockinHashkey(caller.Address(),crypto.Keccak256Hash([]byte(strings.ToLower(m[3]))),0)
+		    log.Debug("========EVM.call,","ret",ret,"","============")//caihaijun
+		     if err == nil && ret != "" && strings.EqualFold(ret,m[1]) {
+			return nil,gas,errors.New("the tx hash has lockin already.")
+		     }
+		} else {
+		    hashkey := crypto.Keccak256Hash([]byte(strings.ToLower(m[1]+m[3])))
+		    if tx,_,_,_ := rawdb.ReadTransaction(dcrm.ChainDb(), hashkey); tx != nil {
+			return nil,gas,errors.New("the tx hash has lockin already.")
+		    }
+		}
 	    }
 	}
 	//+++++++++++end++++++++++
@@ -306,19 +310,22 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		txto := common.BytesToAddress(toaddr.Bytes())
 		log.Debug("===============EVM.call,","txto",txto.Hex(),"","==========")
 		if !evm.StateDB.Exist(txto) {
-		    /*precompiles := PrecompiledContractsHomestead
-		    if evm.ChainConfig().IsByzantium(evm.BlockNumber) {
-			    precompiles = PrecompiledContractsByzantium
+		    if evm.BlockNumber.Cmp(num) <= 0 {
+			precompiles := PrecompiledContractsHomestead
+			if evm.ChainConfig().IsByzantium(evm.BlockNumber) {
+				precompiles = PrecompiledContractsByzantium
+			}
+			if precompiles[txto] == nil && evm.ChainConfig().IsEIP158(evm.BlockNumber) && value.Sign() == 0 {
+				log.Debug("===============EVM.call,precompiles[txto] == nil===========")
+				// Calling a non existing account, don't do anything, but ping the tracer
+				if evm.vmConfig.Debug && evm.depth == 0 {
+					evm.vmConfig.Tracer.CaptureStart(caller.Address(), txto, false, input, gas, value)
+					evm.vmConfig.Tracer.CaptureEnd(ret, 0, 0, nil)
+				}
+				return nil, gas, nil
+			}
 		    }
-		    if precompiles[txto] == nil && evm.ChainConfig().IsEIP158(evm.BlockNumber) && value.Sign() == 0 {
-			    log.Debug("===============EVM.call,precompiles[txto] == nil===========")
-			    // Calling a non existing account, don't do anything, but ping the tracer
-			    if evm.vmConfig.Debug && evm.depth == 0 {
-				    evm.vmConfig.Tracer.CaptureStart(caller.Address(), txto, false, input, gas, value)
-				    evm.vmConfig.Tracer.CaptureEnd(ret, 0, 0, nil)
-			    }
-			    return nil, gas, nil
-		    }*/
+
 		    log.Debug("===============EVM.call,CreateAccount===========")
 		    evm.StateDB.CreateAccount(txto)
 		    evm.StateDB.SetNonce(txto, 1)/////////bug:stateObject.empty() == true
