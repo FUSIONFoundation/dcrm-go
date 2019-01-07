@@ -430,7 +430,7 @@ func FilterDcrmTx(pool *TxPool,tx *types.Transaction) bool {
 	//    return true 
 	//}
 	 ret,err := pool.currentState.GetDcrmAccountLockinHashkey(from,crypto.Keccak256Hash([]byte(strings.ToLower(m[3]))),0)
-	 if err == nil && ret != "" {
+	 if err == nil && ret != "" && strings.EqualFold(ret,m[1]) {
 	     return true
 	 }
     }
