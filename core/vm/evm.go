@@ -268,7 +268,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		//}
 		 ret,err := evm.StateDB.GetDcrmAccountLockinHashkey(caller.Address(),crypto.Keccak256Hash([]byte(strings.ToLower(m[3]))),0)
 		log.Debug("========EVM.call,","ret",ret,"","============")//caihaijun
-		 if err == nil && ret != "" {
+		 if err == nil && ret != "" && strings.EqualFold(ret,m[1]) {
 		    return nil,gas,errors.New("the tx hash has lockin already.")
 		 }
 	    }
