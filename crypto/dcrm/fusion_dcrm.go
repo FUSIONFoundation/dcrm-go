@@ -610,28 +610,33 @@ func ChooseRealFusionAccountForLockout(amount string,lockoutto string,cointype s
 		} else {
 		    dcrmaddrs := []rune(key)
 		    if len(dcrmaddrs) == 42 { //ETH
-			var result hexutil.Big
-			//blockNumber := nil
-			err := client.CallContext(ctx, &result, "eth_getBalance", key, "latest")
-			if err != nil {
-			    log.Debug("===========ChooseRealFusionAccountForLockout,rpc call fail.==================")
-			    iter.Release() 
-			    db.Close() 
-			    cancel()
-			    lock.Unlock()
-			    return "","",errors.New("rpc call fail.")
-			}
+			////
+			_,_,err = IsFusionAccountExsitDcrmAddr(s[0],cointype,key) 
+			if err == nil {
+			    var result hexutil.Big
+			    //blockNumber := nil
+			    err = client.CallContext(ctx, &result, "eth_getBalance", key, "latest")
+			    if err != nil {
+				log.Debug("===========ChooseRealFusionAccountForLockout,rpc call fail.==================")
+				iter.Release() 
+				db.Close() 
+				cancel()
+				lock.Unlock()
+				return "","",errors.New("rpc call fail.")
+			    }
 
-			ba := (*big.Int)(&result)
-			va,_ := new(big.Int).SetString(amount,10)
-			 total := new(big.Int).Add(va,ETH_DEFAULT_FEE)
-			if ba.Cmp(total) >= 0 {
-			    iter.Release() 
-			    db.Close() 
-			    cancel()
-			    lock.Unlock()
-			    return s[0],key,nil
+			    ba := (*big.Int)(&result)
+			    va,_ := new(big.Int).SetString(amount,10)
+			     total := new(big.Int).Add(va,ETH_DEFAULT_FEE)
+			    if ba.Cmp(total) >= 0 {
+				iter.Release() 
+				db.Close() 
+				cancel()
+				lock.Unlock()
+				return s[0],key,nil
+			    }
 			}
+			/////
 		    } else { //BTC
 			////
 		    }
