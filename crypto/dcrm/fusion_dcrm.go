@@ -40,6 +40,7 @@ import (
 	"runtime"
 	"path/filepath"
 	"os/user"
+	"sort"
 )
 ////////////
 
@@ -132,9 +133,16 @@ var (
     BTC_DEFAULT_FEE float64
     ETH_DEFAULT_FEE *big.Int
 
+    mergenum = 0
+
     //
-    BLOCK_FORK_1 = "70000" //fork for lockin,txhash store into block.
+    BLOCK_FORK_1 = "80000" //fork for lockin,txhash store into block.
+    BLOCK_FORK_2 = "100000" //fork for lockout choose real dcrm from.
 )
+
+func IsCodeVersion(version string) bool {
+    return false
+}
 
 func GetLockoutInfoFromLocalDB(hashkey string) (string,error) {
     if hashkey == "" {
@@ -567,9 +575,93 @@ func IsDcrmAddr(addr string) bool {
 	return false 
 }
 //////
+type DcrmAddrInfo struct {
+    DcrmAddr string 
+    FusionAccount  string 
+    CoinType string
+    Balance *big.Int
+}
+
+type DcrmAddrInfoWrapper struct {
+    dcrmaddrinfo [] DcrmAddrInfo
+    by func(p, q * DcrmAddrInfo) bool
+}
+
+func (dw DcrmAddrInfoWrapper) Len() int {
+    return len(dw.dcrmaddrinfo)
+}
+
+func (dw DcrmAddrInfoWrapper) Swap(i, j int){
+    dw.dcrmaddrinfo[i], dw.dcrmaddrinfo[j] = dw.dcrmaddrinfo[j], dw.dcrmaddrinfo[i]
+}
+
+func (dw DcrmAddrInfoWrapper) Less(i, j int) bool {
+    return dw.by(&dw.dcrmaddrinfo[i], &dw.dcrmaddrinfo[j])
+}
+
+func MergeDcrmBalance2(account string,from string,to string,value *big.Int,cointype string,res chan bool) {
+    if strings.EqualFold(cointype,"ETH") || strings.EqualFold(cointype,"BTC") {
+	    va := fmt.Sprintf("%v",value)
+	    v := DcrmLockout{Txhash:"xxx",Tx:"xxx",FusionFrom:"xxx",DcrmFrom:"xxx",RealFusionFrom:account,RealDcrmFrom:from,Lockoutto:to,Value:va,Cointype:cointype}
+	    retva,err := Validate_Lockout(&v)
+	    if err != nil || retva == "" {
+		    log.Debug("=============MergeDcrmBalance,send tx fail.==============")
+		    res <-false 
+		    return 
+	    }
+	    
+	    retvas := strings.Split(retva,":")
+	    if len(retvas) != 2 {
+		res <-false 
+		return
+	    }
+	    hashkey := retvas[0]
+	    realdcrmfrom := retvas[1]
+	    
+	    vv := DcrmLockin{Tx:"xxx"+"-"+va+"-"+cointype,LockinAddr:to,Hashkey:hashkey,RealDcrmFrom:realdcrmfrom}
+	    if _,err = Validate_Txhash(&vv);err != nil {
+		    log.Debug("=============MergeDcrmBalance,validate fail.==============")
+		res <-false 
+		return
+	    }
+
+	    res <-true
+	    return
+	}
+}
+
+func MergeDcrmBalance(account string,from string,to string,value *big.Int,cointype string) {
+    if account == "" || from == "" || to == "" || value == nil || cointype == "" {
+	return
+    }
+
+    count := 0
+    for {
+	count++
+	if count == 400 {
+	    return
+	}
+	
+	res := make(chan bool, 1)
+	go MergeDcrmBalance2(account,from,to,value,cointype,res)
+	ret,cherr := GetChannelValue(res)
+	if cherr != nil {
+	    return	
+	}
+
+	if ret != "" {
+	    mergenum++
+	    return
+	}
+	 
+	time.Sleep(time.Duration(10)*time.Second) //1000 == 1s
+    }
+}
 
 func ChooseRealFusionAccountForLockout(amount string,lockoutto string,cointype string) (string,string,error) {
 
+    var dai []DcrmAddrInfo
+    
     if strings.EqualFold(cointype,"ETH") == true {
 
 	 client, err := rpc.Dial(ETH_SERVER)
@@ -626,6 +718,18 @@ func ChooseRealFusionAccountForLockout(amount string,lockoutto string,cointype s
 			    }
 
 			    ba := (*big.Int)(&result)
+			    var m DcrmAddrInfo
+			    m.DcrmAddr = key
+			    m.FusionAccount = s[0]
+			    m.CoinType = cointype
+			    m.Balance = ba
+			    dai = append(dai,m)
+			    log.Debug("=========ChooseRealFusionAccountForLockout","dai",dai,"","========")
+			     sort.Sort(DcrmAddrInfoWrapper{dai, func(p, q *DcrmAddrInfo) bool {
+				    return q.Balance.Cmp(p.Balance) <= 0 //q.Age < p.Age
+				}})
+			    log.Debug("=========ChooseRealFusionAccountForLockout","dai",dai,"","========")
+
 			    va,_ := new(big.Int).SetString(amount,10)
 			     total := new(big.Int).Add(va,ETH_DEFAULT_FEE)
 			    if ba.Cmp(total) >= 0 {
@@ -643,6 +747,82 @@ func ChooseRealFusionAccountForLockout(amount string,lockoutto string,cointype s
 		}
 	    }
 	} 
+
+	if len(dai) < 1 {
+	    iter.Release() 
+	    db.Close() 
+	    cancel()
+	    lock.Unlock()
+	    return "","",errors.New("no get real fusion account to lockout.")
+	}
+	
+	va,_ := new(big.Int).SetString(amount,10)
+	va = new(big.Int).Add(va,ETH_DEFAULT_FEE)
+	var bn *big.Int
+	for i,v := range dai {
+	    if i == 0 {
+		bn = v.Balance
+	    } else {
+		if v.Balance.Cmp(ETH_DEFAULT_FEE) >= 0 {
+		    d := new(big.Int).Sub(v.Balance,ETH_DEFAULT_FEE)
+		    bn = new(big.Int).Add(bn,d)
+		}
+	    }
+	}
+
+	if bn.Cmp(va) < 0 {
+	    iter.Release() 
+	    db.Close() 
+	    cancel()
+	    lock.Unlock()
+	    return "","",errors.New("no get real fusion account to lockout.")
+	}
+
+	mergenum = 0
+	count := 0
+	var fa string
+	var fn string
+	for i,v := range dai {
+	    if i == 0 {
+		fn = v.FusionAccount
+		fa = v.DcrmAddr
+		bn = v.Balance
+	    } else {
+		if v.Balance.Cmp(ETH_DEFAULT_FEE) >= 0 {
+		    d := new(big.Int).Sub(v.Balance,ETH_DEFAULT_FEE)
+		    bn = new(big.Int).Add(bn,d)
+		    count++
+		    go MergeDcrmBalance(v.FusionAccount,v.DcrmAddr,fa,d,cointype)
+		    if bn.Cmp(va) >= 0 {
+			break
+		    }
+		}
+	    }
+	}
+
+	////
+	times := 0
+	for {
+	    times++
+	    if times == 400 {
+		iter.Release() 
+		db.Close() 
+		cancel()
+		lock.Unlock()
+		return "","",errors.New("no get real fusion account to lockout.")
+	    }
+
+	    if mergenum == count {
+		iter.Release() 
+		db.Close() 
+		cancel()
+		lock.Unlock()
+		return fn,fa,nil
+	    }
+	     
+	    time.Sleep(time.Duration(10)*time.Second) //1000 == 1s
+	}
+	////
 	
 	iter.Release() 
 	db.Close() 
@@ -683,6 +863,19 @@ func ChooseRealFusionAccountForLockout(amount string,lockoutto string,cointype s
 			////////
 		    } else { //BTC
 			va,_ := strconv.ParseFloat(amount, 64)
+			var m DcrmAddrInfo
+			m.DcrmAddr = key
+			m.FusionAccount = s[0]
+			m.CoinType = cointype
+			ba,_ := GetDcrmAddrBalanceForLockout(key,lockoutto,va)
+			m.Balance = ba
+			dai = append(dai,m)
+			log.Debug("=========ChooseRealFusionAccountForLockout","dai",dai,"","========")
+			 sort.Sort(DcrmAddrInfoWrapper{dai, func(p, q *DcrmAddrInfo) bool {
+				return q.Balance.Cmp(p.Balance) <= 0 //q.Age < p.Age
+			    }})
+
+			log.Debug("=========ChooseRealFusionAccountForLockout","dai",dai,"","========")
 			if ChooseDcrmAddrForLockoutByValue(key,lockoutto,va) {
 			    log.Debug("=========choose btc dcrm success.=============")
 			    iter.Release() 
@@ -694,6 +887,93 @@ func ChooseRealFusionAccountForLockout(amount string,lockoutto string,cointype s
 		}
 	    }
 	} 
+	
+	if len(dai) < 1 {
+	    iter.Release() 
+	    db.Close() 
+	    lock.Unlock()
+	    return "","",errors.New("no get real fusion account to lockout.")
+	}
+	
+	va,_ := strconv.ParseFloat(amount, 64)
+	toa := GetTxOutsAmount(lockoutto,va)
+	if toa == nil {
+	    iter.Release() 
+	    db.Close() 
+	    lock.Unlock()
+	    return "","",errors.New("no get real fusion account to lockout.")
+	}
+
+	fee,err:= GetBTCTxFee(lockoutto,va)
+	if err != nil {
+	    iter.Release() 
+	    db.Close() 
+	    lock.Unlock()
+	    return "","",errors.New("no get real fusion account to lockout.")
+	}
+
+	var bn *big.Int
+	for i,v := range dai {
+	    if i == 0 {
+		bn = v.Balance
+	    } else {
+		if v.Balance.Cmp(fee) >= 0 {
+		    d := new(big.Int).Sub(v.Balance,fee)
+		    bn = new(big.Int).Add(bn,d)
+		}
+	    }
+	}
+
+	if bn.Cmp(toa) < 0 {
+	    iter.Release() 
+	    db.Close() 
+	    lock.Unlock()
+	    return "","",errors.New("no get real fusion account to lockout.")
+	}
+
+	mergenum = 0
+	count := 0
+	var fa string
+	var fn string
+	for i,v := range dai {
+	    if i == 0 {
+		fn = v.FusionAccount
+		fa = v.DcrmAddr
+		bn = v.Balance
+	    } else {
+		if v.Balance.Cmp(fee) >= 0 {
+		    d := new(big.Int).Sub(v.Balance,fee)
+		    bn = new(big.Int).Add(bn,d)
+		    count++
+		    go MergeDcrmBalance(v.FusionAccount,v.DcrmAddr,fa,d,cointype)
+		    if bn.Cmp(toa) >= 0 {
+			break
+		    }
+		}
+	    }
+	}
+
+	////
+	times := 0
+	for {
+	    times++
+	    if times == 400 {
+		iter.Release() 
+		db.Close() 
+		lock.Unlock()
+		return "","",errors.New("no get real fusion account to lockout.")
+	    }
+
+	    if mergenum == count {
+		iter.Release() 
+		db.Close() 
+		lock.Unlock()
+		return fn,fa,nil
+	    }
+	     
+	    time.Sleep(time.Duration(10)*time.Second) //1000 == 1s
+	}
+	////
 	
 	iter.Release() 
 	db.Close() 
@@ -2907,6 +3187,217 @@ func validate_txhash(msgprex string,tx string,lockinaddr string,hashkey string,r
 	return
     }
 
+    //=======================================
+    xxx := strings.Split(tx,"-")
+    if len(xxx) > 0 && strings.EqualFold(xxx[0],"xxx") {
+	var cointype string
+	var realdcrmto string
+	var lockinvalue string
+	cointype = xxx[2] 
+	realdcrmto = lockinaddr
+	lockinvalue = xxx[1]
+	if realdcrmfrom == "" {
+	    log.Debug("===============validate_txhash,choose real fusion account fail.==================")
+	    var ret2 Err
+	    ret2.info = "choose real fusion account fail."
+	    res := RpcDcrmRes{ret:"",err:ret2}
+	    ch <- res
+	    return
+	}
+
+	if strings.EqualFold(cointype,"BTC") == true {
+	    rpcClient, err := NewClient(SERVER_HOST, SERVER_PORT, USER, PASSWD, USESSL)
+	    if err != nil {
+		    log.Debug("=============validate_txhash,new client fail.========")
+		    var ret2 Err
+		    ret2.info = "new client fail."
+		    res := RpcDcrmRes{ret:"",err:ret2}
+		    ch <- res
+		    return
+	    }
+	    reqJson := "{\"method\":\"getrawtransaction\",\"params\":[\"" + string(hashkey) + "\"" + "," + "true" + "],\"id\":1}";
+
+	    //timeout TODO
+	    var returnJson string
+	    returnJson, err2 := rpcClient.Send(reqJson)
+	    log.Debug("=============validate_txhash,","return Json data",returnJson,"","=============")
+	    if err2 != nil {
+		    log.Debug("=============validate_txhash,send rpc fail.========")
+		    var ret2 Err
+		    ret2.info = "send rpc fail."
+		    res := RpcDcrmRes{ret:"",err:ret2}
+		    ch <- res
+		    return
+	    }
+
+	    ////
+	    if returnJson == "" {
+		log.Debug("=============validate_txhash,get btc transaction fail.========")
+		var ret2 Err
+		ret2.info = "get btc transaction fail."
+		res := RpcDcrmRes{ret:"",err:ret2}
+		ch <- res
+		return
+	    }
+	    ////
+	    ValidBTCTx(returnJson,hashkey,realdcrmfrom,realdcrmto,xxx[1],true,ch) 
+	    return
+	}
+
+	answer := "no_pass" 
+	if strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true {
+
+	    if strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true {
+		client, err := rpc.Dial(ETH_SERVER)
+		if err != nil {
+			log.Debug("==============validate_txhash,eth rpc.Dial error.===========")
+			var ret2 Err
+			ret2.info = "eth rpc.Dial error."
+			res := RpcDcrmRes{ret:"",err:ret2}
+			ch <- res
+			return
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		var r *types.Receipt
+		err = client.CallContext(ctx, &r, "eth_getTransactionReceipt", common.HexToHash(hashkey))
+		if err != nil {
+		    var ret2 Err
+		    ret2.info = "get erc20 tx info fail."
+		    res := RpcDcrmRes{ret:"",err:ret2}
+		    ch <- res
+		    return
+		}
+
+		//bug
+		log.Debug("===============validate_txhash,","receipt",r,"","=================")
+		if r == nil {
+		    var ret2 Err
+		    ret2.info = "erc20 tx validate fail."
+		    res := RpcDcrmRes{ret:"",err:ret2}
+		    ch <- res
+		    return
+		}
+		//
+
+		for _, logs := range r.Logs {
+		    ercdata := new(big.Int).SetBytes(logs.Data)//string(logs.Data)
+		    ercdatanum := fmt.Sprintf("%v",ercdata)
+		    log.Debug("===============validate_txhash,","erc data",ercdatanum,"","=================")
+		    for _,top := range logs.Topics {
+			log.Debug("===============validate_txhash,","top",top.Hex(),"","=================")
+			/////
+
+			aa,_ := new(big.Int).SetString(top.Hex(),0)
+			bb,_ := new(big.Int).SetString(realdcrmto,0)
+			if lockinvalue == ercdatanum && aa.Cmp(bb) == 0 {
+			    log.Debug("==============validate_txhash,erc validate pass.===========")
+			    answer = "pass"
+			    break
+			}
+		    }
+		}
+		
+		if answer == "pass" {
+		    log.Debug("==============validate_txhash,answer pass.===========")
+		    res := RpcDcrmRes{ret:"true",err:nil}
+		    ch <- res
+		    return
+		} 
+
+		log.Debug("==============validate_txhash,answer no pass.===========")
+		var ret2 Err
+		ret2.info = "lockin validate fail."
+		res := RpcDcrmRes{ret:"",err:ret2}
+		ch <- res
+		return
+	    }
+
+	     client, err := rpc.Dial(ETH_SERVER)
+	    if err != nil {
+		    log.Debug("==============validate_txhash,eth rpc.Dial error.===========")
+		    var ret2 Err
+		    ret2.info = "eth rpc.Dial error."
+		    res := RpcDcrmRes{ret:"",err:ret2}
+		    ch <- res
+		    return
+	    }
+
+	    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	    defer cancel()
+
+	    var result RPCTransaction
+
+	    //timeout TODO
+		err = client.CallContext(ctx, &result, "eth_getTransactionByHash",hashkey)
+		if err != nil {
+			log.Debug("===============validate_txhash,client call error.===========")
+			var ret2 Err
+			ret2.info = "client call error."
+			res := RpcDcrmRes{ret:"",err:ret2}
+			ch <- res
+			return
+		}
+
+		log.Debug("===============validate_txhash,","get BlockHash",result.BlockHash,"get BlockNumber",result.BlockNumber,"get From",result.From,"get Hash",result.Hash,"","===============")
+
+		if result.To == nil {
+		    log.Debug("===============validate_txhash,validate tx fail.===========")
+		    var ret2 Err
+		    ret2.info = "validate tx fail."
+		    res := RpcDcrmRes{ret:"",err:ret2}
+		    ch <- res
+		    return
+		}
+
+		////
+		if result.From.Hex() == "" {
+		    var ret2 Err
+		    ret2.info = "get eth transaction fail."
+		    res := RpcDcrmRes{ret:"",err:ret2}
+		    ch <- res
+		    return
+		}
+		////
+
+	    var from string
+	    var to string
+	    var value *big.Int 
+	    var vv string
+	    if strings.EqualFold(cointype,"ETH") == true {
+		from = result.From.Hex()
+		to = (*result.To).Hex()
+		value, _ = new(big.Int).SetString(result.Value.String(), 0)
+		vv = fmt.Sprintf("%v",value)
+	    } 
+	    
+	    ////bug
+	    var vvv string
+	    vvv = xxx[1]
+	    log.Debug("===============validate_txhash,","get to",to,"get value",vv,"real dcrm to",realdcrmto,"rpc value",vvv,"","===============")
+
+	    if strings.EqualFold(from,realdcrmfrom) && vv == vvv && strings.EqualFold(to,realdcrmto) == true {
+		answer = "pass"
+	    }
+	}
+
+	if answer == "pass" {
+	    res := RpcDcrmRes{ret:"true",err:nil}
+	    ch <- res
+	    return
+	} 
+
+	var ret2 Err
+	ret2.info = "lockin validate fail."
+	res := RpcDcrmRes{ret:"",err:ret2}
+	ch <- res
+
+	return
+    }
+    //=======================================
+
     signtx := new(types.Transaction)
     err := signtx.UnmarshalJSON([]byte(tx))
     if err != nil {
@@ -4041,7 +4532,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 
 	    func validate_lockout(msgprex string,txhash_lockout string,lilotx string,fusionfrom string,dcrmfrom string,realfusionfrom string,realdcrmfrom string,lockoutto string,value string,cointype string,ch chan interface{}) {
 	    log.Debug("=============validate_lockout============")
-	   
+
 	    val,ok := GetLockoutInfoFromLocalDB(txhash_lockout)
 	    if ok == nil && val != "" {
 		res := RpcDcrmRes{ret:val,err:nil}
@@ -4091,7 +4582,9 @@ func GetDcrmAddr(hash string,cointype string) string {
 		SendTxForLockout(realfusionfrom,realdcrmfrom,lockoutto,value,cointype,ret)
 		retva := lockout_tx_hash + ":" + realdcrmfrom
 		//types.SetDcrmValidateData(txhash_lockout,retva)
-		WriteLockoutInfoToLocalDB(txhash_lockout,retva)
+		if !strings.EqualFold(txhash_lockout,"xxx") {
+		    WriteLockoutInfoToLocalDB(txhash_lockout,retva)
+		}
 		res := RpcDcrmRes{ret:retva,err:nil}
 		ch <- res
 		return
@@ -4114,7 +4607,9 @@ func GetDcrmAddr(hash string,cointype string) string {
 		log.Debug("=============create btc tx success.=================")
 		retva := lockout_tx_hash + ":" + realdcrmfrom
 		//types.SetDcrmValidateData(txhash_lockout,retva)
-		WriteLockoutInfoToLocalDB(txhash_lockout,retva)
+		if !strings.EqualFold(txhash_lockout,"xxx") {
+		    WriteLockoutInfoToLocalDB(txhash_lockout,retva)
+		}
 		res := RpcDcrmRes{ret:retva,err:nil}
 		ch <- res
 		return
