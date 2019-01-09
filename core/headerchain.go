@@ -132,6 +132,7 @@ func (hc *HeaderChain) GetBlockNumber(hash common.Hash) *uint64 {
 // in two scenarios: pure-header mode of operation (light clients), or properly
 // separated header/block phases (non-archive clients).
 func (hc *HeaderChain) WriteHeader(header *types.Header) (status WriteStatus, err error) {
+    //log.Debug("=========HeaderChain.WriteHeader================")//caihaijun
 	// Cache some values to prevent constant recalculation
 	var (
 		hash   = header.Hash()
@@ -456,6 +457,7 @@ type DeleteCallback func(rawdb.DatabaseDeleter, common.Hash, uint64)
 // SetHead rewinds the local chain to a new head. Everything above the new head
 // will be deleted and the new one set.
 func (hc *HeaderChain) SetHead(head uint64, delFn DeleteCallback) {
+    //log.Debug("=========HeaderChain.SetHead================")//caihaijun
 	height := uint64(0)
 
 	if hdr := hc.CurrentHeader(); hdr != nil {

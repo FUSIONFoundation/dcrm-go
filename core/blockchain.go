@@ -204,8 +204,10 @@ func (bc *BlockChain) getProcInterrupt() bool {
 // loadLastState loads the last known chain state from the database. This method
 // assumes that the chain manager mutex is held.
 func (bc *BlockChain) loadLastState() error {
+	//log.Debug("=========BlockChain.loadLastState===========")//caihaijun
 	// Restore the last known head block
 	head := rawdb.ReadHeadBlockHash(bc.db)
+	//log.Debug("=========BlockChain.loadLastState,", "head", head, "", "===========")//caihaijun
 	if head == (common.Hash{}) {
 		// Corrupt or empty database, init from scratch
 		log.Warn("Empty database, resetting chain")
@@ -213,6 +215,7 @@ func (bc *BlockChain) loadLastState() error {
 	}
 	// Make sure the entire head block is available
 	currentBlock := bc.GetBlockByHash(head)
+	//log.Debug("=========BlockChain.loadLastState,", "currentBlock", currentBlock, "", "===========")//caihaijun
 	if currentBlock == nil {
 		// Corrupt or empty database, init from scratch
 		log.Warn("Head block missing, resetting chain", "hash", head)
@@ -231,11 +234,15 @@ func (bc *BlockChain) loadLastState() error {
 
 	// Restore the last known head header
 	currentHeader := currentBlock.Header()
+	//log.Debug("=========BlockChain.loadLastState,", "currentHeader", currentHeader, "", "===========")//caihaijun
 	if head := rawdb.ReadHeadHeaderHash(bc.db); head != (common.Hash{}) {
 		if header := bc.GetHeaderByHash(head); header != nil {
+		//	log.Debug("=========BlockChain.loadLastState,", "header", header, "", "===========")//caihaijun
 			currentHeader = header
 		}
 	}
+	//log.Debug("=========BlockChain.loadLastState,", "head", head, "", "===========")//caihaijun
+	//log.Debug("=========BlockChain.loadLastState,", "currentHeader", currentHeader, "", "===========")//caihaijun
 	bc.hc.SetCurrentHeader(currentHeader)
 
 	// Restore the last known head fast block
@@ -488,6 +495,7 @@ func (bc *BlockChain) insert(block *types.Block) {
 
 	// If the block is better than our head or is on a different chain, force update heads
 	if updateHeads {
+	        //log.Debug("=========BlockChain.insert===========")//caihaijun
 		bc.hc.SetCurrentHeader(block.Header())
 		rawdb.WriteHeadFastBlockHash(bc.db, block.Hash())
 

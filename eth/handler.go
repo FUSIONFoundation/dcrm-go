@@ -249,6 +249,7 @@ func (pm *ProtocolManager) newPeer(pv int, p *p2p.Peer, rw p2p.MsgReadWriter) *p
 // handle is the callback invoked to manage the life cycle of an eth peer. When
 // this function terminates, the peer is disconnected.
 func (pm *ProtocolManager) handle(p *peer) error {
+    //log.Debug("==========ProtocolManager.handle===============")//caihaijun
 	// Ignore maxPeers if this is a trusted peer
 	if pm.peers.Len() >= pm.maxPeers && !p.Peer.Info().Network.Trusted {
 		return p2p.DiscTooManyPeers
@@ -263,6 +264,7 @@ func (pm *ProtocolManager) handle(p *peer) error {
 		number  = head.Number.Uint64()
 		td      = pm.blockchain.GetTd(hash, number)
 	)
+	//log.Debug("==========ProtocolManager.handle,","head",head,"","==============")//caihaijun
 	if err := p.Handshake(pm.networkID, td, hash, genesis.Hash()); err != nil {
 		p.Log().Debug("Fusion handshake failed", "err", err)
 		return err
