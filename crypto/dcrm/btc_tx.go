@@ -32,6 +32,7 @@ import (
 	"github.com/fusion/go-fusion/crypto"
 	"github.com/fusion/go-fusion/log"
 	//"github.com/fusion/go-fusion/crypto/dcrm"
+	//"strconv"
 )
 
 //func main() {}
@@ -77,6 +78,34 @@ func Btc_createTransaction(msgprex string,dcrmaddr string, toAddr string, change
 
 	log.Debug("==========Btc_createTransaction,return tx hash.=============")
 	return txhash
+}
+
+func GetTxOutsAmount(lockoutto string,value float64) *big.Int {
+        if lockoutto == "" || value <= 0 {
+	    return nil 
+	}
+
+	// 设置交易输出
+	var txOuts []*wire.TxOut
+	cfg := chaincfg.MainNetParams
+	toAddr, _ := btcutil.DecodeAddress(lockoutto, &cfg)
+	pkscript, _ := txscript.PayToAddrScript(toAddr)
+	txOut := wire.NewTxOut(int64(value),pkscript)
+	txOuts = append(txOuts,txOut)
+	for _, txo := range txOuts {
+		log.Debug("","txo",txo)
+		log.Debug("","txo value",txo.Value)
+	}
+	
+	targetAmount := SumOutputValues(txOuts)
+	estimatedSize := EstimateVirtualSize(0, 1, 0, txOuts, true)
+	targetFee := txrules.FeeForSerializeSize(*opts.FeeRate, estimatedSize)
+	 input := (targetAmount+targetFee).ToBTC()*100000000 //??BTC
+	data := fmt.Sprintf("%v",input)
+	 log.Debug("==========GetTxOutsAmount,","data",data,"","=============")
+	 //ins := strconv.FormatFloat(input, 'f', -1, 64)
+	 total,_ := new(big.Int).SetString(data,10)
+	return total
 }
 
 func ChooseDcrmAddrForLockoutByValue(dcrmaddr string,lockoutto string,value float64) bool {
@@ -152,28 +181,80 @@ func ChooseDcrmAddrForLockoutByValue(dcrmaddr string,lockoutto string,value floa
 	 return false
 }
 
-func GetBTCTxFee(dcrmaddr string,lockoutto string,value float64) (float64,error) {
-    if dcrmaddr == "" || lockoutto == "" || value <= 0 {
-	return 0,errors.New("get fee error.")
-    }
+func GetDcrmAddrBalanceForLockout(dcrmaddr string,lockoutto string,value float64) (*big.Int,bool) {
 
-    unspentOutputs, err := listUnspent(dcrmaddr)
-    if err != nil {
-	return 0,errors.New("error: get unspent fail.")
+        zero,_ := new(big.Int).SetString("0",10)
+        if dcrmaddr == "" || lockoutto == "" || value <= 0 {
+	    return zero,false
+	}
+
+	log.Debug("==========GetDcrmAddrBalanceForLockout,","dcrmaddr",dcrmaddr,"lockoutto",lockoutto,"value",value,"","================")
+	//unspentOutputs, err := listUnspent_blockchaininfo(dcrmaddr)
+	unspentOutputs, err := listUnspent(dcrmaddr)
+	log.Debug("=========GetDcrmAddrBalanceForLockout,","unspentOutputs",unspentOutputs,"","================")
+	if err != nil {
+		return zero,false
+	}
+	sourceOutputs := make(map[string][]btcjson.ListUnspentResult)
+	
+	for _, unspentOutput := range unspentOutputs {
+		if !unspentOutput.Spendable {
+		    log.Debug("=========GetDcrmAddrBalanceForLockout,un-spendable=======")
+			continue
+		}
+		if unspentOutput.Confirmations < opts.RequiredConfirmations {
+			log.Debug("=========GetDcrmAddrBalanceForLockout,< confirms=======")
+			continue
+		}
+		sourceAddressOutputs := sourceOutputs[unspentOutput.Address]
+		sourceOutputs[unspentOutput.Address] = append(sourceAddressOutputs, unspentOutput)
+	}
+	log.Debug("","sourceOutputs",sourceOutputs)
+
+	// 设置交易输出
+	var txOuts []*wire.TxOut
+	cfg := chaincfg.MainNetParams
+	toAddr, _ := btcutil.DecodeAddress(lockoutto, &cfg)
+	pkscript, _ := txscript.PayToAddrScript(toAddr)
+	txOut := wire.NewTxOut(int64(value),pkscript)
+	txOuts = append(txOuts,txOut)
+	for _, txo := range txOuts {
+		log.Debug("","txo",txo)
+		log.Debug("","txo value",txo.Value)
+	}
+
+	var inputAmount btcutil.Amount
+
+	for _, previousOutputs := range sourceOutputs {
+
+		targetAmount := SumOutputValues(txOuts)
+		estimatedSize := EstimateVirtualSize(0, 1, 0, txOuts, true)
+		targetFee := txrules.FeeForSerializeSize(*opts.FeeRate, estimatedSize)
+
+		//设置输入
+		var inputSource txauthor.InputSource
+		for i, _ := range previousOutputs {
+			inputSource = makeInputSource(previousOutputs[:i+1])
+			inputAmount,_, _, _, err = inputSource(targetAmount + targetFee)
+			if err != nil {
+				return zero,false
+			}
+		}
+	 }
+
+	 log.Debug("==========GetDcrmAddrBalanceForLockout,","inputAmount",inputAmount,"","=============")
+	 input := inputAmount.ToBTC()*100000000 //??BTC
+	data := fmt.Sprintf("%v",input)
+	 log.Debug("==========GetDcrmAddrBalanceForLockout,","data",data,"","=============")
+	 //ins := strconv.FormatFloat(input, 'f', -1, 64)
+	 total,_ := new(big.Int).SetString(data,10)
+	 return total,true
+}
+
+func GetBTCTxFee(lockoutto string,value float64) (*big.Int,error) {
+    if lockoutto == "" || value <= 0 {
+	return nil,errors.New("get fee error.")
     }
-    sourceOutputs := make(map[string][]btcjson.ListUnspentResult)
-    
-    for _, unspentOutput := range unspentOutputs {
-	    if !unspentOutput.Spendable {
-		    continue
-	    }
-	    if unspentOutput.Confirmations < opts.RequiredConfirmations {
-		    continue
-	    }
-	    sourceAddressOutputs := sourceOutputs[unspentOutput.Address]
-	    sourceOutputs[unspentOutput.Address] = append(sourceAddressOutputs, unspentOutput)
-    }
-    log.Debug("","sourceOutputs",sourceOutputs)
 
     // 设置交易输出
     var txOuts []*wire.TxOut
@@ -187,22 +268,13 @@ func GetBTCTxFee(dcrmaddr string,lockoutto string,value float64) (float64,error)
 	    log.Debug("","txo value",txo.Value)
     }
 
-    /*var numErrors int
-    var reportError = func(format string, args ...interface{}) {
-	    fmt.Fprintf(os.Stderr, format, args...)
-	    os.Stderr.Write([]byte{'\n'})
-	    numErrors++
-    }*/
-
-    //for _, previousOutputs := range sourceOutputs {
-
-	    //targetAmount := SumOutputValues(txOuts)
-	    estimatedSize := EstimateVirtualSize(0, 1, 0, txOuts, true)
-	    targetFee := txrules.FeeForSerializeSize(*opts.FeeRate, estimatedSize)
-	    return targetFee.ToBTC(),nil
-     //}
-
-    return 0,errors.New("get fee fail.")
+    estimatedSize := EstimateVirtualSize(0, 1, 0, txOuts, true)
+    targetFee := txrules.FeeForSerializeSize(*opts.FeeRate, estimatedSize)
+     input := targetFee.ToBTC()*100000000 //??BTC
+    data := fmt.Sprintf("%v",input)
+     log.Debug("==========GetBTCTxFee,","data",data,"","=============")
+     total,_ := new(big.Int).SetString(data,10)
+    return total,nil
 }
 
 func btc_createTransaction(msgprex string,dcrmaddr string,ch chan interface{}) (string,error) {

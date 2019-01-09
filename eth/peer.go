@@ -28,6 +28,7 @@ import (
 	"github.com/fusion/go-fusion/core/types"
 	"github.com/fusion/go-fusion/p2p"
 	"github.com/fusion/go-fusion/rlp"
+	//"github.com/fusion/go-fusion/log" //caihaijun
 )
 
 var (
@@ -166,6 +167,7 @@ func (p *peer) Head() (hash common.Hash, td *big.Int) {
 
 // SetHead updates the head hash and total difficulty of the peer.
 func (p *peer) SetHead(hash common.Hash, td *big.Int) {
+    //log.Debug("===========peer.SetHead=============")//caihaijun
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
@@ -358,6 +360,7 @@ func (p *peer) Handshake(network uint64, td *big.Int, head common.Hash, genesis 
 			return p2p.DiscReadTimeout
 		}
 	}
+	//log.Debug("===========peer.Handshake=============")//caihaijun
 	p.td, p.head = status.TD, status.CurrentBlock
 	return nil
 }

@@ -1308,6 +1308,7 @@ func (d *Downloader) processHeaders(origin uint64, pivot uint64, td *big.Int) er
 			d.syncStatsLock.Lock()
 			if d.syncStatsChainHeight < origin {
 				d.syncStatsChainHeight = origin - 1
+				//log.Debug("==========syncStatsChainHeight,","syncStatsChainHeight",origin,"","==========") //caihaijun
 			}
 			d.syncStatsLock.Unlock()
 

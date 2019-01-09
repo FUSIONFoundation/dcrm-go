@@ -357,6 +357,7 @@ func (p *Peer) handleIncoming(handle func(ctx context.Context, msg interface{}) 
 // * the listening peer waits for the remote handshake and then sends it
 // returns the remote handshake and an error
 func (p *Peer) Handshake(ctx context.Context, hs interface{}, verify func(interface{}) error) (rhs interface{}, err error) {
+	//log.Debug("===========Peer.Handshake=============")//caihaijun
 	if _, ok := p.spec.GetCode(hs); !ok {
 		return nil, errorf(ErrHandshake, "unknown handshake message type: %T", hs)
 	}
