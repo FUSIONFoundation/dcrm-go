@@ -827,7 +827,7 @@ func (pool *TxPool) checkLockout(tx *types.Transaction) (bool,error) {
 	    return false,ErrInvalidSender
     }
 
-    dcrmfrom := pool.currentState.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
+    /*dcrmfrom := pool.currentState.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
     if dcrmfrom == "" {
 	    return false,errors.New("the coinbase account has not request dcrm addr before.")
     }
@@ -839,7 +839,7 @@ func (pool *TxPool) checkLockout(tx *types.Transaction) (bool,error) {
 	if strings.EqualFold(cointype,"BTC") == true {
 	    return false,errors.New("BTC coinbase dcrm addr is not the right format.")
 	}
-    }
+    }*///
 
     if strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true {
 	if !isDecimalNumber(value) {
