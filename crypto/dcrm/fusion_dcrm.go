@@ -136,6 +136,7 @@ var (
     mergenum = 0
 
     //
+    BLOCK_FORK_0 = "18000" //fork for dcrmsendtransaction.not to self.
     BLOCK_FORK_1 = "80000" //fork for lockin,txhash store into block.
     BLOCK_FORK_2 = "100000" //fork for lockout choose real dcrm from.
 )

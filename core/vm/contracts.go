@@ -834,12 +834,13 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 
 	num,_ := new(big.Int).SetString(dcrm.BLOCK_FORK_1,10)
 	if evm.BlockNumber.Cmp(num) > 0 {
+	    //log.Debug("===============dcrmTransaction.Run,TRANSACTION,blocknum > dcrm.BLOCK_FORK_1 .===============")
 	    h := crypto.Keccak256Hash([]byte(strings.ToLower(m[3]))) //bug
 	    s1 := evm.StateDB.GetStateDcrmAccountData(from,h)
 	    s2 := evm.StateDB.GetStateDcrmAccountData(to,h)
 
 	    //bug
-	    num2,_ := new(big.Int).SetString("18000",10)
+	    num2,_ := new(big.Int).SetString(dcrm.BLOCK_FORK_0,10)
 	    if strings.EqualFold(from.Hex(),to.Hex()) && evm.BlockNumber.Cmp(num2) > 0 {
 		//log.Debug("===============dcrmTransaction.Run,TRANSACTION,to self.===============")
 		return nil,nil
@@ -915,7 +916,7 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 	s2 := evm.StateDB.GetStateDcrmAccountData(to,h)
 
 	//bug
-	num2,_ := new(big.Int).SetString("18000",10)
+	num2,_ := new(big.Int).SetString(dcrm.BLOCK_FORK_0,10)
 	if strings.EqualFold(from.Hex(),to.Hex()) && evm.BlockNumber.Cmp(num2) > 0 {
 	    //log.Debug("===============dcrmTransaction.Run,TRANSACTION,to self.===============")
 	    return nil,nil
