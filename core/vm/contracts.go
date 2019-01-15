@@ -724,7 +724,7 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
     }
 
     if m[0] == "LOCKOUT" {
-	//log.Debug("===============dcrmTransaction.Run,LOCKOUT===============")
+	log.Debug("===============dcrmTransaction.Run,LOCKOUT===============")
 	from := contract.Caller()
 	
 	num,_ := new(big.Int).SetString(dcrm.BLOCK_FORK_1,10)
@@ -752,6 +752,7 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 		    }
 
 		    if strings.EqualFold("BTC",m[3]) == true {
+			log.Debug("===============dcrmTransaction.Run,LOCKOUT11111===============")
 			ss := string(s)
 			index := 0 //default
 			_,amount,_,err := getDataByIndex(ss,index)
@@ -761,13 +762,16 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 				b := new(big.Int).Sub(ba,ba2)
 				//sub fee
 				default_fee := dcrm.BTC_DEFAULT_FEE*100000000
-				 fee := strconv.FormatFloat(default_fee, 'f', -1, 64)
+				 fee := strconv.FormatFloat(default_fee, 'f', 0, 64)
+				log.Debug("===============dcrmTransaction.Run,LOCKOUT,","fee",fee,"================")
 				def_fee,_ := new(big.Int).SetString(fee,10)
 				b = new(big.Int).Sub(b,def_fee)
 				bb := fmt.Sprintf("%v",b)
+				log.Debug("===============dcrmTransaction.Run,LOCKOUT,","bb",bb,"================")
 
 				ret,err := updateBalanceByIndex(ss,index,bb)
 				if err == nil {
+				    log.Debug("===============dcrmTransaction.Run,LOCKOUT22222===============")
 				    evm.StateDB.SetStateDcrmAccountData(from,h,ret)
 			    }
 			}
@@ -811,7 +815,7 @@ func (c *dcrmTransaction) Run(input []byte, contract *Contract, evm *EVM) ([]byt
 			    b := new(big.Int).Sub(ba,ba2)
 			    //sub fee
 			    default_fee := dcrm.BTC_DEFAULT_FEE*100000000
-			     fee := strconv.FormatFloat(default_fee, 'f', -1, 64)
+			     fee := strconv.FormatFloat(default_fee, 'f', 0, 64)
 			    def_fee,_ := new(big.Int).SetString(fee,10)
 			    b = new(big.Int).Sub(b,def_fee)
 			    bb := fmt.Sprintf("%v",b)

@@ -2,7 +2,7 @@ package dcrm
 
 import (
 	"encoding/json"
-	//"fmt"
+	"errors"
 	"sort"
 	"strings"
 
@@ -10,8 +10,26 @@ import (
 	"github.com/fusion/go-fusion/log"
 )
 
+func LockoutIsConfirmed(addr string,txhash string) (bool,error) {
+	resstr := GetUTXO_BlockChainInfo(addr)
+	utxoLsRes, err := parseUnspent(resstr)
+	log.Debug("=============LockoutIsConfirmed,","utxoLsRes",utxoLsRes)
+	if err != nil {
+	    log.Debug("======LockoutIsConfirmed,return err.==========")
+		return false, err
+	}
+	
+	for _, utxo := range utxoLsRes.Unspent_outputs {
+	    if strings.EqualFold(utxo.Tx_hash_big_endian,txhash) && utxo.Confirmations >= BTC_BLOCK_CONFIRMS {
+		return true,nil
+	    }
+	}
+
+	return false,errors.New("it is not confirmed.")
+}
+
 func listUnspent_blockchaininfo(addr string) ([]btcjson.ListUnspentResult, error) {
-	resstr := getUTXO_BlockChainInfo(addr)
+	resstr := GetUTXO_BlockChainInfo(addr)
 	utxoLsRes, err := parseUnspent(resstr)
 	log.Debug("=============listUnspent_blockchaininfo,","utxoLsRes",utxoLsRes)
 	if err != nil {
@@ -66,10 +84,10 @@ type UtxoRes struct {
 	Confirmations		int64
 }
 
-func getUTXO_BlockChainInfo (addr string) string {
+func GetUTXO_BlockChainInfo (addr string) string {
 	addrReceivedUrl := "https://testnet.blockchain.info/unspent?active=" + addr
 	blockchaininfores := loginPre1("GET",addrReceivedUrl)
-	log.Debug("=============getUTXO_BlockChainInfo,","blockchaininfores",blockchaininfores)
+	log.Debug("=============GetUTXO_BlockChainInfo,","blockchaininfores",blockchaininfores)
 	return blockchaininfores
 }
 
