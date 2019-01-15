@@ -32,10 +32,29 @@ import (
 	"github.com/fusion/go-fusion/crypto"
 	"github.com/fusion/go-fusion/log"
 	//"github.com/fusion/go-fusion/crypto/dcrm"
-	//"strconv"
+	"strconv"
+	"time"
 )
 
 //func main() {}
+
+type ListUTXOs struct {
+    RESULT []ListUTXO
+    ERROR error 
+    ID int
+}
+type ListUTXO struct {
+    TXID string
+    VOUT uint32
+    ADDRESS string
+    ACCOUNT string
+    SCRIPTPUBKEY string
+    AMOUNT float64
+    CONFIRMATIONS int64
+    SPENDABLE     bool
+    SOLVABLE bool
+    SAFE bool
+}
 
 var opts = struct {
 	Dcrmaddr              string  // from地址
@@ -80,6 +99,76 @@ func Btc_createTransaction(msgprex string,dcrmaddr string, toAddr string, change
 	return txhash
 }
 
+func ImportAddrToWallet(dcrmaddr string,ch chan bool) {
+	c, err := NewClient(SERVER_HOST, SERVER_PORT, USER, PASSWD, USESSL)
+	if err != nil {
+	    log.Debug("============ImportAddrToWallet,new client fail.===========")
+	    ch<- false
+	    return
+	}
+	
+	jsoncmd := "{\"jsonrpc\":\"1.0\",\"method\":\"importaddress\",\"params\":[\"" + dcrmaddr + "\"" + "," + "\"watch-only test\",true]" + "," + "\"id\":\"1\"}";
+	retdata,err := c.Send(jsoncmd)
+	time.Sleep(time.Duration(180)*time.Second) //1000 == 1s
+	if err != nil {
+	    log.Debug("============ImportAddrToWallet","err",err.Error(),"","===========")
+	    ch<- false
+	    return
+	}
+
+	log.Debug("============ImportAddrToWallet","get return data",retdata,"","===========")
+	ch<- true 
+}
+
+func listUnspentWithWallet(dcrmaddr string) ([]btcjson.ListUnspentResult, error) {
+	rch := make (chan bool,1)
+	go ImportAddrToWallet(dcrmaddr,rch)
+	_,cherr := GetChannelValue(360,rch)
+	if cherr != nil {
+	    log.Debug("============listUnspentWithWallet,","get error",cherr.Error(),"","==============")
+	    return nil,cherr 
+	}
+
+	c, err := NewClient(SERVER_HOST, SERVER_PORT, USER, PASSWD, USESSL)
+	if err != nil {
+	    log.Debug("============listUnspentWithWallet,new client fail.===========")
+	    return nil,err
+	}
+	
+	jsoncmd := "{\"jsonrpc\":\"1.0\",\"method\":\"listunspent\",\"params\":[1, 9999999,[\"" + dcrmaddr + "\"]],\"id\":\"1\"}";
+	retdata,err := c.Send(jsoncmd)
+	if err != nil {
+	    log.Debug("============listUnspentWithWallet","err",err.Error(),"","===========")
+	    return nil,err
+	}
+	log.Debug("============listUnspentWithWallet","ret data",retdata,"","===========")
+	var uos ListUTXOs
+	json.Unmarshal([]byte(retdata), &uos)
+	/*if ok != nil {
+	    log.Debug("============listUnspentWithWallet,no get utxos.===========")
+	    return nil,errors.New("no get utxos.")
+	}*/
+
+	log.Debug("============listUnspentWithWallet","uos",uos,"","===========")
+	var list sortableLURSlice
+	for _, utxo := range uos.RESULT {
+		res := btcjson.ListUnspentResult{
+			TxID: utxo.TXID,
+			Vout: utxo.VOUT,
+			Address: utxo.ADDRESS,
+			Account:utxo.ACCOUNT,
+			ScriptPubKey: utxo.SCRIPTPUBKEY,
+			RedeemScript:"",
+			Amount: utxo.AMOUNT,
+			Confirmations: utxo.CONFIRMATIONS,
+			Spendable: true,
+		}
+		list = append(list, res)
+	}
+	sort.Sort(list)
+	return list,nil
+}
+
 func GetTxOutsAmount(lockoutto string,value float64) *big.Int {
         if lockoutto == "" || value <= 0 {
 	    return nil 
@@ -101,7 +190,8 @@ func GetTxOutsAmount(lockoutto string,value float64) *big.Int {
 	estimatedSize := EstimateVirtualSize(0, 1, 0, txOuts, true)
 	targetFee := txrules.FeeForSerializeSize(*opts.FeeRate, estimatedSize)
 	 input := (targetAmount+targetFee).ToBTC()*100000000 //??BTC
-	data := fmt.Sprintf("%v",input)
+	data := strconv.FormatFloat(input, 'f', 0, 64)
+	//data := fmt.Sprintf("%v",input)
 	 log.Debug("==========GetTxOutsAmount,","data",data,"","=============")
 	 //ins := strconv.FormatFloat(input, 'f', -1, 64)
 	 total,_ := new(big.Int).SetString(data,10)
@@ -117,10 +207,18 @@ func ChooseDcrmAddrForLockoutByValue(dcrmaddr string,lockoutto string,value floa
 	log.Debug("==========ChooseDcrmAddrForLockoutByValue,","dcrmaddr",dcrmaddr,"lockoutto",lockoutto,"value",value,"","================")
 	//unspentOutputs, err := listUnspent_blockchaininfo(dcrmaddr)
 	unspentOutputs, err := listUnspent(dcrmaddr)
+	//unspentOutputs, err := listUnspentWithWallet(dcrmaddr)
 	log.Debug("=========ChooseDcrmAddrForLockoutByValue,","unspentOutputs",unspentOutputs,"","================")
 	if err != nil {
 		return false
 	}
+	//////////bug/////
+	if len(unspentOutputs) == 0 && err == nil {
+	    time.Sleep(time.Duration(10)*time.Second) //1000 == 1s
+	    unspentOutputs, err = listUnspent(dcrmaddr) //try again
+	}
+	/////////////////
+
 	sourceOutputs := make(map[string][]btcjson.ListUnspentResult)
 	
 	for _, unspentOutput := range unspentOutputs {
@@ -191,6 +289,13 @@ func GetDcrmAddrBalanceForLockout(dcrmaddr string,lockoutto string,value float64
 	log.Debug("==========GetDcrmAddrBalanceForLockout,","dcrmaddr",dcrmaddr,"lockoutto",lockoutto,"value",value,"","================")
 	//unspentOutputs, err := listUnspent_blockchaininfo(dcrmaddr)
 	unspentOutputs, err := listUnspent(dcrmaddr)
+	//////////bug/////
+	if len(unspentOutputs) == 0 && err == nil {
+	    time.Sleep(time.Duration(10)*time.Second) //1000 == 1s
+	    unspentOutputs, err = listUnspent(dcrmaddr) //try again
+	}
+	/////////////////
+	//unspentOutputs, err := listUnspentWithWallet(dcrmaddr)
 	log.Debug("=========GetDcrmAddrBalanceForLockout,","unspentOutputs",unspentOutputs,"","================")
 	if err != nil {
 		return zero,false
@@ -244,7 +349,8 @@ func GetDcrmAddrBalanceForLockout(dcrmaddr string,lockoutto string,value float64
 
 	 log.Debug("==========GetDcrmAddrBalanceForLockout,","inputAmount",inputAmount,"","=============")
 	 input := inputAmount.ToBTC()*100000000 //??BTC
-	data := fmt.Sprintf("%v",input)
+	data := strconv.FormatFloat(input, 'f', 0, 64)
+	//data := fmt.Sprintf("%v",input)
 	 log.Debug("==========GetDcrmAddrBalanceForLockout,","data",data,"","=============")
 	 //ins := strconv.FormatFloat(input, 'f', -1, 64)
 	 total,_ := new(big.Int).SetString(data,10)
@@ -270,8 +376,10 @@ func GetBTCTxFee(lockoutto string,value float64) (*big.Int,error) {
 
     estimatedSize := EstimateVirtualSize(0, 1, 0, txOuts, true)
     targetFee := txrules.FeeForSerializeSize(*opts.FeeRate, estimatedSize)
+     log.Debug("==========GetBTCTxFee,","targetFee",targetFee,"","=============")
      input := targetFee.ToBTC()*100000000 //??BTC
-    data := fmt.Sprintf("%v",input)
+    data := strconv.FormatFloat(input, 'f', 0, 64)
+    //data := fmt.Sprintf("%v",input)
      log.Debug("==========GetBTCTxFee,","data",data,"","=============")
      total,_ := new(big.Int).SetString(data,10)
     return total,nil
@@ -285,6 +393,7 @@ func btc_createTransaction(msgprex string,dcrmaddr string,ch chan interface{}) (
 	// outputs will be used as inputs for a single transaction sending to a
 	// new change account address.
 	unspentOutputs, err := listUnspent_blockchaininfo(opts.Dcrmaddr)
+	//unspentOutputs, err := listUnspentWithWallet(opts.Dcrmaddr)
 
 	if err != nil {
 		return "",errContext(err, "failed to fetch unspent outputs")
@@ -566,7 +675,7 @@ func dcrmSignatureScript(msgprex string,dcrmaddr string,tx *wire.MsgTx, idx int,
 	//rsv,err := Dcrm_Sign(&v)
 	dcrm_sign(msgprex,"xxx",txhash,dcrmaddr,"BTC",ch)
 	//ret := (<- rch).(RpcDcrmRes)
-	rsv,err := GetChannelValue(ch)
+	rsv,err := GetChannelValue(80,ch)
 	fmt.Println("=============dcrmSignatureScript,rsv is %s=================",rsv)
 	if err != nil {
 		fmt.Println("=============dcrmSignatureScript,sign err = %s=================",err.Error())
@@ -671,7 +780,7 @@ func sendRawTransaction(tx *wire.MsgTx, allowHighFees bool) (string, error){
 	c.Send(string(marshalledJSON))
 
 	////////
-	rethash := GetRawTransactionHash(retdata)
+	rethash := txHex//GetRawTransactionHash(retdata) 
 	log.Debug("============sendRawTransaction","signed tx hash",rethash,"","===========")
 	///////
 
@@ -862,10 +971,11 @@ func makeListUnspentResult (r *AddrApiResult, dcrmaddr string) ([]btcjson.ListUn
 			if err != nil {
 				continue
 			}
-			res.ScriptPubKey = txRes.Outputs[txref.Tx_output_n].Script
-			//cnt++
-			//fmt.Printf("found %d utxos\n\n",cnt)
-           		list = append(list, res)
+
+			if int32(len(txRes.Outputs)) > txref.Tx_output_n {
+			    res.ScriptPubKey = txRes.Outputs[txref.Tx_output_n].Script
+			    list = append(list, res)
+			}
 		}
         }
 	sort.Sort(list)
@@ -906,9 +1016,21 @@ func loginPre1(method string, url string) string {
     reqest.Header.Add("Host", "login.sina.com.cn")
     reqest.Header.Add("Referer", "http://weibo.com/")
     reqest.Header.Add("User-Agent", "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:12.0) Gecko/20100101 Firefox/12.0")
+    fmt.Printf("request=%v\n",reqest)
     response, err := c.Do(reqest)
+    if response == nil { //bug:sometimes will crash.
+	fmt.Printf("response is nil.")
+	return ""
+    }
+    fmt.Printf("response=%v\n",response)
+    if response.Body == nil {
+	fmt.Printf("body is nil.")
+	return ""
+    }
+
     defer response.Body.Close()
  
+    fmt.Printf("body is not nil.")
     if err != nil {
 	    fmt.Println("Fatal error ", err.Error())
 	    return ""

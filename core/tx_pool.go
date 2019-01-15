@@ -44,6 +44,7 @@ const (
 	// chainHeadChanSize is the size of channel listening to ChainHeadEvent.
 	chainHeadChanSize = 10
 	sep9 = "dcrmsep9" //caihaijun
+	sep10 = "dcrmsep10" //caihaijun 
 )
 
 var (
@@ -827,7 +828,7 @@ func (pool *TxPool) checkLockout(tx *types.Transaction) (bool,error) {
 	    return false,ErrInvalidSender
     }
 
-    dcrmfrom := pool.currentState.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
+    /*dcrmfrom := pool.currentState.GetDcrmAddress(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
     if dcrmfrom == "" {
 	    return false,errors.New("the coinbase account has not request dcrm addr before.")
     }
@@ -839,7 +840,7 @@ func (pool *TxPool) checkLockout(tx *types.Transaction) (bool,error) {
 	if strings.EqualFold(cointype,"BTC") == true {
 	    return false,errors.New("BTC coinbase dcrm addr is not the right format.")
 	}
-    }
+    }*///
 
     if strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true {
 	if !isDecimalNumber(value) {
@@ -878,7 +879,7 @@ func (pool *TxPool) checkLockout(tx *types.Transaction) (bool,error) {
 	 ret,err := pool.currentState.GetDcrmAccountBalance(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
 	 if err == nil {
 	     default_fee := dcrm.BTC_DEFAULT_FEE*100000000
-	     fee := strconv.FormatFloat(default_fee, 'f', -1, 64)
+	     fee := strconv.FormatFloat(default_fee, 'f', 0, 64)
 	     def_fee,_ := new(big.Int).SetString(fee,10)
 	     total := new(big.Int).Add(amount,def_fee)
 	    if ret.Cmp(total) < 0 {
@@ -925,6 +926,10 @@ func (pool *TxPool) validateLockout(tx *types.Transaction) (bool,error) {
     result,err := tx.MarshalJSON()
     if err != nil {
 	return false,errors.New("tx data invalid.")
+    }
+
+    if dcrmfrom == "" {
+	dcrmfrom = "xxx"
     }
 
     if !dcrm.IsInGroup() {
@@ -1065,7 +1070,7 @@ func (pool *TxPool) ValidateLockin2(tx *types.Transaction,retva string) (bool,er
 	return false,errors.New("hash key and real dcrm from is miss.")
     }
 
-    retvas := strings.Split(retva,":")
+    retvas := strings.Split(retva,sep10)
     if len(retvas) != 2 {
 	return false,errors.New("hash key or real dcrm from is not right.")
     }
@@ -1633,6 +1638,7 @@ func (pool *TxPool) removeTx(hash common.Hash, outofbound bool) {
 	}
 	// Transaction is in the future queue
 	if future := pool.queue[addr]; future != nil {
+	    log.Debug("===========txpool.removeTx==============")
 		//future.Remove(tx)//-----caihaijun----
 		future.Remove(pool,tx)//++++++++caihaijun+++++++++
 		if future.Empty() {
@@ -1685,7 +1691,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 		// Gather all executable transactions and promote them
 		//for _, tx := range list.Ready(pool.pendingState.GetNonce(addr)) {//----caihaijun-----
 		for _, tx := range list.Ready(pool,pool.pendingState.GetNonce(addr)) {     //caihaijun
-		    //log.Debug("===========promoteExecutables,list.Ready=============")
+		    log.Debug("===========promoteExecutables,list.Ready=============")
 			hash := tx.Hash()
 			if pool.promoteTx(addr, hash, tx) {
 				log.Trace("Promoting queued transaction", "hash", hash)
@@ -1694,7 +1700,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 		}
 		// Drop all transactions over the allowed limit
 		if !pool.locals.contains(addr) {
-		    //log.Debug("===========promoteExecutables,!pool.locals.contains(addr)=============")
+		    log.Debug("===========promoteExecutables,!pool.locals.contains(addr)=============")
 			for _, tx := range list.Cap(int(pool.config.AccountQueue)) {
 			    log.Debug("===========promoteExecutables,range list.Cap=============")
 				hash := tx.Hash()
@@ -1706,7 +1712,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 		}
 		// Delete the entire queue entry if it became empty.
 		if list.Empty() {
-			//log.Debug("===========promoteExecutables,list.Empty()=============")
+			log.Debug("===========promoteExecutables,list.Empty()=============")
 			delete(pool.queue, addr)
 		}
 	}
@@ -1815,7 +1821,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 			// Drop all transactions if they are less than the overflow
 			if size := uint64(list.Len()); size <= drop {
 				for _, tx := range list.Flatten() {
-				    //log.Debug("===========promoteExecutables,range list.Flatten()=============")
+				    log.Debug("===========promoteExecutables,range list.Flatten()=============")
 					pool.removeTx(tx.Hash(), true)
 				}
 				drop -= size
@@ -1825,7 +1831,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 			// Otherwise drop only last few transactions
 			txs := list.Flatten()
 			for i := len(txs) - 1; i >= 0 && drop > 0; i-- {
-				//log.Debug("===========promoteExecutables,list.Flatten()=============")
+				log.Debug("===========promoteExecutables,list.Flatten()=============")
 				pool.removeTx(txs[i].Hash(), true)
 				drop--
 				queuedRateLimitCounter.Inc(1)

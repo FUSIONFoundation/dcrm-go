@@ -109,15 +109,15 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, author *commo
 	// Update the state with pending changes
 	var root []byte
 	if config.IsByzantium(header.Number) {
-		//log.Debug("===========ApplyTransaction,config.IsByzantium======") //caihaijun
+		log.Debug("===========ApplyTransaction,config.IsByzantium======") //caihaijun
 		statedb.Finalise(true)
 	} else {
-		//log.Debug("===========ApplyTransaction,config.Is not Byzantium and get mekle root======") //caihaijun
+		log.Debug("===========ApplyTransaction,config.Is not Byzantium and get mekle root======") //caihaijun
 		root = statedb.IntermediateRoot(config.IsEIP158(header.Number)).Bytes()
 		//log.Debug("===========ApplyTransaction,","get root",string(root),"","==============") //caihaijun
 	}
 	*usedGas += gas
-	//log.Debug("===========ApplyTransaction,","usedGas",*usedGas,"tx hash",tx.Hash(),"","==============") //caihaijun
+	log.Debug("===========ApplyTransaction,","usedGas",*usedGas,"tx hash",tx.Hash(),"","==============") //caihaijun
 
 	// Create a new receipt for the transaction, storing the intermediate root and gas used by the tx
 	// based on the eip phase, we're passing whether the root touch-delete accounts.

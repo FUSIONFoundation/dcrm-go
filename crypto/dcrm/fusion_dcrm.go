@@ -40,6 +40,7 @@ import (
 	"runtime"
 	"path/filepath"
 	"os/user"
+	"os/exec"
 	"sort"
 )
 ////////////
@@ -54,6 +55,7 @@ var (
     sep6 = "dcrmsep6"
     sep8 = "dcrmsep8" //valatetx
     sep9 = "dcrmsep9" //valatetx
+    sep10 = "dcrmsep10" //valatetx
     msgtypesep = "caihaijundcrm"
     lock sync.Mutex
     
@@ -115,7 +117,7 @@ var (
     init_times = 0
 
     ETH_SERVER = "http://54.183.185.30:8018"
-    ch_t = 50 
+    ch_t = 80 
 	
     erc20_client *ethclient.Client
     
@@ -136,7 +138,8 @@ var (
     mergenum = 0
 
     //
-    BLOCK_FORK_1 = "80000" //fork for lockin,txhash store into block.
+    BLOCK_FORK_0 = "0" //fork for dcrmsendtransaction.not to self.
+    BLOCK_FORK_1 = "0" //fork for lockin,txhash store into block.
     BLOCK_FORK_2 = "100000" //fork for lockout choose real dcrm from.
 )
 
@@ -452,10 +455,10 @@ func WriteHashkeyToLocalDB(hashkey string,value string) (bool,error) {
     return true,nil
 }
 
-func GetChannelValue(obj interface{} ) (string,error) {
+func GetChannelValue(t int,obj interface{}) (string,error) {
     timeout := make(chan bool, 1)
     go func(timeout chan bool) {
-	 time.Sleep(time.Duration(ch_t)*time.Second) //1000 == 1s
+	 time.Sleep(time.Duration(t)*time.Second) //1000 == 1s
 	 //log.Debug("==========GetChannelValue,timeout.==============")
 	 timeout <- true
      }(timeout)
@@ -644,7 +647,7 @@ func MergeDcrmBalance(account string,from string,to string,value *big.Int,cointy
 	
 	res := make(chan bool, 1)
 	go MergeDcrmBalance2(account,from,to,value,cointype,res)
-	ret,cherr := GetChannelValue(res)
+	ret,cherr := GetChannelValue(ch_t,res)
 	if cherr != nil {
 	    return	
 	}
@@ -1142,9 +1145,16 @@ func SendReqToGroup(msg string,rpctype string) (string,error) {
 	    return "",nil
     }
 
+    var t int
+    if rpctype == "rpc_lockout" {
+	t = 360
+    } else {
+	t = 80 
+    }
+
     RpcReqNonDcrmQueue <- req
     //ret := (<- req.ch).(RpcDcrmRes)
-    chret,cherr := GetChannelValue(req.ch)
+    chret,cherr := GetChannelValue(t,req.ch)
     if cherr != nil {
 	log.Debug("=============SendReqToGroup,fail,","error",cherr.Error(),"","==============")
 	return "",cherr
@@ -1198,14 +1208,14 @@ func (self *RecvMsg) Run(workid int,ch chan interface{}) bool {
 	log.Debug("===========","RecvMsg.Run,send workid,msgs",msgs,"","===============")
 	SendMsgToDcrmGroup(msgs)
 	//<-w.brealstartdcrm
-	_,cherr := GetChannelValue(w.brealstartdcrm)
+	_,cherr := GetChannelValue(ch_t,w.brealstartdcrm)
 	if cherr != nil {
 	    log.Debug("get w.brealstartdcrm timeout.")
 	    return false
 	}
 
 	//wm := <-w.msgprex
-	wm,cherr := GetChannelValue(w.msgprex)
+	wm,cherr := GetChannelValue(ch_t,w.msgprex)
 	if cherr != nil {
 	    log.Debug("get w.msgprex timeout.")
 	    return false
@@ -1218,12 +1228,12 @@ func (self *RecvMsg) Run(workid int,ch chan interface{}) bool {
 	    //wpub := <-w.pub
 	    //wcoint := <-w.coint
 
-	    wpub,cherr := GetChannelValue(w.pub)
+	    wpub,cherr := GetChannelValue(ch_t,w.pub)
 	    if cherr != nil {
 		log.Debug("get w.pub timeout.")
 		return false
 	    }
-	    wcoint,cherr := GetChannelValue(w.coint)
+	    wcoint,cherr := GetChannelValue(ch_t,w.coint)
 	    if cherr != nil {
 		log.Debug("get w.coint timeout.")
 		return false
@@ -1233,37 +1243,37 @@ func (self *RecvMsg) Run(workid int,ch chan interface{}) bool {
 	}
 	if funs[0] == "Dcrm_ConfirmAddr" {
 	    //wtxhash_conaddr := <-w.txhash_conaddr
-	    wtxhash_conaddr,cherr := GetChannelValue(w.txhash_conaddr)
+	    wtxhash_conaddr,cherr := GetChannelValue(ch_t,w.txhash_conaddr)
 	    if cherr != nil {
 		log.Debug("get w.txhash_conaddr timeout.")
 		return false
 	    }
 	    //wlilotx := <-w.lilotx
-	    wlilotx,cherr := GetChannelValue(w.lilotx)
+	    wlilotx,cherr := GetChannelValue(ch_t,w.lilotx)
 	    if cherr != nil {
 		log.Debug("get w.lilotx timeout.")
 		return false
 	    }
 	    //wfusionaddr := <-w.fusionaddr
-	    wfusionaddr,cherr := GetChannelValue(w.fusionaddr)
+	    wfusionaddr,cherr := GetChannelValue(ch_t,w.fusionaddr)
 	    if cherr != nil {
 		log.Debug("get w.fusionaddr timeout.")
 		return false
 	    }
 	    //wdcrmaddr := <-w.dcrmaddr
-	    wdcrmaddr,cherr := GetChannelValue(w.dcrmaddr)
+	    wdcrmaddr,cherr := GetChannelValue(ch_t,w.dcrmaddr)
 	    if cherr != nil {
 		log.Debug("get w.dcrmaddr timeout.")
 		return false
 	    }
 	    //whashkey := <-w.hashkey
-	    whashkey,cherr := GetChannelValue(w.hashkey)
+	    whashkey,cherr := GetChannelValue(ch_t,w.hashkey)
 	    if cherr != nil {
 		log.Debug("get w.hashkey timeout.")
 		return false
 	    }
 	    //wcoint := <-w.coint
-	    wcoint,cherr := GetChannelValue(w.coint)
+	    wcoint,cherr := GetChannelValue(ch_t,w.coint)
 	    if cherr != nil {
 		log.Debug("get w.coint timeout.")
 		return false
@@ -1273,19 +1283,19 @@ func (self *RecvMsg) Run(workid int,ch chan interface{}) bool {
 	if funs[0] == "Dcrm_LiLoReqAddress" {
 	    //log.Debug("RecvMsg.Run,Dcrm_LiLoReqAddress")
 	    //wfusionaddr := <-w.fusionaddr
-	    wfusionaddr,cherr := GetChannelValue(w.fusionaddr)
+	    wfusionaddr,cherr := GetChannelValue(ch_t,w.fusionaddr)
 	    if cherr != nil {
 		log.Debug("get w.fusionaddr timeout.")
 		return false
 	    }
 	    //wpub := <-w.pub
-	    wpub,cherr := GetChannelValue(w.pub)
+	    wpub,cherr := GetChannelValue(ch_t,w.pub)
 	    if cherr != nil {
 		log.Debug("get w.pub timeout.")
 		return false
 	    }
 	    //wcoint := <-w.coint
-	    wcoint,cherr := GetChannelValue(w.coint)
+	    wcoint,cherr := GetChannelValue(ch_t,w.coint)
 	    if cherr != nil {
 		log.Debug("get w.coint timeout.")
 		return false
@@ -1295,25 +1305,25 @@ func (self *RecvMsg) Run(workid int,ch chan interface{}) bool {
 	}
 	if funs[0] == "Dcrm_Sign" {
 	    //wsig := <-w.sig
-	    wsig,cherr := GetChannelValue(w.sig)
+	    wsig,cherr := GetChannelValue(ch_t,w.sig)
 	    if cherr != nil {
 		log.Debug("get w.wsig timeout.")
 		return false
 	    }
 	    //wtxhash := <-w.txhash
-	    wtxhash,cherr := GetChannelValue(w.txhash)
+	    wtxhash,cherr := GetChannelValue(ch_t,w.txhash)
 	    if cherr != nil {
 		log.Debug("get w.txhash timeout.")
 		return false
 	    }
 	    //wdcrmaddr := <-w.dcrmaddr
-	    wdcrmaddr,cherr := GetChannelValue(w.dcrmaddr)
+	    wdcrmaddr,cherr := GetChannelValue(ch_t,w.dcrmaddr)
 	    if cherr != nil {
 		log.Debug("get w.dcrmaddr timeout.")
 		return false
 	    }
 	    //wcoint := <-w.coint
-	    wcoint,cherr := GetChannelValue(w.coint)
+	    wcoint,cherr := GetChannelValue(ch_t,w.coint)
 	    if cherr != nil {
 		log.Debug("get w.coint timeout.")
 		return false
@@ -1322,55 +1332,55 @@ func (self *RecvMsg) Run(workid int,ch chan interface{}) bool {
 	}
 	if funs[0] == "Validate_Lockout" {
 	    //wtxhash_lockout := <- w.txhash_lockout
-	    wtxhash_lockout,cherr := GetChannelValue(w.txhash_lockout)
+	    wtxhash_lockout,cherr := GetChannelValue(ch_t,w.txhash_lockout)
 	    if cherr != nil {
 		log.Debug("get w.txhash_lockout timeout.")
 		return false
 	    }
 	    //wlilotx := <- w.lilotx
-	    wlilotx,cherr := GetChannelValue(w.lilotx)
+	    wlilotx,cherr := GetChannelValue(ch_t,w.lilotx)
 	    if cherr != nil {
 		log.Debug("get w.lilotx timeout.")
 		return false
 	    }
 	    //wfusionfrom := <- w.fusionfrom
-	    wfusionfrom,cherr := GetChannelValue(w.fusionfrom)
+	    wfusionfrom,cherr := GetChannelValue(ch_t,w.fusionfrom)
 	    if cherr != nil {
 		log.Debug("get w.fusionfrom timeout.")
 		return false
 	    }
 	    //wdcrmfrom := <- w.dcrmfrom
-	    wdcrmfrom,cherr := GetChannelValue(w.dcrmfrom)
+	    wdcrmfrom,cherr := GetChannelValue(ch_t,w.dcrmfrom)
 	    if cherr != nil {
 		log.Debug("get w.dcrmfrom timeout.")
 		return false
 	    }
 	    //wrealfusionfrom := <- w.realfusionfrom
-	    wrealfusionfrom,cherr := GetChannelValue(w.realfusionfrom)
+	    wrealfusionfrom,cherr := GetChannelValue(ch_t,w.realfusionfrom)
 	    if cherr != nil {
 		log.Debug("get w.realfusionfrom timeout.")
 		return false
 	    }
 	    //wrealdcrmfrom := <- w.realdcrmfrom
-	    wrealdcrmfrom,cherr := GetChannelValue(w.realdcrmfrom)
+	    wrealdcrmfrom,cherr := GetChannelValue(ch_t,w.realdcrmfrom)
 	    if cherr != nil {
 		log.Debug("get w.realdcrmfrom timeout.")
 		return false
 	    }
 	    //wlockoutto := <- w.lockoutto
-	    wlockoutto,cherr := GetChannelValue(w.lockoutto)
+	    wlockoutto,cherr := GetChannelValue(ch_t,w.lockoutto)
 	    if cherr != nil {
 		log.Debug("get w.lockoutto timeout.")
 		return false
 	    }
 	    //wamount := <- w.amount
-	    wamount,cherr := GetChannelValue(w.amount)
+	    wamount,cherr := GetChannelValue(ch_t,w.amount)
 	    if cherr != nil {
 		log.Debug("get w.amount timeout.")
 		return false
 	    }
 	    //wcoint := <- w.coint
-	    wcoint,cherr := GetChannelValue(w.coint)
+	    wcoint,cherr := GetChannelValue(ch_t,w.coint)
 	    if cherr != nil {
 		log.Debug("get w.coint timeout.")
 		return false
@@ -1485,14 +1495,14 @@ func (self *RecvMsg) Run(workid int,ch chan interface{}) bool {
 	msgs := mm[0] + "-" + cur_enode + "-" + strconv.Itoa(w.id) + msgtypesep + "syncworkerid"
 	SendMsgToDcrmGroup(msgs)
 	//<-w.brealstartvalidate
-	_,cherr := GetChannelValue(w.brealstartvalidate)
+	_,cherr := GetChannelValue(ch_t,w.brealstartvalidate)
 	if cherr != nil {
 	    log.Debug("get w.brealstartvalidate timeout.")
 	    return false
 	}
 	//log.Debug("========RecvMsg.Run,real start validate.============")
 	//wm := <-w.msgprex
-	wm,cherr := GetChannelValue(w.msgprex)
+	wm,cherr := GetChannelValue(ch_t,w.msgprex)
 	if cherr != nil {
 	    log.Debug("get w.msgprex timeout.")
 	    return false
@@ -1501,24 +1511,24 @@ func (self *RecvMsg) Run(workid int,ch chan interface{}) bool {
 
 	if funs[0] == "Validate_Txhash" {
 	    //wtx := <-w.tx
-	    wtx,cherr := GetChannelValue(w.tx)
+	    wtx,cherr := GetChannelValue(ch_t,w.tx)
 	    if cherr != nil {
 		log.Debug("get w.tx timeout.")
 		return false
 	    }
 	    //wlockinaddr := <-w.lockinaddr
-	    wlockinaddr,cherr := GetChannelValue(w.lockinaddr)
+	    wlockinaddr,cherr := GetChannelValue(ch_t,w.lockinaddr)
 	    if cherr != nil {
 		log.Debug("get w.lockinaddr timeout.")
 		return false
 	    }
 	    //whashkey := <-w.hashkey
-	    whashkey,cherr := GetChannelValue(w.hashkey)
+	    whashkey,cherr := GetChannelValue(ch_t,w.hashkey)
 	    if cherr != nil {
 		log.Debug("get w.hashkey timeout.")
 		return false
 	    }
-	    wrealdcrmfrom,cherr := GetChannelValue(w.realdcrmfrom)
+	    wrealdcrmfrom,cherr := GetChannelValue(ch_t,w.realdcrmfrom)
 	    if cherr != nil {
 		log.Debug("get w.realdcrmfrom timeout.")
 		return false
@@ -1604,7 +1614,7 @@ func (self *DcrmReqAddress) Run(workid int,ch chan interface{}) bool {
     ks := ss + msgtypesep + "startdcrm"
     SendMsgToDcrmGroup(ks)
     //<-w.bidsready
-    _,cherr := GetChannelValue(w.bidsready)
+    _,cherr := GetChannelValue(ch_t,w.bidsready)
     if cherr != nil {
 	log.Debug("get w.bidsready timeout.")
 	return false
@@ -1612,7 +1622,7 @@ func (self *DcrmReqAddress) Run(workid int,ch chan interface{}) bool {
     var k int
     for k=0;k<(NodeCnt-1);k++ {
 	//ni := <- w.ch_nodeworkid
-	ni,cherr := GetChannelValue(w.ch_nodeworkid)
+	ni,cherr := GetChannelValue(ch_t,w.ch_nodeworkid)
 	if cherr != nil {
 	    log.Debug("get w.ch_nodeworkid timeout.")
 	    return false
@@ -1650,7 +1660,7 @@ func (self *DcrmConfirmAddr) Run(workid int,ch chan interface{}) bool {
     ks := ss + msgtypesep + "startdcrm"
     SendMsgToDcrmGroup(ks)
     //<-w.bidsready
-    _,cherr := GetChannelValue(w.bidsready)
+    _,cherr := GetChannelValue(ch_t,w.bidsready)
     if cherr != nil {
 	log.Debug("get w.bidsready timeout.")
 	return false
@@ -1658,7 +1668,7 @@ func (self *DcrmConfirmAddr) Run(workid int,ch chan interface{}) bool {
     var k int
     for k=0;k<(NodeCnt-1);k++ {
 	//ni := <- w.ch_nodeworkid
-	ni,cherr := GetChannelValue(w.ch_nodeworkid)
+	ni,cherr := GetChannelValue(ch_t,w.ch_nodeworkid)
 	if cherr != nil {
 	    log.Debug("get w.ch_nodeworkid timeout.")
 	    return false
@@ -1694,7 +1704,7 @@ func (self *DcrmLiLoReqAddress) Run(workid int,ch chan interface{}) bool {
     //log.Debug("========","SendMsgToDcrmGroup,ks",ks,"","==========")
     SendMsgToDcrmGroup(ks)
     //<-w.bidsready
-    _,cherr := GetChannelValue(w.bidsready)
+    _,cherr := GetChannelValue(ch_t,w.bidsready)
     if cherr != nil {
 	log.Debug("get w.bidsready timeout.")
 	return false
@@ -1703,7 +1713,7 @@ func (self *DcrmLiLoReqAddress) Run(workid int,ch chan interface{}) bool {
     var k int
     for k=0;k<(NodeCnt-1);k++ {
 	//ni := <- w.ch_nodeworkid
-	ni,cherr := GetChannelValue(w.ch_nodeworkid)
+	ni,cherr := GetChannelValue(ch_t,w.ch_nodeworkid)
 	if cherr != nil {
 	    log.Debug("get w.ch_nodeworkid timeout.")
 	    return false
@@ -1741,7 +1751,7 @@ func (self *DcrmSign) Run(workid int,ch chan interface{}) bool {
     ks := ss + msgtypesep + "startdcrm"
     SendMsgToDcrmGroup(ks)
     //<-w.bidsready
-    _,cherr := GetChannelValue(w.bidsready)
+    _,cherr := GetChannelValue(ch_t,w.bidsready)
     if cherr != nil {
 	log.Debug("get w.bidsready timeout.")
 	return false
@@ -1749,7 +1759,7 @@ func (self *DcrmSign) Run(workid int,ch chan interface{}) bool {
     var k int
     for k=0;k<(NodeCnt-1);k++ {
 	//ni := <- w.ch_nodeworkid
-	ni,cherr := GetChannelValue(w.ch_nodeworkid)
+	ni,cherr := GetChannelValue(ch_t,w.ch_nodeworkid)
 	if cherr != nil {
 	    log.Debug("get w.ch_nodeworkid timeout.")
 	    return false
@@ -1785,7 +1795,7 @@ func (self *DcrmLockin) Run(workid int,ch chan interface{}) bool {
     ks := ss + msgtypesep + "startvalidate"
     SendMsgToDcrmGroup(ks)
     //<-w.bidsready
-    _,cherr := GetChannelValue(w.bidsready)
+    _,cherr := GetChannelValue(ch_t,w.bidsready)
     if cherr != nil {
 	log.Debug("get w.bidsready timeout.")
 	return false
@@ -1793,7 +1803,7 @@ func (self *DcrmLockin) Run(workid int,ch chan interface{}) bool {
     var k int
     for k=0;k<(NodeCnt-1);k++ {
 	//ni := <- w.ch_nodeworkid
-	ni,cherr := GetChannelValue(w.ch_nodeworkid)
+	ni,cherr := GetChannelValue(ch_t,w.ch_nodeworkid)
 	if cherr != nil {
 	    log.Debug("get w.ch_nodeworkid timeout.")
 	    return false
@@ -1837,7 +1847,7 @@ func (self *DcrmLockout) Run(workid int,ch chan interface{}) bool {
     log.Debug("=============DcrmLockout.Run","send data",ks,"","=============")
     SendMsgToDcrmGroup(ks)
     //<-w.bidsready
-    _,cherr := GetChannelValue(w.bidsready)
+    _,cherr := GetChannelValue(ch_t,w.bidsready)
     if cherr != nil {
 	log.Debug("get w.bidsready timeout.")
 	return false
@@ -1845,7 +1855,7 @@ func (self *DcrmLockout) Run(workid int,ch chan interface{}) bool {
     var k int
     for k=0;k<(NodeCnt-1);k++ {
 	//ni := <- w.ch_nodeworkid
-	ni,cherr := GetChannelValue(w.ch_nodeworkid)
+	ni,cherr := GetChannelValue(ch_t,w.ch_nodeworkid)
 	if cherr != nil {
 	    log.Debug("get w.ch_nodeworkid timeout.")
 	    return false
@@ -1884,7 +1894,7 @@ func (self *ConfirmAddrSendMsgToDcrm) Run(workid int,ch chan interface{}) bool {
     log.Debug("ConfirmAddrSendMsgToDcrm.Run","send data",ss)
     p2pdcrm.SendToDcrmGroup(ss)
     //data := <-w.dcrmret
-    data,cherr := GetChannelValue(w.dcrmret)
+    data,cherr := GetChannelValue(ch_t,w.dcrmret)
     if cherr != nil {
 	log.Debug("get w.dcrmret timeout.")
 	var ret2 Err
@@ -1940,7 +1950,7 @@ func (self *ReqAddrSendMsgToDcrm) Run(workid int,ch chan interface{}) bool {
     log.Debug("ReqAddrSendMsgToDcrm.Run","send data",ss)
     p2pdcrm.SendToDcrmGroup(ss)
     //data := <-w.dcrmret
-    data,cherr := GetChannelValue(w.dcrmret)
+    data,cherr := GetChannelValue(ch_t,w.dcrmret)
     if cherr != nil {
 	log.Debug("get w.dcrmret timeout.")
 	var ret2 Err
@@ -2005,7 +2015,7 @@ func (self *LockInSendMsgToDcrm) Run(workid int,ch chan interface{}) bool {
     log.Debug("LockInSendMsgToDcrm.Run","send data",ss)
     p2pdcrm.SendToDcrmGroup(ss)
     //data := <-w.dcrmret
-    data,cherr := GetChannelValue(w.dcrmret)
+    data,cherr := GetChannelValue(ch_t,w.dcrmret)
     if cherr != nil {
 	log.Debug("get w.dcrmret timeout.")
 	var ret2 Err
@@ -2062,7 +2072,7 @@ func (self *LockoutSendMsgToDcrm) Run(workid int,ch chan interface{}) bool {
     log.Debug("==========LockoutSendMsgToDcrm.run,","send data",ss,"","===============")
     p2pdcrm.SendToDcrmGroup(ss)
     //data := <-w.dcrmret
-    data,cherr := GetChannelValue(w.dcrmret)
+    data,cherr := GetChannelValue(360,w.dcrmret)
     if cherr != nil {
 	log.Debug("get w.dcrmret timeout.")
 	var ret2 Err
@@ -2114,7 +2124,7 @@ func (self *CheckHashkeySendMsgToDcrm) Run(workid int,ch chan interface{}) bool 
     log.Debug("CheckHashkeySendMsgToDcrm.Run","send data",ss)
     p2pdcrm.SendToDcrmGroup(ss)
     //data := <-w.dcrmret
-    data,cherr := GetChannelValue(w.dcrmret)
+    data,cherr := GetChannelValue(ch_t,w.dcrmret)
     if cherr != nil {
 	log.Debug("get w.dcrmret timeout.")
 	var ret2 Err
@@ -3084,29 +3094,52 @@ func ValidBTCTx(returnJson string,txhash string,realdcrmfrom string,realdcrmto s
 		if sa == realdcrmto {
 		    log.Debug("======to addr equal.========")
 		    amount := vp.Value*100000000
-		    //vv := fmt.Sprintf("%v",amount)
-		    vv := strconv.FormatFloat(amount, 'f', -1, 64)
+		    log.Debug("============ValidBTCTx,","vp.value",vp.Value,"","============")
+		    //vvtmp := fmt.Sprintf("%v",amount)
+		    //log.Debug("========ValidBTCTx,","vvtmp",vvtmp,"","=============")
+		    vv := strconv.FormatFloat(amount, 'f', 0, 64)
 		    log.Debug("========ValidBTCTx,","vv",vv,"","=============")
 		    log.Debug("========ValidBTCTx,","value",value,"","=============")
 		    if islockout {
+			log.Debug("============ValidBTCTx,is lockout,","Confirmations",btcres_noinputs.Result.Confirmations,"","============")
 			if btcres_noinputs.Result.Confirmations >= BTC_BLOCK_CONFIRMS {
 			    res := RpcDcrmRes{ret:"true",err:nil}
 			    ch <- res
 			    return
 			}
+
+			/*b,ee := LockoutIsConfirmed(realdcrmto,txhash)
+			if b && ee == nil {
+			    log.Debug("========ValidBTCTx,lockout tx is confirmed.============")
+			    res := RpcDcrmRes{ret:"true",err:nil}
+			    ch <- res
+			    return
+			}*/
+
 			var ret2 Err
 			ret2.info = "get btc transaction fail."
 			res := RpcDcrmRes{ret:"",err:ret2}
 			ch <- res
 			return
 		    } else {
+			log.Debug("============ValidBTCTx,","Confirmations",btcres_noinputs.Result.Confirmations,"","============")
 			vvn,_ := new(big.Int).SetString(vv,10)
 			van,_ := new(big.Int).SetString(value,10)
 			if vvn != nil && van != nil && vvn.Cmp(van) == 0 && btcres_noinputs.Result.Confirmations >= BTC_BLOCK_CONFIRMS {
 			    res := RpcDcrmRes{ret:"true",err:nil}
 			    ch <- res
 			    return
-			} else if vvn != nil && van != nil && vvn.Cmp(van) == 0 {
+			} 
+			
+			/*b,ee := LockoutIsConfirmed(realdcrmto,txhash)
+			if b && ee == nil {
+			    log.Debug("========ValidBTCTx,lockin tx is confirmed.============")
+			    res := RpcDcrmRes{ret:"true",err:nil}
+			    ch <- res
+			    return
+			}*/
+
+			if vvn != nil && van != nil && vvn.Cmp(van) == 0 {
 			    var ret2 Err
 			    ret2.info = "get btc transaction fail."
 			    res := RpcDcrmRes{ret:"",err:ret2}
@@ -3133,27 +3166,50 @@ func ValidBTCTx(returnJson string,txhash string,realdcrmfrom string,realdcrmto s
 		if sa == realdcrmto {
 		    log.Debug("======to addr equal.========")
 		    amount := vp.Value*100000000
-		    //vv := fmt.Sprintf("%v",amount)
-		    vv := strconv.FormatFloat(amount, 'f', -1, 64)
+		    log.Debug("============ValidBTCTx,","vp.value",vp.Value,"","============")
+		    //vvtmp := fmt.Sprintf("%v",amount)
+		    //log.Debug("========ValidBTCTx,","vvtmp",vvtmp,"","=============")
+		    vv := strconv.FormatFloat(amount, 'f', 0, 64)
 		    if islockout {
+			log.Debug("============ValidBTCTx,is lockout,","Confirmations",btcres.Result.Confirmations,"","============")
 			if btcres.Result.Confirmations >= BTC_BLOCK_CONFIRMS {
 			    res := RpcDcrmRes{ret:"true",err:nil}
 			    ch <- res
 			    return
 			}
+			
+			/*b,ee := LockoutIsConfirmed(realdcrmto,txhash)
+			if b && ee == nil {
+			    log.Debug("========ValidBTCTx,lockout tx is confirmed.============")
+			    res := RpcDcrmRes{ret:"true",err:nil}
+			    ch <- res
+			    return
+			}*/
+
 			var ret2 Err
 			ret2.info = "get btc transaction fail."
 			res := RpcDcrmRes{ret:"",err:ret2}
 			ch <- res
 			return
 		    } else {
+			log.Debug("============ValidBTCTx,","Confirmations",btcres.Result.Confirmations,"","============")
 			vvn,_ := new(big.Int).SetString(vv,10)
 			van,_ := new(big.Int).SetString(value,10)
 			if vvn != nil && van != nil && vvn.Cmp(van) == 0 && btcres.Result.Confirmations >= BTC_BLOCK_CONFIRMS {
 			    res := RpcDcrmRes{ret:"true",err:nil}
 			    ch <- res
 			    return
-			} else if vvn != nil && van != nil && vvn.Cmp(van) == 0 {
+			} 
+			
+			/*b,ee := LockoutIsConfirmed(realdcrmto,txhash)
+			if b && ee == nil {
+			    log.Debug("========ValidBTCTx,lockout tx is confirmed.============")
+			    res := RpcDcrmRes{ret:"true",err:nil}
+			    ch <- res
+			    return
+			}*/
+
+			if vvn != nil && van != nil && vvn.Cmp(van) == 0 {
 			    var ret2 Err
 			    ret2.info = "get btc transaction fail."
 			    res := RpcDcrmRes{ret:"",err:ret2}
@@ -3172,6 +3228,38 @@ func ValidBTCTx(returnJson string,txhash string,realdcrmfrom string,realdcrmto s
     res := RpcDcrmRes{ret:"",err:ret2}
     ch <- res
     return
+}
+
+func DoCurlRequest (url, api, data string) string {
+    var err error
+    cmd := exec.Command("/bin/sh")
+    in := bytes.NewBuffer(nil)
+    cmd.Stdin = in
+    var out bytes.Buffer
+    cmd.Stdout = &out
+    go func() {
+	    s := "curl --user "
+	    s += USER
+	    s += ":"
+	    s += PASSWD
+	    s += " -H 'content-type:text/plain;' "
+	    str := s + url + "/" + api
+	    if len(data) > 0 {
+		    str = str + " --data-binary " + "'" + data + "'"
+	    }
+	    in.WriteString(str)
+    }()
+    err = cmd.Start()
+    if err != nil {
+	    //log.Fatal(err)
+	    log.Debug(err.Error())
+    }
+    //log.Debug(cmd.Args)
+    err = cmd.Wait()
+    if err != nil {
+	    log.Debug("Command finished with error: %v", err)
+    }
+    return out.String()
 }
 
 func validate_txhash(msgprex string,tx string,lockinaddr string,hashkey string,realdcrmfrom string,ch chan interface{}) {
@@ -3215,7 +3303,8 @@ func validate_txhash(msgprex string,tx string,lockinaddr string,hashkey string,r
 		    ch <- res
 		    return
 	    }
-	    reqJson := "{\"method\":\"getrawtransaction\",\"params\":[\"" + string(hashkey) + "\"" + "," + "true" + "],\"id\":1}";
+	    //reqJson := "{\"method\":\"getrawtransaction\",\"params\":[\"" + string(hashkey) + "\"" + "," + "true" + "],\"id\":1}";
+	    reqJson := "{\"method\":\"decoderawtransaction\",\"params\":[\"" + string(hashkey) + "\"" + "," + "true" + "],\"id\":1}";
 
 	    //timeout TODO
 	    var returnJson string
@@ -3239,8 +3328,19 @@ func validate_txhash(msgprex string,tx string,lockinaddr string,hashkey string,r
 		ch <- res
 		return
 	    }
+
+	    //=============
+	    btctx_hash := GetRawTransactionHash(returnJson)
+	    reqJson2 := "{\"jsonrpc\":\"1.0\",\"method\":\"getrawtransaction\",\"params\":[\"" + btctx_hash + "\"" + "," + "true" + "],\"id\":1}";
+	    s := "http://"
+	    s += SERVER_HOST
+	    s += ":"
+	    s += strconv.Itoa(SERVER_PORT)
+	    ret := DoCurlRequest(s,"",reqJson2)
+	    log.Debug("=============validate_txhash,","curl ret",ret,"","=============")
+	    //=============
 	    ////
-	    ValidBTCTx(returnJson,hashkey,realdcrmfrom,realdcrmto,xxx[1],true,ch) 
+	    ValidBTCTx(ret,btctx_hash,realdcrmfrom,realdcrmto,xxx[1],true,ch) 
 	    return
 	}
 
@@ -3447,7 +3547,14 @@ func validate_txhash(msgprex string,tx string,lockinaddr string,hashkey string,r
 		ch <- res
 		return
 	}
-	reqJson := "{\"method\":\"getrawtransaction\",\"params\":[\"" + string(hashkey) + "\"" + "," + "true" + "],\"id\":1}";
+
+	var reqJson string
+	if m[0] == "LOCKIN" {
+	    reqJson = "{\"method\":\"getrawtransaction\",\"params\":[\"" + string(hashkey) + "\"" + "," + "true" + "],\"id\":1}";
+	}
+	if m[0] == "LOCKOUT" {
+	    reqJson = "{\"method\":\"decoderawtransaction\",\"params\":[\"" + string(hashkey) + "\"" + "," + "true" + "],\"id\":1}";
+	}
 
 	//timeout TODO
 	var returnJson string
@@ -3474,11 +3581,30 @@ func validate_txhash(msgprex string,tx string,lockinaddr string,hashkey string,r
 	////
 
 	if m[0] == "LOCKIN" {
-	    ValidBTCTx(returnJson,hashkey,realdcrmfrom,realdcrmto,lockinvalue,false,ch) 
+	    //=============
+	    reqJson2 := "{\"jsonrpc\":\"1.0\",\"method\":\"getrawtransaction\",\"params\":[\"" + hashkey + "\"" + "," + "true" + "],\"id\":1}";
+	    s := "http://"
+	    s += SERVER_HOST
+	    s += ":"
+	    s += strconv.Itoa(SERVER_PORT)
+	    ret := DoCurlRequest(s,"",reqJson2)
+	    log.Debug("=============validate_txhash,","curl ret",ret,"","=============")
+	    //=============
+	    ValidBTCTx(ret,hashkey,realdcrmfrom,realdcrmto,lockinvalue,false,ch) 
 	    return
 	}
 	if m[0] == "LOCKOUT" {
-	    ValidBTCTx(returnJson,hashkey,realdcrmfrom,realdcrmto,m[2],true,ch) 
+	    //=============
+	    btctx_hash := GetRawTransactionHash(returnJson)
+	    reqJson2 := "{\"jsonrpc\":\"1.0\",\"method\":\"getrawtransaction\",\"params\":[\"" + btctx_hash + "\"" + "," + "true" + "],\"id\":1}";
+	    s := "http://"
+	    s += SERVER_HOST
+	    s += ":"
+	    s += strconv.Itoa(SERVER_PORT)
+	    ret := DoCurlRequest(s,"",reqJson2)
+	    log.Debug("=============validate_txhash,","curl ret",ret,"","=============")
+	    //=============
+	    ValidBTCTx(ret,btctx_hash,realdcrmfrom,realdcrmto,m[2],true,ch) 
 	    return
 	}
 
@@ -3713,7 +3839,7 @@ func Validate_Txhash(wr WorkReq) (string,error) {
     req := RpcReq{rpcdata:wr,ch:rch}
     RpcReqQueue <- req
     //ret := (<- rch).(RpcDcrmRes)
-    ret,cherr := GetChannelValue(rch)
+    ret,cherr := GetChannelValue(ch_t,rch)
     if cherr != nil {
 	log.Debug("============Validate_Txhash,","get error",cherr.Error(),"","==============")
 	return "",cherr 
@@ -4180,7 +4306,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 		    }
 
 		    //sencX := <- workers[id].encXShare
-		    sencX,cherr := GetChannelValue(workers[id].encXShare)
+		    sencX,cherr := GetChannelValue(ch_t,workers[id].encXShare)
 		    if cherr != nil {
 			log.Debug("get workers[id].encXShare timeout.")
 			var ret2 Err
@@ -4191,7 +4317,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 		    }
 		    encX := new(big.Int).SetBytes([]byte(sencX))
 		    //spkx := <- workers[id].pkx
-		    spkx,cherr := GetChannelValue(workers[id].pkx)
+		    spkx,cherr := GetChannelValue(ch_t,workers[id].pkx)
 		    if cherr != nil {
 			log.Debug("get workers[id].pkx timeout.")
 			var ret2 Err
@@ -4202,7 +4328,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 		    }
 		    pkx := new(big.Int).SetBytes([]byte(spkx))
 		    //spky := <- workers[id].pky
-		    spky,cherr := GetChannelValue(workers[id].pky)
+		    spky,cherr := GetChannelValue(ch_t,workers[id].pky)
 		    if cherr != nil {
 			log.Debug("get workers[id].pky timeout.")
 			var ret2 Err
@@ -4326,7 +4452,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 		    }
 
 		    //sencX := <- workers[id].encXShare
-		    sencX,cherr := GetChannelValue(workers[id].encXShare)
+		    sencX,cherr := GetChannelValue(ch_t,workers[id].encXShare)
 		    if cherr != nil {
 			log.Debug("get workers[id].encXShare timeout.")
 			var ret2 Err
@@ -4337,7 +4463,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 		    }
 		    encX := new(big.Int).SetBytes([]byte(sencX))
 		    //spkx := <- workers[id].pkx
-		    spkx,cherr := GetChannelValue(workers[id].pkx)
+		    spkx,cherr := GetChannelValue(ch_t,workers[id].pkx)
 		    if cherr != nil {
 			log.Debug("get workers[id].pkx timeout.")
 			var ret2 Err
@@ -4348,7 +4474,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 		    }
 		    pkx := new(big.Int).SetBytes([]byte(spkx))
 		    //spky := <- workers[id].pky
-		    spky,cherr := GetChannelValue(workers[id].pky)
+		    spky,cherr := GetChannelValue(ch_t,workers[id].pky)
 		    if cherr != nil {
 			log.Debug("get workers[id].pky timeout.")
 			var ret2 Err
@@ -4556,7 +4682,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 		//log.Debug("=============validate_lockout","lockout tx hash",signer.Hash(lockoutx).String(),"","=============")
 		dcrm_sign(msgprex,"xxx",signer.Hash(lockoutx).String(),realdcrmfrom,cointype,rch)
 		//ret := (<- rch).(RpcDcrmRes)
-		ret,cherr := GetChannelValue(rch)
+		ret,cherr := GetChannelValue(ch_t,rch)
 		if cherr != nil {
 		    res := RpcDcrmRes{ret:"",err:cherr}
 		    ch <- res
@@ -4580,7 +4706,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 		}
 
 		SendTxForLockout(realfusionfrom,realdcrmfrom,lockoutto,value,cointype,ret)
-		retva := lockout_tx_hash + ":" + realdcrmfrom
+		retva := lockout_tx_hash + sep10 + realdcrmfrom
 		//types.SetDcrmValidateData(txhash_lockout,retva)
 		if !strings.EqualFold(txhash_lockout,"xxx") {
 		    WriteLockoutInfoToLocalDB(txhash_lockout,retva)
@@ -4605,7 +4731,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 		}
 
 		log.Debug("=============create btc tx success.=================")
-		retva := lockout_tx_hash + ":" + realdcrmfrom
+		retva := lockout_tx_hash + sep10 + realdcrmfrom
 		//types.SetDcrmValidateData(txhash_lockout,retva)
 		if !strings.EqualFold(txhash_lockout,"xxx") {
 		    WriteLockoutInfoToLocalDB(txhash_lockout,retva)
@@ -4735,7 +4861,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 		    log.Debug("================sign,send msg,code is ENCXSHARE.==================")
 		    SendMsgToDcrmGroup(ss)
 		    //<-worker.bencxshare
-		    _,cherr := GetChannelValue(worker.bencxshare)
+		    _,cherr := GetChannelValue(ch_t,worker.bencxshare)
 		    if cherr != nil {
 			log.Debug("get worker.bencxshare timeout.")
 			var ret2 Err
@@ -5045,7 +5171,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 		    ds := make([]string,NodeCnt-1)
 		    for i=0;i<(NodeCnt-1);i++ {
 			//v := <-w.msg_d1_4
-			v,cherr := GetChannelValue(w.msg_d1_4)
+			v,cherr := GetChannelValue(ch_t,w.msg_d1_4)
 			if cherr != nil {
 			    log.Debug("get w.msg_d1_4 timeout.")
 			    //var ret2 Err
@@ -5059,7 +5185,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 
 			for i=0;i<(NodeCnt-1);i++ {
 			//s := <-w.msg_pai1
-			s,cherr := GetChannelValue(w.msg_pai1)
+			s,cherr := GetChannelValue(ch_t,w.msg_pai1)
 			if cherr != nil {
 			    log.Debug("get w.msg_pai1 timeout.")
 			    return false
@@ -5127,7 +5253,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 		    ds := make([]string,NodeCnt-1)
 		    for i=0;i<(NodeCnt-1);i++ {
 			//v := <-worker.msg_d11_4
-			v,cherr := GetChannelValue(worker.msg_d11_4)
+			v,cherr := GetChannelValue(ch_t,worker.msg_d11_4)
 			if cherr != nil {
 			    log.Debug("get worker.msg_d11_4 timeout.")
 			    return false
@@ -5137,7 +5263,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 
 		    for i=0;i<(NodeCnt-1);i++ {
 			//s := <-worker.msg_pai11
-			s,cherr := GetChannelValue(worker.msg_pai11)
+			s,cherr := GetChannelValue(ch_t,worker.msg_pai11)
 			if cherr != nil {
 			    log.Debug("get worker.msg_pai11 timeout.")
 			    return false
@@ -5198,7 +5324,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 		    ds := make([]string,NodeCnt-1)
 		    for i=0;i<(NodeCnt-1);i++ {
 			//v := <-worker.msg_d21_4
-			v,cherr := GetChannelValue(worker.msg_d21_4)
+			v,cherr := GetChannelValue(ch_t,worker.msg_d21_4)
 			if cherr != nil {
 			    log.Debug("get worker.msg_d21_4 timeout.")
 			    return false
@@ -5208,7 +5334,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 
 		    for i=0;i<(NodeCnt-1);i++ {
 			//s := <-worker.msg_pai21
-			s,cherr := GetChannelValue(worker.msg_pai21)
+			s,cherr := GetChannelValue(ch_t,worker.msg_pai21)
 			if cherr != nil {
 			    log.Debug("get worker.msg_pai21 timeout.")
 			    return false
@@ -5303,7 +5429,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 		    ds := make([]string,NodeCnt-1)
 		    for i=0;i<(NodeCnt-1);i++ {
 			//v := <-w.msg_d1_1
-			v,cherr := GetChannelValue(w.msg_d1_1)
+			v,cherr := GetChannelValue(ch_t,w.msg_d1_1)
 			if cherr != nil {
 			    log.Debug("get w.msg_d1_1 timeout.")
 			    return false
@@ -5313,7 +5439,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 
 			for i=0;i<(NodeCnt-1);i++ {
 			//s := <-w.msg_c1
-			s,cherr := GetChannelValue(w.msg_c1)
+			s,cherr := GetChannelValue(ch_t,w.msg_c1)
 			if cherr != nil {
 			    log.Debug("get w.msg_c1 timeout.")
 			    return false
@@ -5366,7 +5492,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 		    ds := make([]string,NodeCnt-1)
 		    for i=0;i<(NodeCnt-1);i++ {
 			//v := <-worker.msg_d11_1
-			v,cherr := GetChannelValue(worker.msg_d11_1)
+			v,cherr := GetChannelValue(ch_t,worker.msg_d11_1)
 			if cherr != nil {
 			    log.Debug("get worker.msg_d11_1 timeout.")
 			    return false
@@ -5376,7 +5502,7 @@ func GetDcrmAddr(hash string,cointype string) string {
 		    
 		    for i=0;i<(NodeCnt-1);i++ {
 			//s := <-worker.msg_c11
-			s,cherr := GetChannelValue(worker.msg_c11)
+			s,cherr := GetChannelValue(ch_t,worker.msg_c11)
 			if cherr != nil {
 			    log.Debug("get worker.msg_c11 timeout.")
 			    return false
@@ -5426,7 +5552,7 @@ func CheckCmt3(msgprex string,id int) bool {
     ds := make([]string,NodeCnt-1)
     for i=0;i<(NodeCnt-1);i++ {
 	//v := <-worker.msg_d21_1
-	v,cherr := GetChannelValue(worker.msg_d21_1)
+	v,cherr := GetChannelValue(ch_t,worker.msg_d21_1)
 	if cherr != nil {
 	    log.Debug("get worker.msg_d21_1 timeout.")
 	    return false
@@ -5436,7 +5562,7 @@ func CheckCmt3(msgprex string,id int) bool {
 
     for i=0;i<(NodeCnt-1);i++ {
 	//s := <-worker.msg_c21
-	s,cherr := GetChannelValue(worker.msg_c21)
+	s,cherr := GetChannelValue(ch_t,worker.msg_c21)
 	if cherr != nil {
 	    log.Debug("get worker.msg_c21 timeout.")
 	    return false
@@ -5583,7 +5709,7 @@ func Dcrm_ReqAddress(wr WorkReq) (string, error) {
     req := RpcReq{rpcdata:wr,ch:rch}
     RpcReqQueue <- req
     //ret := (<- rch).(RpcDcrmRes)
-    ret,cherr := GetChannelValue(rch)
+    ret,cherr := GetChannelValue(ch_t,rch)
     if cherr != nil {
 	log.Debug("Dcrm_ReqAddress timeout.")
 	return "",errors.New("Dcrm_ReqAddress timeout.")
@@ -5597,7 +5723,7 @@ func Dcrm_ConfirmAddr(wr WorkReq) (string, error) {
     req := RpcReq{rpcdata:wr,ch:rch}
     RpcReqQueue <- req
     //ret := (<- rch).(RpcDcrmRes)
-    ret,cherr := GetChannelValue(rch)
+    ret,cherr := GetChannelValue(ch_t,rch)
     if cherr != nil {
 	log.Debug(cherr.Error())
 	return "",cherr
@@ -5610,7 +5736,7 @@ func Dcrm_LiLoReqAddress(wr WorkReq) (string, error) {
     req := RpcReq{rpcdata:wr,ch:rch}
     RpcReqQueue <- req
     //ret := (<- rch).(RpcDcrmRes)
-    ret,cherr := GetChannelValue(rch)
+    ret,cherr := GetChannelValue(ch_t,rch)
     if cherr != nil {
 	log.Debug("Dcrm_LiLoReqAddress timeout.")
 	return "",errors.New("Dcrm_LiLoReqAddress timeout.")
@@ -5630,7 +5756,7 @@ func Dcrm_Sign(wr WorkReq) (string,error) {
     req := RpcReq{rpcdata:wr,ch:rch}
     RpcReqQueue <- req
     //ret := (<- rch).(RpcDcrmRes)
-    ret,cherr := GetChannelValue(rch)
+    ret,cherr := GetChannelValue(ch_t,rch)
     if cherr != nil {
 	log.Debug("Dcrm_Sign get timeout.")
 	return "",errors.New("Dcrm_Sign timeout.")
@@ -5649,7 +5775,7 @@ func Validate_Lockout(wr WorkReq) (string, error) {
     req := RpcReq{rpcdata:wr,ch:rch}
     RpcReqQueue <- req
     //ret := (<- rch).(RpcDcrmRes)
-    ret,cherr := GetChannelValue(rch)
+    ret,cherr := GetChannelValue(ch_t,rch) //80
     if cherr != nil {
 	log.Debug("==========Validate_Lockout,","get error",cherr.Error(),"","===========")
 	return "",cherr
@@ -5667,7 +5793,7 @@ func KeyGenerate(msgprex string,ch chan interface{},id int) bool {
 	makedata <- true
     }
     dcrmdata := <-DcrmDataQueue
-    /*dcrmdata,cherr := GetChannelValue(DcrmDataQueue)
+    /*dcrmdata,cherr := GetChannelValue(ch_t,DcrmDataQueue)
     if cherr != nil {
 	log.Debug("KeyGenerate get DcrmDataQueue timeout.")
 	var ret2 Err
@@ -5706,7 +5832,7 @@ func KeyGenerate(msgprex string,ch chan interface{},id int) bool {
     log.Debug("================kg round one,send msg,code is C1==================")
     SendMsgToDcrmGroup(ss)
     //<-w.bc1
-    _,cherr := GetChannelValue(w.bc1)
+    _,cherr := GetChannelValue(ch_t,w.bc1)
     if cherr != nil {
 	log.Debug("get w.bc1 timeout.")
 	var ret2 Err
@@ -5734,7 +5860,7 @@ func KeyGenerate(msgprex string,ch chan interface{},id int) bool {
     //<-w.bd1_2
     //<-w.bd1_3
     //<-w.bd1_4
-    _,cherr = GetChannelValue(w.bd1_1)
+    _,cherr = GetChannelValue(ch_t,w.bd1_1)
     if cherr != nil {
 	log.Debug("get w.bd1_1 timeout.")
 	var ret2 Err
@@ -5743,7 +5869,7 @@ func KeyGenerate(msgprex string,ch chan interface{},id int) bool {
 	ch <- res
 	return false 
     }
-    _,cherr = GetChannelValue(w.bd1_2)
+    _,cherr = GetChannelValue(ch_t,w.bd1_2)
     if cherr != nil {
 	log.Debug("get w.bd1_2 timeout.")
 	var ret2 Err
@@ -5752,7 +5878,7 @@ func KeyGenerate(msgprex string,ch chan interface{},id int) bool {
 	ch <- res
 	return false 
     }
-    _,cherr = GetChannelValue(w.bd1_3)
+    _,cherr = GetChannelValue(ch_t,w.bd1_3)
     if cherr != nil {
 	log.Debug("get w.bd1_3 timeout.")
 	var ret2 Err
@@ -5761,7 +5887,7 @@ func KeyGenerate(msgprex string,ch chan interface{},id int) bool {
 	ch <- res
 	return false 
     }
-    _,cherr = GetChannelValue(w.bd1_4)
+    _,cherr = GetChannelValue(ch_t,w.bd1_4)
     if cherr != nil {
 	log.Debug("get w.bd1_4 timeout.")
 	var ret2 Err
@@ -5788,7 +5914,7 @@ func KeyGenerate(msgprex string,ch chan interface{},id int) bool {
     log.Debug("==================kg round two,send msg,code is PAI1=================")
     SendMsgToDcrmGroup(ss)
     //<-w.bpai1
-    _,cherr = GetChannelValue(w.bpai1)
+    _,cherr = GetChannelValue(ch_t,w.bpai1)
     if cherr != nil {
 	log.Debug("get w.bpai1 timeout.")
 	var ret2 Err
@@ -5863,7 +5989,7 @@ func calcPubKey(msgprex string,ys_x *big.Int,ys_y *big.Int,id int) (*big.Int,*bi
     var i int
     for i=0;i<(NodeCnt-1);i++ {
 	//s := <-w.msg_d1_2
-	s,cherr := GetChannelValue(w.msg_d1_2)
+	s,cherr := GetChannelValue(ch_t,w.msg_d1_2)
 	if cherr != nil {
 	    log.Debug("get w.msg_d1_2 timeout.")
 	    break
@@ -5883,7 +6009,7 @@ func calcEncPrivKey(msgprex string,encXShare *big.Int,id int) *big.Int {
     var i int
     for i=0;i<(NodeCnt-1);i++ {
 	//s := <-w.msg_encxshare
-	s,cherr := GetChannelValue(w.msg_encxshare)
+	s,cherr := GetChannelValue(ch_t,w.msg_encxshare)
 	if cherr != nil {
 	    log.Debug("get w.msg_encxshare timeout.")
 	    break 
@@ -5915,7 +6041,7 @@ func calcU(msgprex string,u *big.Int,id int) *big.Int {
 
 	if len(worker.msg_d11_2) != 0 {
 	    //s := <-worker.msg_d11_2
-	    s,cherr := GetChannelValue(worker.msg_d11_2)
+	    s,cherr := GetChannelValue(ch_t,worker.msg_d11_2)
 	    if cherr != nil {
 		log.Debug("get worker.msg_d11_2 timeout.")
 	        break	
@@ -5925,7 +6051,7 @@ func calcU(msgprex string,u *big.Int,id int) *big.Int {
 	    val = priv_Key.cipherAdd(val,aph)
 	} else {
 	    //s := <-worker.msg_d11_5
-	    s,cherr := GetChannelValue(worker.msg_d11_5)
+	    s,cherr := GetChannelValue(ch_t,worker.msg_d11_5)
 	    if cherr != nil {
 		log.Debug("get worker.msg_d11_5 timeout.")
 	        break	
@@ -5947,7 +6073,7 @@ func calcV(msgprex string,v *big.Int,id int) *big.Int {
 	for i=0;i<(NodeCnt-1);i++ {
 	    if len(worker.msg_d11_3) != 0 {
 		//s := <-worker.msg_d11_3
-		s,cherr := GetChannelValue(worker.msg_d11_3)
+		s,cherr := GetChannelValue(ch_t,worker.msg_d11_3)
 		if cherr != nil {
 		    log.Debug("get worker.msg_d11_3 timeout.")
 		    break	
@@ -5958,7 +6084,7 @@ func calcV(msgprex string,v *big.Int,id int) *big.Int {
 	    val = priv_Key.cipherAdd(val,kx)
 	} else {
 		//s := <-worker.msg_d11_6
-		s,cherr := GetChannelValue(worker.msg_d11_6)
+		s,cherr := GetChannelValue(ch_t,worker.msg_d11_6)
 		if cherr != nil {
 		    log.Debug("get worker.msg_d11_6 timeout.")
 		    break	
@@ -5980,7 +6106,7 @@ func calcW(msgprex string,w *big.Int,id int) *big.Int {
 	var i int
 	for i=0;i<(NodeCnt-1);i++ {
 	    //s := <-worker.msg_d21_2
-	    s,cherr := GetChannelValue(worker.msg_d21_2)
+	    s,cherr := GetChannelValue(ch_t,worker.msg_d21_2)
 	    if cherr != nil {
 		log.Debug("get worker.msg_d21_2 timeout.")
 		break	
@@ -6002,7 +6128,7 @@ func calcR(msgprex string,rx *big.Int,ry *big.Int,id int) (*big.Int,*big.Int) {
 	var i int
 	for i=0;i<(NodeCnt-1);i++ {
 	    //s := <-worker.msg_d21_3
-	    s,cherr := GetChannelValue(worker.msg_d21_3)
+	    s,cherr := GetChannelValue(ch_t,worker.msg_d21_3)
 	    if cherr != nil {
 		log.Debug("get worker.msg_d21_3 timeout.")
 		break	
@@ -6123,7 +6249,7 @@ func Sign(msgprex string,encX *big.Int,message string,tokenType string,pkx *big.
     log.Debug("==============sign round one,send msg,code is C11================")
     SendMsgToDcrmGroup(ss)
     //<-worker.bc11
-    _,cherr := GetChannelValue(worker.bc11)
+    _,cherr := GetChannelValue(ch_t,worker.bc11)
     if cherr != nil {
 	log.Debug("get worker.bc11 timeout.")
 	var ret2 Err
@@ -6153,7 +6279,7 @@ func Sign(msgprex string,encX *big.Int,message string,tokenType string,pkx *big.
     //<-worker.bd11_4
     //<-worker.bd11_5
     //<-worker.bd11_6
-    _,cherr = GetChannelValue(worker.bd11_1)
+    _,cherr = GetChannelValue(ch_t,worker.bd11_1)
     if cherr != nil {
 	log.Debug("get worker.bd11_1 timeout.")
 	var ret2 Err
@@ -6162,7 +6288,7 @@ func Sign(msgprex string,encX *big.Int,message string,tokenType string,pkx *big.
 	ch <- res
 	return	
     }
-    _,cherr = GetChannelValue(worker.bd11_2)
+    _,cherr = GetChannelValue(ch_t,worker.bd11_2)
     if cherr != nil {
 	log.Debug("get worker.bd11_2 timeout.")
 	var ret2 Err
@@ -6171,7 +6297,7 @@ func Sign(msgprex string,encX *big.Int,message string,tokenType string,pkx *big.
 	ch <- res
 	return	
     }
-    _,cherr = GetChannelValue(worker.bd11_3)
+    _,cherr = GetChannelValue(ch_t,worker.bd11_3)
     if cherr != nil {
 	log.Debug("get worker.bd11_3 timeout.")
 	var ret2 Err
@@ -6180,7 +6306,7 @@ func Sign(msgprex string,encX *big.Int,message string,tokenType string,pkx *big.
 	ch <- res
 	return	
     }
-    _,cherr = GetChannelValue(worker.bd11_4)
+    _,cherr = GetChannelValue(ch_t,worker.bd11_4)
     if cherr != nil {
 	log.Debug("get worker.bd11_4 timeout.")
 	var ret2 Err
@@ -6189,7 +6315,7 @@ func Sign(msgprex string,encX *big.Int,message string,tokenType string,pkx *big.
 	ch <- res
 	return	
     }
-    _,cherr = GetChannelValue(worker.bd11_5)
+    _,cherr = GetChannelValue(ch_t,worker.bd11_5)
     if cherr != nil {
 	log.Debug("get worker.bd11_5 timeout.")
 	var ret2 Err
@@ -6198,7 +6324,7 @@ func Sign(msgprex string,encX *big.Int,message string,tokenType string,pkx *big.
 	ch <- res
 	return	
     }
-    _,cherr = GetChannelValue(worker.bd11_6)
+    _,cherr = GetChannelValue(ch_t,worker.bd11_6)
     if cherr != nil {
 	log.Debug("get worker.bd11_6 timeout.")
 	var ret2 Err
@@ -6222,7 +6348,7 @@ func Sign(msgprex string,encX *big.Int,message string,tokenType string,pkx *big.
     log.Debug("===============sign round two,send msg,code is PAI11===============")
     SendMsgToDcrmGroup(ss)
     //<-worker.bpai11
-    _,cherr = GetChannelValue(worker.bpai11)
+    _,cherr = GetChannelValue(ch_t,worker.bpai11)
     if cherr != nil {
 	log.Debug("get worker.bpai11 timeout.")
 	var ret2 Err
@@ -6319,7 +6445,7 @@ func Sign(msgprex string,encX *big.Int,message string,tokenType string,pkx *big.
     log.Debug("===============sign round three,send msg,code is C21================")
     SendMsgToDcrmGroup(ss)
     //<-worker.bc21
-    _,cherr = GetChannelValue(worker.bc21)
+    _,cherr = GetChannelValue(ch_t,worker.bc21)
     if cherr != nil {
 	log.Debug("get worker.bc21 timeout.")
 	var ret2 Err
@@ -6353,7 +6479,7 @@ func Sign(msgprex string,encX *big.Int,message string,tokenType string,pkx *big.
     //<-worker.bd21_2
     //<-worker.bd21_3
     //<-worker.bd21_4
-    _,cherr = GetChannelValue(worker.bd21_1)
+    _,cherr = GetChannelValue(ch_t,worker.bd21_1)
     if cherr != nil {
 	log.Debug("get worker.bd21_1 timeout.")
 	var ret2 Err
@@ -6362,7 +6488,7 @@ func Sign(msgprex string,encX *big.Int,message string,tokenType string,pkx *big.
 	ch <- res
 	return	
     }
-    _,cherr = GetChannelValue(worker.bd21_2)
+    _,cherr = GetChannelValue(ch_t,worker.bd21_2)
     if cherr != nil {
 	log.Debug("get worker.bd21_2 timeout.")
 	var ret2 Err
@@ -6371,7 +6497,7 @@ func Sign(msgprex string,encX *big.Int,message string,tokenType string,pkx *big.
 	ch <- res
 	return	
     }
-    _,cherr = GetChannelValue(worker.bd21_3)
+    _,cherr = GetChannelValue(ch_t,worker.bd21_3)
     if cherr != nil {
 	log.Debug("get worker.bd21_3 timeout.")
 	var ret2 Err
@@ -6380,7 +6506,7 @@ func Sign(msgprex string,encX *big.Int,message string,tokenType string,pkx *big.
 	ch <- res
 	return	
     }
-    _,cherr = GetChannelValue(worker.bd21_4)
+    _,cherr = GetChannelValue(ch_t,worker.bd21_4)
     if cherr != nil {
 	log.Debug("get worker.bd21_4 timeout.")
 	var ret2 Err
@@ -6411,7 +6537,7 @@ func Sign(msgprex string,encX *big.Int,message string,tokenType string,pkx *big.
     log.Debug("===============kg round four,send msg,code is PAI11================")
     SendMsgToDcrmGroup(ss)
     //<-worker.bpai21
-    _,cherr = GetChannelValue(worker.bpai21)
+    _,cherr = GetChannelValue(ch_t,worker.bpai21)
     if cherr != nil {
 	log.Debug("get worker.bpai21 timeout.")
 	var ret2 Err
@@ -6485,7 +6611,7 @@ func Sign(msgprex string,encX *big.Int,message string,tokenType string,pkx *big.
     log.Debug("================sign round five,send msg,code is PAILLIERTHREDHOLDW ==================")
     SendMsgToDcrmGroup(ss)
     //<-worker.bpaiw
-    _,cherr = GetChannelValue(worker.bpaiw)
+    _,cherr = GetChannelValue(ch_t,worker.bpaiw)
     if cherr != nil {
 	log.Debug("get worker.bpaiw timeout.")
 	var ret2 Err
@@ -6500,7 +6626,7 @@ func Sign(msgprex string,encX *big.Int,message string,tokenType string,pkx *big.
     pailist[0] = mutmp
     for i=0;i<(NodeCnt-1);i++ {
 	    //val := <-worker.msg_paiw
-	    val,cherr := GetChannelValue(worker.msg_paiw)
+	    val,cherr := GetChannelValue(ch_t,worker.msg_paiw)
 	    if cherr != nil {
 		log.Debug("get worker.msg_paiw timeout.")
 		var ret2 Err
@@ -6535,7 +6661,7 @@ func Sign(msgprex string,encX *big.Int,message string,tokenType string,pkx *big.
     log.Debug("================sign round five,send msg,code is PAILLIERTHREDHOLDENC ==================")
     SendMsgToDcrmGroup(ss2)
     //<-worker.bpaienc
-    _,cherr = GetChannelValue(worker.bpaienc)
+    _,cherr = GetChannelValue(ch_t,worker.bpaienc)
     if cherr != nil {
 	log.Debug("get worker.bpaienc timeout.")
 	var ret2 Err
@@ -6549,7 +6675,7 @@ func Sign(msgprex string,encX *big.Int,message string,tokenType string,pkx *big.
     pailist2[0] = stmp
     for j=0;j<(NodeCnt-1);j++ {
 	    //val := <-worker.msg_paienc
-	    val,cherr := GetChannelValue(worker.msg_paienc)
+	    val,cherr := GetChannelValue(ch_t,worker.msg_paienc)
 	    if cherr != nil {
 		log.Debug("get worker.msg_paienc timeout.")
 		var ret2 Err
