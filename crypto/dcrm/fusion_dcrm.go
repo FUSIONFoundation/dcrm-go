@@ -1146,7 +1146,7 @@ func SendReqToGroup(msg string,rpctype string) (string,error) {
     }
 
     var t int
-    if rpctype == "rpc_lockout" {
+    if rpctype == "rpc_lockout" || rpctype == "rpc_lockin" {
 	t = 360
     } else {
 	t = 80 

@@ -1007,7 +1007,7 @@ func (s sortableLURSlice) Len() int {
 }
 
 func (s sortableLURSlice) Less(i, j int) bool {
-	return s[i].Amount > s[j].Amount
+	return s[i].Amount <= s[j].Amount
 }
 
 func (s sortableLURSlice) Swap(i, j int) {

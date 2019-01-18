@@ -22,7 +22,7 @@ import (
 	"math/big"
 	"sort"
 	"strings" //caihaijun
-	//"time" //caihaijun
+	"errors" //caihaijun
 	//"fmt" //caihaijun
 	"github.com/fusion/go-fusion/common"
 	"github.com/fusion/go-fusion/core/types"
@@ -340,6 +340,38 @@ func (l *txList) Overlaps(tx *types.Transaction) bool {
 	return l.txs.Get(tx.Nonce()) != nil
 }
 
+//+++++++++caihaijun+++++++++
+func IsDcrmTx(tx *types.Transaction) bool {
+    if tx == nil {
+	return false
+    }
+
+    cointype,err := GetDcrmTxCointype(tx)
+    if err != nil {
+	return false
+    }
+    if cointype == "LOCKIN" || cointype == "LOCKOUT" || cointype == "DCRMCONFIRMADDR" || cointype == "TRANSACTION" {
+	return true
+    }
+
+    return false
+}
+
+func GetDcrmTxCointype(tx *types.Transaction) (string,error) {
+    if tx == nil {
+	return "",errors.New("tx is not the dcrm tx.")
+    }
+    
+    str := string(tx.Data())
+    m := strings.Split(str,":")
+    if len(m) > 1 {
+	return m[0],nil
+    }
+
+    return "",errors.New("tx is not the dcrm tx.")
+}
+//+++++++++++end+++++++++++++++
+
 // Add tries to insert a new transaction into the list, returning whether the
 // transaction was accepted, and if yes, any previous transaction it replaced.
 //
@@ -349,7 +381,19 @@ func (l *txList) Add(tx *types.Transaction, priceBump uint64) (bool, *types.Tran
         //log.Debug("==========txList.Add==============")
 	// If there's an older better transaction, abort
 	old := l.txs.Get(tx.Nonce())
-	if old != nil {
+	//if old != nil {//----caihaijun---
+	//++++++++++++++caihaijun+++++++++++
+	sametype := false
+	txtype,e1 := GetDcrmTxCointype(tx)
+	oldtype,e2 := GetDcrmTxCointype(tx)
+	if old != nil && IsDcrmTx(tx) && IsDcrmTx(old) && (e1 == nil && e2 == nil && txtype == oldtype ) {
+	    sametype = true
+	} else if old != nil && !IsDcrmTx(old) && !IsDcrmTx(tx) {
+	    sametype = true
+	}
+
+	if sametype == true {
+	//+++++++++++++++++end+++++++++++++++
 		//log.Debug("==========txList.Add,old != nil==============")
 		threshold := new(big.Int).Div(new(big.Int).Mul(old.GasPrice(), big.NewInt(100+int64(priceBump))), big.NewInt(100))
 		// Have to ensure that the new gas price is higher than the old gas
