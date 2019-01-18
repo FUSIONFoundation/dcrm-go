@@ -910,6 +910,7 @@ func (pool *TxPool) checkLockout(tx *types.Transaction) (bool,error) {
 
 func (pool *TxPool) validateLockout(tx *types.Transaction) (bool,error) {
     log.Debug("============txPool.validateLockout=================")
+
     inputs := strings.Split(string(tx.Data()),":")
     
     lockoutto := inputs[1]
@@ -946,6 +947,14 @@ func (pool *TxPool) validateLockout(tx *types.Transaction) (bool,error) {
 	return true,nil
     }
 
+    //bug
+    val,ok := dcrm.GetLockoutInfoFromLocalDB(tx.Hash().Hex())
+    if ok == nil && val != "" {
+	types.SetDcrmValidateData(tx.Hash().Hex(),val)
+	return true,nil
+    }
+    //
+    
     realfusionfrom,realdcrmfrom,err := dcrm.ChooseRealFusionAccountForLockout(value,lockoutto,cointype)
     if err != nil || realfusionfrom == "" || realdcrmfrom == "" {
 	return false,errors.New("there are no suitable account to lockout.")

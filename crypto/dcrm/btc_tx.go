@@ -214,8 +214,12 @@ func ChooseDcrmAddrForLockoutByValue(dcrmaddr string,lockoutto string,value floa
 	}
 	//////////bug/////
 	if len(unspentOutputs) == 0 && err == nil {
-	    time.Sleep(time.Duration(10)*time.Second) //1000 == 1s
-	    unspentOutputs, err = listUnspent(dcrmaddr) //try again
+	    time.Sleep(time.Duration(2)*time.Second) //1000 == 1s
+	    unspentOutputs, err = listUnspent_blockchaininfo(dcrmaddr) //try again
+	    if len(unspentOutputs) == 0 && err == nil {
+		time.Sleep(time.Duration(2)*time.Second) //1000 == 1s
+		unspentOutputs, err = listUnspent(dcrmaddr) //try again
+	    }
 	}
 	/////////////////
 
@@ -291,8 +295,12 @@ func GetDcrmAddrBalanceForLockout(dcrmaddr string,lockoutto string,value float64
 	unspentOutputs, err := listUnspent(dcrmaddr)
 	//////////bug/////
 	if len(unspentOutputs) == 0 && err == nil {
-	    time.Sleep(time.Duration(10)*time.Second) //1000 == 1s
-	    unspentOutputs, err = listUnspent(dcrmaddr) //try again
+	    time.Sleep(time.Duration(2)*time.Second) //1000 == 1s
+	    unspentOutputs, err = listUnspent_blockchaininfo(dcrmaddr) //try again
+	    if len(unspentOutputs) == 0 && err == nil {
+		time.Sleep(time.Duration(2)*time.Second) //1000 == 1s
+		unspentOutputs, err = listUnspent(dcrmaddr) //try again
+	    }
 	}
 	/////////////////
 	//unspentOutputs, err := listUnspentWithWallet(dcrmaddr)
@@ -398,6 +406,16 @@ func btc_createTransaction(msgprex string,dcrmaddr string,ch chan interface{}) (
 	if err != nil {
 		return "",errContext(err, "failed to fetch unspent outputs")
 	}
+	//////////bug/////
+	if len(unspentOutputs) == 0 && err == nil {
+	    time.Sleep(time.Duration(2)*time.Second) //1000 == 1s
+	    unspentOutputs, err = listUnspent(dcrmaddr) //try again
+	    if len(unspentOutputs) == 0 && err == nil {
+		time.Sleep(time.Duration(2)*time.Second) //1000 == 1s
+		unspentOutputs, err = listUnspent_blockchaininfo(dcrmaddr) //try again
+	    }
+	}
+	/////////////////
 	sourceOutputs := make(map[string][]btcjson.ListUnspentResult)
 	
 	for _, unspentOutput := range unspentOutputs {

@@ -391,6 +391,7 @@ func FilterDcrmTx(pool *TxPool,tx *types.Transaction) bool {
 	return false
     }
 
+    log.Debug("===========FilterDcrmTx,","tx hash",tx.Hash().Hex(),"from",from,"","================")
     str := string(tx.Data())
     m := strings.Split(str,":")
     if m[0] == "TRANSACTION" {
@@ -400,6 +401,7 @@ func FilterDcrmTx(pool *TxPool,tx *types.Transaction) bool {
 	if strings.EqualFold(cointype,"ETH") == true || strings.EqualFold(cointype,"GUSD") == true || strings.EqualFold(cointype,"BNB") == true || strings.EqualFold(cointype,"MKR") == true || strings.EqualFold(cointype,"HT") == true || strings.EqualFold(cointype,"BNT") == true {
 	    amount,_ := new(big.Int).SetString(value,10)
 	     ret,err := pool.currentState.GetDcrmAccountBalance(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
+	    log.Debug("===========FilterDcrmTx,","amount",amount,"ret",ret,"","================")
 	     if err == nil {
 		if ret.Cmp(amount) < 0 {
 		    log.Debug("=============FilterDcrmTx,TRANSACTION,ErrInsufficientBalance===============")
@@ -413,6 +415,7 @@ func FilterDcrmTx(pool *TxPool,tx *types.Transaction) bool {
 	    one,_ := new(big.Int).SetString("1",10)
 	    if amount.Cmp(one) >= 0 {
 		 ret,err := pool.currentState.GetDcrmAccountBalance(from,crypto.Keccak256Hash([]byte(strings.ToLower(cointype))),0)
+		log.Debug("===========FilterDcrmTx,","amount",amount,"ret",ret,"","================")
 		if err == nil {
 		    if ret.Cmp(amount) < 0 {
 			log.Debug("=============FilterDcrmTx,TRANSACTION,ErrInsufficientBalance===============")

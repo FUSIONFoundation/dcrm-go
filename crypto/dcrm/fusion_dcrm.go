@@ -2823,6 +2823,16 @@ func dcrmcall(msg interface{}) <-chan string {
 
     if len(mm) == 2 && mm[1] == "rpc_lockout" {
 	tmps := strings.Split(mm[0],"-")
+	//bug
+	val,ok := GetLockoutInfoFromLocalDB(tmps[1])
+	if ok == nil && val != "" {
+	    types.SetDcrmValidateData(tmps[1],val)
+	    ss := tmps[0] + "-" + tmps[10] + "-" + val + msgtypesep + "rpc_lockout_res"
+	    ch <- ss 
+	    return ch
+	}
+	//
+	
 	/////
 	realfusionfrom,realdcrmfrom,err := ChooseRealFusionAccountForLockout(tmps[8],tmps[7],tmps[9])
 	if err != nil {
@@ -3108,13 +3118,13 @@ func ValidBTCTx(returnJson string,txhash string,realdcrmfrom string,realdcrmto s
 			    return
 			}
 
-			/*b,ee := LockoutIsConfirmed(realdcrmto,txhash)
+			b,ee := GetLockoutConfirmations(txhash)
 			if b && ee == nil {
 			    log.Debug("========ValidBTCTx,lockout tx is confirmed.============")
 			    res := RpcDcrmRes{ret:"true",err:nil}
 			    ch <- res
 			    return
-			}*/
+			}
 
 			var ret2 Err
 			ret2.info = "get btc transaction fail."
@@ -3131,13 +3141,13 @@ func ValidBTCTx(returnJson string,txhash string,realdcrmfrom string,realdcrmto s
 			    return
 			} 
 			
-			/*b,ee := LockoutIsConfirmed(realdcrmto,txhash)
-			if b && ee == nil {
+			b,ee := GetLockoutConfirmations(txhash)
+			if vvn != nil && van != nil && vvn.Cmp(van) == 0 && b && ee == nil {
 			    log.Debug("========ValidBTCTx,lockin tx is confirmed.============")
 			    res := RpcDcrmRes{ret:"true",err:nil}
 			    ch <- res
 			    return
-			}*/
+			}
 
 			if vvn != nil && van != nil && vvn.Cmp(van) == 0 {
 			    var ret2 Err
@@ -3178,13 +3188,13 @@ func ValidBTCTx(returnJson string,txhash string,realdcrmfrom string,realdcrmto s
 			    return
 			}
 			
-			/*b,ee := LockoutIsConfirmed(realdcrmto,txhash)
+			b,ee := GetLockoutConfirmations(txhash)
 			if b && ee == nil {
 			    log.Debug("========ValidBTCTx,lockout tx is confirmed.============")
 			    res := RpcDcrmRes{ret:"true",err:nil}
 			    ch <- res
 			    return
-			}*/
+			}
 
 			var ret2 Err
 			ret2.info = "get btc transaction fail."
@@ -3201,13 +3211,13 @@ func ValidBTCTx(returnJson string,txhash string,realdcrmfrom string,realdcrmto s
 			    return
 			} 
 			
-			/*b,ee := LockoutIsConfirmed(realdcrmto,txhash)
-			if b && ee == nil {
+			b,ee := GetLockoutConfirmations(txhash)
+			if vvn != nil && van != nil && vvn.Cmp(van) == 0 && b && ee == nil {
 			    log.Debug("========ValidBTCTx,lockout tx is confirmed.============")
 			    res := RpcDcrmRes{ret:"true",err:nil}
 			    ch <- res
 			    return
-			}*/
+			}
 
 			if vvn != nil && van != nil && vvn.Cmp(van) == 0 {
 			    var ret2 Err
@@ -3228,6 +3238,34 @@ func ValidBTCTx(returnJson string,txhash string,realdcrmfrom string,realdcrmto s
     res := RpcDcrmRes{ret:"",err:ret2}
     ch <- res
     return
+}
+
+func GetLockoutConfirmations(txhash string) (bool,error) {
+    if txhash == "" {
+	return false,errors.New("param error.")
+    }
+
+    reqJson2 := "{\"jsonrpc\":\"1.0\",\"method\":\"getrawtransaction\",\"params\":[\"" + txhash + "\"" + "," + "true" + "],\"id\":1}";
+    s := "http://"
+    s += SERVER_HOST
+    s += ":"
+    s += strconv.Itoa(SERVER_PORT)
+    ret := DoCurlRequest(s,"",reqJson2)
+    log.Debug("=============GetLockoutConfirmations,","curl ret",ret,"","=============")
+    
+    var btcres_noinputs BtcTxResInfoNoInputs
+    ok := json.Unmarshal([]byte(ret), &btcres_noinputs)
+    log.Debug("=============GetLockoutConfirmations,","ok",ok,"","=============")
+    if ok == nil && btcres_noinputs.Result.Confirmations >= BTC_BLOCK_CONFIRMS {
+	return true,nil
+    }
+    var btcres BtcTxResInfo
+    ok = json.Unmarshal([]byte(ret), &btcres)
+    log.Debug("=============GetLockoutConfirmations,","ok",ok,"","=============")
+    if ok == nil && btcres.Result.Confirmations >= BTC_BLOCK_CONFIRMS {
+	return true,nil
+    }
+    return false,nil
 }
 
 func DoCurlRequest (url, api, data string) string {
@@ -3330,17 +3368,17 @@ func validate_txhash(msgprex string,tx string,lockinaddr string,hashkey string,r
 	    }
 
 	    //=============
-	    btctx_hash := GetRawTransactionHash(returnJson)
+	    /*btctx_hash := GetRawTransactionHash(returnJson)
 	    reqJson2 := "{\"jsonrpc\":\"1.0\",\"method\":\"getrawtransaction\",\"params\":[\"" + btctx_hash + "\"" + "," + "true" + "],\"id\":1}";
 	    s := "http://"
 	    s += SERVER_HOST
 	    s += ":"
 	    s += strconv.Itoa(SERVER_PORT)
 	    ret := DoCurlRequest(s,"",reqJson2)
-	    log.Debug("=============validate_txhash,","curl ret",ret,"","=============")
+	    log.Debug("=============validate_txhash,","curl ret",ret,"","=============")*/
 	    //=============
 	    ////
-	    ValidBTCTx(ret,btctx_hash,realdcrmfrom,realdcrmto,xxx[1],true,ch) 
+	    ValidBTCTx(returnJson,GetRawTransactionHash(returnJson),realdcrmfrom,realdcrmto,xxx[1],true,ch) 
 	    return
 	}
 
@@ -3582,29 +3620,29 @@ func validate_txhash(msgprex string,tx string,lockinaddr string,hashkey string,r
 
 	if m[0] == "LOCKIN" {
 	    //=============
-	    reqJson2 := "{\"jsonrpc\":\"1.0\",\"method\":\"getrawtransaction\",\"params\":[\"" + hashkey + "\"" + "," + "true" + "],\"id\":1}";
+	    /*reqJson2 := "{\"jsonrpc\":\"1.0\",\"method\":\"getrawtransaction\",\"params\":[\"" + hashkey + "\"" + "," + "true" + "],\"id\":1}";
 	    s := "http://"
 	    s += SERVER_HOST
 	    s += ":"
 	    s += strconv.Itoa(SERVER_PORT)
 	    ret := DoCurlRequest(s,"",reqJson2)
-	    log.Debug("=============validate_txhash,","curl ret",ret,"","=============")
+	    log.Debug("=============validate_txhash,","curl ret",ret,"","=============")*/
 	    //=============
-	    ValidBTCTx(ret,hashkey,realdcrmfrom,realdcrmto,lockinvalue,false,ch) 
+	    ValidBTCTx(returnJson,hashkey,realdcrmfrom,realdcrmto,lockinvalue,false,ch) 
 	    return
 	}
 	if m[0] == "LOCKOUT" {
 	    //=============
-	    btctx_hash := GetRawTransactionHash(returnJson)
+	    /*btctx_hash := GetRawTransactionHash(returnJson)
 	    reqJson2 := "{\"jsonrpc\":\"1.0\",\"method\":\"getrawtransaction\",\"params\":[\"" + btctx_hash + "\"" + "," + "true" + "],\"id\":1}";
 	    s := "http://"
 	    s += SERVER_HOST
 	    s += ":"
 	    s += strconv.Itoa(SERVER_PORT)
 	    ret := DoCurlRequest(s,"",reqJson2)
-	    log.Debug("=============validate_txhash,","curl ret",ret,"","=============")
+	    log.Debug("=============validate_txhash,","curl ret",ret,"","=============")*/
 	    //=============
-	    ValidBTCTx(ret,btctx_hash,realdcrmfrom,realdcrmto,m[2],true,ch) 
+	    ValidBTCTx(returnJson,GetRawTransactionHash(returnJson),realdcrmfrom,realdcrmto,m[2],true,ch) 
 	    return
 	}
 
