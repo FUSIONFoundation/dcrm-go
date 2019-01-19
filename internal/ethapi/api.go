@@ -46,6 +46,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/util"
 	"github.com/fusion/go-fusion/crypto/dcrm"
 	"github.com/fusion/go-fusion/rpc"
+	"github.com/fusion/go-fusion/ethclient"//caihaijun
 )
 
 const (
@@ -1550,6 +1551,28 @@ func (args *SendTxArgs) setDefaults(ctx context.Context, b Backend) error {
 			return err
 		}
 		args.Nonce = (*hexutil.Uint64)(&nonce)
+		log.Debug("============args.setDefaults,","block nonce",args.Nonce,"","========")
+		////
+		t := nonce
+		client2,err2 := ethclient.Dial(dcrm.ETH_SERVER)
+		if err2 == nil {
+		    nonce2, err2 := client2.PendingNonceAt(context.Background(), args.From)
+		    if err2 == nil {
+			log.Debug("============args.setDefaults,","pending nonce",nonce2,"","========")
+			t += nonce2
+		    }
+		}
+		
+		nonce3,err2 := b.GetDcrmTxRealNonce(ctx,args.From.Hex())
+		if err2 == nil {
+		    log.Debug("============args.setDefaults,","queue nonce",nonce3,"","========")
+		    t += nonce3
+		}
+		log.Debug("============args.setDefaults,","t",t,"","========")
+		args.Nonce = new(hexutil.Uint64)
+		*(*uint64)(args.Nonce) = t 
+		log.Debug("============args.setDefaults,","total nonce",args.Nonce,"","========")
+		////
 	}
 	if args.Data != nil && args.Input != nil && !bytes.Equal(*args.Data, *args.Input) {
 		return errors.New(`Both "data" and "input" are set and not equal. Please use "input" to pass transaction call data.`)

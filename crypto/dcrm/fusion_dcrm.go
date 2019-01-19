@@ -138,8 +138,8 @@ var (
     mergenum = 0
 
     //
-    BLOCK_FORK_0 = "18000" //fork for dcrmsendtransaction.not to self.
-    BLOCK_FORK_1 = "280000" //fork for lockin,txhash store into block.
+    BLOCK_FORK_0 = "0" //fork for dcrmsendtransaction.not to self.
+    BLOCK_FORK_1 = "0" //fork for lockin,txhash store into block.
     BLOCK_FORK_2 = "100000" //fork for lockout choose real dcrm from.
 )
 
@@ -1061,6 +1061,20 @@ func getLockoutTx(realfusionfrom string,realdcrmfrom string,to string,value stri
 	}
 
 	nonce := uint64(result)
+	log.Debug("============getLockouTx,","not pending nonce",nonce,"","========")
+
+	////
+	/*fromAddress := common.HexToAddress(realdcrmfrom)
+	client2,err2 := ethclient.Dial(ETH_SERVER)
+	if err2 == nil {
+	    nonce2, err2 := client2.PendingNonceAt(context.Background(), fromAddress)
+	    if err2 == nil {
+		nonce += nonce2
+		log.Debug("============getLockouTx,","pending nonce",nonce,"","========")
+	    }
+	}*/
+	////
+
 	///////////////
 	// New transaction
 	tx := types.NewTransaction(

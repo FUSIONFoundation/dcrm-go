@@ -381,14 +381,20 @@ func (l *txList) Add(tx *types.Transaction, priceBump uint64) (bool, *types.Tran
         //log.Debug("==========txList.Add==============")
 	// If there's an older better transaction, abort
 	old := l.txs.Get(tx.Nonce())
-	//if old != nil {//----caihaijun---
+	//if old != nil {//----caihaijun----
 	//++++++++++++++caihaijun+++++++++++
+	if old != nil { 
+	    log.Debug("==============txList.Add,","old nonce",old.Nonce(),"","=========")
+	}
+	log.Debug("==============txList.Add,","tx nonce",tx.Nonce(),"","=========")
 	sametype := false
 	txtype,e1 := GetDcrmTxCointype(tx)
 	oldtype,e2 := GetDcrmTxCointype(tx)
 	if old != nil && IsDcrmTx(tx) && IsDcrmTx(old) && (e1 == nil && e2 == nil && txtype == oldtype ) {
+	    log.Debug("==============txList.Add,old and new is dcrmtx=========")
 	    sametype = true
 	} else if old != nil && !IsDcrmTx(old) && !IsDcrmTx(tx) {
+	    log.Debug("==============txList.Add,old and new is not dcrmtx=========")
 	    sametype = true
 	}
 

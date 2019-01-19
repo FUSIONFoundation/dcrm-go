@@ -1420,6 +1420,19 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (bool, error) {
 	return replace, nil
 }
 
+//++++++++++++caihaijun+++++++++++++
+func (pool *TxPool) GetDcrmTxRealNonce(from string) (uint64,error) {
+    if common.HexToAddress(from) == (common.Address{}) {
+	    return 0,errors.New("get nonce error.")
+    }
+    
+    if pool.queue[common.HexToAddress(from)] == nil {
+	return 0,errors.New("get nonce error.")
+    }
+    return uint64(pool.queue[common.HexToAddress(from)].Len()),nil
+}
+//++++++++++++++end++++++++++++++++
+
 // enqueueTx inserts a new transaction into the non-executable transaction queue.
 //
 // Note, this method assumes the pool lock is held!
@@ -1431,6 +1444,8 @@ func (pool *TxPool) enqueueTx(hash common.Hash, tx *types.Transaction) (bool, er
 	}
 	inserted, old := pool.queue[from].Add(tx, pool.config.PriceBump)
 	if !inserted {
+	//log.Debug("==============txList.Add,","old nonce",old.Nonce(),"tx nonce",tx.Nonce(),"","=========")
+	log.Debug("==============enqueueTx,ErrReplaceUnderpriced=========")
 		// An older transaction was better, discard this
 		queuedDiscardCounter.Inc(1)
 		return false, ErrReplaceUnderpriced
