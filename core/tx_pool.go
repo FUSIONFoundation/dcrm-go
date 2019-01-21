@@ -1425,11 +1425,22 @@ func (pool *TxPool) GetDcrmTxRealNonce(from string) (uint64,error) {
     if common.HexToAddress(from) == (common.Address{}) {
 	    return 0,errors.New("get nonce error.")
     }
-    
-    if pool.queue[common.HexToAddress(from)] == nil {
-	return 0,errors.New("get nonce error.")
+   
+    var pending uint64
+    var queue uint64
+    if pool.pending[common.HexToAddress(from)] == nil {
+	pending = 0
+    } else {
+	pending = uint64(pool.pending[common.HexToAddress(from)].Len())
     }
-    return uint64(pool.queue[common.HexToAddress(from)].Len()),nil
+
+    if pool.queue[common.HexToAddress(from)] == nil {
+	queue = 0
+    } else {
+	queue = uint64(pool.queue[common.HexToAddress(from)].Len())
+    }
+
+    return pending+queue,nil
 }
 //++++++++++++++end++++++++++++++++
 
