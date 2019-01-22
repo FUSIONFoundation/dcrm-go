@@ -235,15 +235,22 @@ func (m *txSortedMap) Ready(pool *TxPool,start uint64) types.Transactions {  //+
 	for next := (*m.index)[0]; m.index.Len() > 0 && (*m.index)[0] == next; next++ {
 
 	    tx := m.items[next]
-	    _, err := types.Sender(pool.signer,tx)
-	    if err != nil {
-		    continue
-	    }
-
 	    input := tx.Data()
 	    data := string(input)
 	    mm := strings.Split(data,":")
 	    val,ok := types.GetDcrmValidateDataKReady(tx.Hash().Hex())
+	    _, err := types.Sender(pool.signer,tx)
+	    if err != nil {
+		if mm[0] == "LOCKOUT" {
+			ready = append(ready, m.items[next])
+		    	m.Remove(next)
+			//bug
+			if ok == true {
+			    types.DeleteDcrmValidateData(tx.Hash().Hex())
+			}
+		}
+		    continue
+	    }
 
 	    if mm[0] == "LOCKIN" {
 		_,err := pool.ValidateLockin(tx)
@@ -267,7 +274,8 @@ func (m *txSortedMap) Ready(pool *TxPool,start uint64) types.Transactions {  //+
 			types.DeleteDcrmValidateData(tx.Hash().Hex())
 
 		    } else if strings.EqualFold(err.Error(),"get btc transaction fail.") == false && strings.EqualFold(err.Error(),"get eth transaction fail.") == false { //bug
-			//log.Debug("=============txPool.Ready,remove the tx from pool.==============")
+			log.Debug("=============txPool.Ready,not success,BUT SUCCESS!!!==============")
+			ready = append(ready, m.items[next])
 		    	m.Remove(next)
 			//bug
 			types.DeleteDcrmValidateData(tx.Hash().Hex())
@@ -275,6 +283,7 @@ func (m *txSortedMap) Ready(pool *TxPool,start uint64) types.Transactions {  //+
 		    }
 		} else { //bug:if no val and tx is invalide
 			//log.Debug("=============txPool.Ready,remove the tx from pool only.==============")
+			ready = append(ready, m.items[next])
 		    	m.Remove(next)
 		}
 

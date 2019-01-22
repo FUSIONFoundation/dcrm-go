@@ -1425,22 +1425,25 @@ func (pool *TxPool) GetDcrmTxRealNonce(from string) (uint64,error) {
     if common.HexToAddress(from) == (common.Address{}) {
 	    return 0,errors.New("get nonce error.")
     }
-   
-    var pending uint64
-    var queue uint64
+  
+    log.Debug("==============GetDcrmTxRealNonce,","txpool.currentState nonce",pool.currentState.GetNonce(common.HexToAddress(from)),"txpool.pendingState nonce",pool.pendingState.GetNonce(common.HexToAddress(from)),"","=================")
+    /*var pending uint64
     if pool.pending[common.HexToAddress(from)] == nil {
 	pending = 0
     } else {
 	pending = uint64(pool.pending[common.HexToAddress(from)].Len())
     }
+    log.Debug("==============GetDcrmTxRealNonce,","pending",pending,"","=================")*/
 
+    var queue uint64
     if pool.queue[common.HexToAddress(from)] == nil {
 	queue = 0
     } else {
 	queue = uint64(pool.queue[common.HexToAddress(from)].Len())
     }
+    log.Debug("==============GetDcrmTxRealNonce,","counts in queue",queue,"","=================")
 
-    return pending+queue,nil
+    return queue,nil
 }
 //++++++++++++++end++++++++++++++++
 
@@ -1491,10 +1494,10 @@ func (pool *TxPool) journalTx(from common.Address, tx *types.Transaction) {
 //
 // Note, this method assumes the pool lock is held!
 func (pool *TxPool) promoteTx(addr common.Address, hash common.Hash, tx *types.Transaction) bool {
-	//log.Debug("==================promoteTx=================")//caihaijun 
+	log.Debug("==================promoteTx=================")//caihaijun 
 	// Try to insert the transaction into the pending queue
 	if pool.pending[addr] == nil {
-		//log.Debug("==================promoteTx,pool.pending[addr] == nil=================")//caihaijun 
+		log.Debug("==================promoteTx,pool.pending[addr] == nil=================")//caihaijun 
 		pool.pending[addr] = newTxList(true)
 	}
 	list := pool.pending[addr]
@@ -1511,7 +1514,7 @@ func (pool *TxPool) promoteTx(addr common.Address, hash common.Hash, tx *types.T
 	}
 	// Otherwise discard any previous transaction and mark this
 	if old != nil {
-		//log.Debug("==================promoteTx,discard any previous transaction and mark this=================")//caihaijun 
+		log.Debug("==================promoteTx,discard any previous transaction and mark this=================")//caihaijun 
 		pool.all.Remove(old.Hash())
 		pool.priced.Removed()
 
@@ -1519,12 +1522,12 @@ func (pool *TxPool) promoteTx(addr common.Address, hash common.Hash, tx *types.T
 	}
 	// Failsafe to work around direct pending inserts (tests)
 	if pool.all.Get(hash) == nil {
-		//log.Debug("==================promoteTx,Failsafe to work around direct pending inserts (tests)=================")//caihaijun 
+		log.Debug("==================promoteTx,Failsafe to work around direct pending inserts (tests)=================")//caihaijun 
 		pool.all.Add(tx)
 		pool.priced.Put(tx)
 	}
 	// Set the potentially new pending nonce and notify any subsystems of the new tx
-	//log.Debug("==================promoteTx,Set the potentially new pending nonce and notify any subsystems of the new tx=================")//caihaijun 
+	log.Debug("==================promoteTx,Set the potentially new pending nonce and notify any subsystems of the new tx=================")//caihaijun 
 	pool.beats[addr] = time.Now()
 	pool.pendingState.SetNonce(addr, tx.Nonce()+1)
 

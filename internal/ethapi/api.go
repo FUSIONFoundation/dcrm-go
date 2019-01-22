@@ -46,7 +46,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/util"
 	"github.com/fusion/go-fusion/crypto/dcrm"
 	"github.com/fusion/go-fusion/rpc"
-	//"github.com/fusion/go-fusion/ethclient"//caihaijun
+	"github.com/fusion/go-fusion/ethclient"//caihaijun
 )
 
 const (
@@ -1410,11 +1410,20 @@ func (s *PublicTransactionPoolAPI) GetRawTransactionByBlockHashAndIndex(ctx cont
 
 // GetTransactionCount returns the number of transactions the given address has sent for the given block number
 func (s *PublicTransactionPoolAPI) GetTransactionCount(ctx context.Context, address common.Address, blockNr rpc.BlockNumber) (*hexutil.Uint64, error) {
+	log.Debug("============GetTransactionCount========")
 	state, _, err := s.b.StateAndHeaderByNumber(ctx, blockNr)
 	if state == nil || err != nil {
 		return nil, err
 	}
 	nonce := state.GetNonce(address)
+	//++++++++++++++++++caihaijun++++++++++++++++
+	log.Debug("============GetTransactionCount,","nonce",nonce,"","========")
+	nonce2,err := s.b.GetDcrmTxRealNonce(ctx,address.Hex())
+	if err == nil {
+	    log.Debug("============GetTransactionCount,","nonce2",nonce2,"","========")
+	    nonce += nonce2
+	}
+	//++++++++++++++++++++end+++++++++++++++++++++
 	return (*hexutil.Uint64)(&nonce), state.Error()
 }
 
@@ -1553,40 +1562,28 @@ func (args *SendTxArgs) setDefaults(ctx context.Context, b Backend) error {
 		args.Nonce = (*hexutil.Uint64)(&nonce)
 		log.Debug("============args.setDefaults,","block nonce",args.Nonce,"","========")
 		////
-	 /*client3, err3 := rpc.Dial(dcrm.ETH_SERVER)
-	if err3 == nil {
-	    ctx3, cancel3 := context.WithTimeout(context.Background(), 10*time.Second)
-	    defer cancel3()
-	    var result hexutil.Uint64
-	    err3 = client3.CallContext(ctx3, &result, "eth_getTransactionCount",args.From.Hex(),"lastest")
-	    if err3 == nil {
-		nonce3 := uint64(result)
-		log.Debug("============args.setDefaults,","nonce3",nonce3,"","========")
-	    }
-	    var result4 hexutil.Uint64
-	    err3 = client3.CallContext(ctx3, &result4, "eth_getTransactionCount",args.From.Hex(),"pending")
-	    if err3 == nil {
-		nonce4 := uint64(result4)
-		log.Debug("============args.setDefaults,","nonce4",nonce4,"","========")
-	    }
-	    var result5 hexutil.Uint64
-	    err3 = client3.CallContext(ctx3, &result5, "eth_getTransactionCount",args.From.Hex(),"earliest")
-	    if err3 == nil {
-		nonce5 := uint64(result5)
-		log.Debug("============args.setDefaults,","nonce5",nonce5,"","========")
-	    }
-	}*/
-
-		t := nonce
-		/*client2,err2 := ethclient.Dial(dcrm.ETH_SERVER)
+		
+		//=========test==============
+		client2,err2 := ethclient.Dial(dcrm.ETH_SERVER)
 		if err2 == nil {
 		    nonce2, err2 := client2.PendingNonceAt(context.Background(), args.From)
 		    if err2 == nil {
 			log.Debug("============args.setDefaults,","pending nonce",nonce2,"","========")
-			t += nonce2
+			//t += nonce2
 		    }
-		}*/
+		}
+		var result4 hexutil.Uint64
+		client3, _ := rpc.Dial(dcrm.ETH_SERVER)
+		ctx3, cancel3 := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel3()
+		err3 := client3.CallContext(ctx3, &result4, "eth_getTransactionCount",args.From.Hex(),"lastest")
+		if err3 == nil {
+		    nonce4 := uint64(result4)
+		    log.Debug("============args.setDefaults,","nonce4",nonce4,"","========")
+		}
+		//=======================
 		
+		t := nonce
 		nonce3,err2 := b.GetDcrmTxRealNonce(ctx,args.From.Hex())
 		if err2 == nil {
 		    log.Debug("============args.setDefaults,","queue nonce",nonce3,"","========")
