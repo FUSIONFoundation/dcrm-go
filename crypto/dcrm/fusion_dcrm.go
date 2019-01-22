@@ -138,8 +138,8 @@ var (
     mergenum = 0
 
     //
-    BLOCK_FORK_0 = "0" //fork for dcrmsendtransaction.not to self.
-    BLOCK_FORK_1 = "0" //fork for lockin,txhash store into block.
+    BLOCK_FORK_0 = "18000" //fork for dcrmsendtransaction.not to self.
+    BLOCK_FORK_1 = "280000" //fork for lockin,txhash store into block.
     BLOCK_FORK_2 = "100000" //fork for lockout choose real dcrm from.
 )
 
@@ -3138,6 +3138,10 @@ func ValidBTCTx(returnJson string,txhash string,realdcrmfrom string,realdcrmto s
 			    res := RpcDcrmRes{ret:"true",err:nil}
 			    ch <- res
 			    return
+			} else if ee != nil {
+			    res := RpcDcrmRes{ret:"",err:ee}
+			    ch <- res
+			    return 
 			}
 
 			var ret2 Err
@@ -3161,11 +3165,21 @@ func ValidBTCTx(returnJson string,txhash string,realdcrmfrom string,realdcrmto s
 			    res := RpcDcrmRes{ret:"true",err:nil}
 			    ch <- res
 			    return
+			} else if ee != nil {
+			    res := RpcDcrmRes{ret:"",err:ee}
+			    ch <- res
+			    return 
 			}
 
 			if vvn != nil && van != nil && vvn.Cmp(van) == 0 {
 			    var ret2 Err
 			    ret2.info = "get btc transaction fail."
+			    res := RpcDcrmRes{ret:"",err:ret2}
+			    ch <- res
+			    return
+			} else {
+			    var ret2 Err
+			    ret2.info = "outside tx fail."
 			    res := RpcDcrmRes{ret:"",err:ret2}
 			    ch <- res
 			    return
@@ -3208,6 +3222,10 @@ func ValidBTCTx(returnJson string,txhash string,realdcrmfrom string,realdcrmto s
 			    res := RpcDcrmRes{ret:"true",err:nil}
 			    ch <- res
 			    return
+			} else if ee != nil {
+			    res := RpcDcrmRes{ret:"",err:ee}
+			    ch <- res
+			    return
 			}
 
 			var ret2 Err
@@ -3231,11 +3249,21 @@ func ValidBTCTx(returnJson string,txhash string,realdcrmfrom string,realdcrmto s
 			    res := RpcDcrmRes{ret:"true",err:nil}
 			    ch <- res
 			    return
+			} else if ee != nil {
+			    res := RpcDcrmRes{ret:"",err:ee}
+			    ch <- res
+			    return
 			}
 
 			if vvn != nil && van != nil && vvn.Cmp(van) == 0 {
 			    var ret2 Err
 			    ret2.info = "get btc transaction fail."
+			    res := RpcDcrmRes{ret:"",err:ret2}
+			    ch <- res
+			    return
+			} else {
+			    var ret2 Err
+			    ret2.info = "outside tx fail."
 			    res := RpcDcrmRes{ret:"",err:ret2}
 			    ch <- res
 			    return
@@ -3279,6 +3307,11 @@ func GetLockoutConfirmations(txhash string) (bool,error) {
     if ok == nil && btcres.Result.Confirmations >= BTC_BLOCK_CONFIRMS {
 	return true,nil
     }
+
+    if ok != nil {
+	return false,errors.New("outside tx fail.") //real fail.
+    }
+
     return false,nil
 }
 
@@ -3497,7 +3530,7 @@ func validate_txhash(msgprex string,tx string,lockinaddr string,hashkey string,r
 		////
 		if result.From.Hex() == "" {
 		    var ret2 Err
-		    ret2.info = "get eth transaction fail."
+		    ret2.info = "get eth transaction fail."  //no confirmed
 		    res := RpcDcrmRes{ret:"",err:ret2}
 		    ch <- res
 		    return
@@ -3609,7 +3642,7 @@ func validate_txhash(msgprex string,tx string,lockinaddr string,hashkey string,r
 	if returnJson == "" {
 	    log.Debug("=============validate_txhash,get btc transaction fail.========")
 	    var ret2 Err
-	    ret2.info = "get btc transaction fail."
+	    ret2.info = "get btc transaction fail." //no confirmed
 	    res := RpcDcrmRes{ret:"",err:ret2}
 	    ch <- res
 	    return
@@ -3740,7 +3773,7 @@ func validate_txhash(msgprex string,tx string,lockinaddr string,hashkey string,r
 	    ////
 	    if result.From.Hex() == "" {
 		var ret2 Err
-		ret2.info = "get eth transaction fail."
+		ret2.info = "get eth transaction fail."  //no confirmed
 		res := RpcDcrmRes{ret:"",err:ret2}
 		ch <- res
 		return
