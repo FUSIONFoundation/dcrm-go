@@ -798,7 +798,7 @@ func sendRawTransaction(tx *wire.MsgTx, allowHighFees bool) (string, error){
 	c.Send(string(marshalledJSON))
 
 	////////
-	rethash := txHex//GetRawTransactionHash(retdata) 
+	rethash := GetRawTransactionHash(retdata) 
 	log.Debug("============sendRawTransaction","signed tx hash",rethash,"","===========")
 	///////
 

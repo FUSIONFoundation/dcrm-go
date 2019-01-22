@@ -3355,8 +3355,8 @@ func validate_txhash(msgprex string,tx string,lockinaddr string,hashkey string,r
 		    ch <- res
 		    return
 	    }
-	    //reqJson := "{\"method\":\"getrawtransaction\",\"params\":[\"" + string(hashkey) + "\"" + "," + "true" + "],\"id\":1}";
-	    reqJson := "{\"method\":\"decoderawtransaction\",\"params\":[\"" + string(hashkey) + "\"" + "," + "true" + "],\"id\":1}";
+	    reqJson := "{\"method\":\"getrawtransaction\",\"params\":[\"" + string(hashkey) + "\"" + "," + "true" + "],\"id\":1}";
+	    //reqJson := "{\"method\":\"decoderawtransaction\",\"params\":[\"" + string(hashkey) + "\"" + "," + "true" + "],\"id\":1}";
 
 	    //timeout TODO
 	    var returnJson string
@@ -3381,18 +3381,8 @@ func validate_txhash(msgprex string,tx string,lockinaddr string,hashkey string,r
 		return
 	    }
 
-	    //=============
-	    /*btctx_hash := GetRawTransactionHash(returnJson)
-	    reqJson2 := "{\"jsonrpc\":\"1.0\",\"method\":\"getrawtransaction\",\"params\":[\"" + btctx_hash + "\"" + "," + "true" + "],\"id\":1}";
-	    s := "http://"
-	    s += SERVER_HOST
-	    s += ":"
-	    s += strconv.Itoa(SERVER_PORT)
-	    ret := DoCurlRequest(s,"",reqJson2)
-	    log.Debug("=============validate_txhash,","curl ret",ret,"","=============")*/
-	    //=============
 	    ////
-	    ValidBTCTx(returnJson,GetRawTransactionHash(returnJson),realdcrmfrom,realdcrmto,xxx[1],true,ch) 
+	    ValidBTCTx(returnJson,hashkey,realdcrmfrom,realdcrmto,xxx[1],true,ch) 
 	    return
 	}
 
@@ -3600,13 +3590,7 @@ func validate_txhash(msgprex string,tx string,lockinaddr string,hashkey string,r
 		return
 	}
 
-	var reqJson string
-	if m[0] == "LOCKIN" {
-	    reqJson = "{\"method\":\"getrawtransaction\",\"params\":[\"" + string(hashkey) + "\"" + "," + "true" + "],\"id\":1}";
-	}
-	if m[0] == "LOCKOUT" {
-	    reqJson = "{\"method\":\"decoderawtransaction\",\"params\":[\"" + string(hashkey) + "\"" + "," + "true" + "],\"id\":1}";
-	}
+	reqJson := "{\"method\":\"getrawtransaction\",\"params\":[\"" + string(hashkey) + "\"" + "," + "true" + "],\"id\":1}";
 
 	//timeout TODO
 	var returnJson string
@@ -3633,30 +3617,11 @@ func validate_txhash(msgprex string,tx string,lockinaddr string,hashkey string,r
 	////
 
 	if m[0] == "LOCKIN" {
-	    //=============
-	    /*reqJson2 := "{\"jsonrpc\":\"1.0\",\"method\":\"getrawtransaction\",\"params\":[\"" + hashkey + "\"" + "," + "true" + "],\"id\":1}";
-	    s := "http://"
-	    s += SERVER_HOST
-	    s += ":"
-	    s += strconv.Itoa(SERVER_PORT)
-	    ret := DoCurlRequest(s,"",reqJson2)
-	    log.Debug("=============validate_txhash,","curl ret",ret,"","=============")*/
-	    //=============
 	    ValidBTCTx(returnJson,hashkey,realdcrmfrom,realdcrmto,lockinvalue,false,ch) 
 	    return
 	}
 	if m[0] == "LOCKOUT" {
-	    //=============
-	    /*btctx_hash := GetRawTransactionHash(returnJson)
-	    reqJson2 := "{\"jsonrpc\":\"1.0\",\"method\":\"getrawtransaction\",\"params\":[\"" + btctx_hash + "\"" + "," + "true" + "],\"id\":1}";
-	    s := "http://"
-	    s += SERVER_HOST
-	    s += ":"
-	    s += strconv.Itoa(SERVER_PORT)
-	    ret := DoCurlRequest(s,"",reqJson2)
-	    log.Debug("=============validate_txhash,","curl ret",ret,"","=============")*/
-	    //=============
-	    ValidBTCTx(returnJson,GetRawTransactionHash(returnJson),realdcrmfrom,realdcrmto,m[2],true,ch) 
+	    ValidBTCTx(returnJson,hashkey,realdcrmfrom,realdcrmto,m[2],true,ch) 
 	    return
 	}
 
@@ -3708,28 +3673,6 @@ func validate_txhash(msgprex string,tx string,lockinaddr string,hashkey string,r
 		    log.Debug("===============validate_txhash,","top",top.Hex(),"","=================")
 		    //log.Debug("===============validate_txhash,","realdcrmto",realdcrmto,"","=================")
 		    /////
-
-		    /*tb := []rune(top.Hex())
-		    if strings.EqualFold(string(tb[0:2]),"0x") == true {
-			tb = tb[2:]
-		    } 
-		    for i,_ := range tb {
-			if string(tb[i:i+1]) != "0" {
-			    tb = tb[i:]
-			    break
-			}
-		    }
-
-		    rdt := []rune(realdcrmto)
-		    if strings.EqualFold(string(rdt[0:2]),"0x") == true {
-			rdt = rdt[2:]
-		    } 
-		    
-		    if lockinvalue == ercdatanum && strings.EqualFold(string(tb),string(rdt)) == true {
-			log.Debug("==============validate_txhash,erc validate pass.===========")
-			answer = "pass"
-			break
-		    }*/
 		    aa,_ := new(big.Int).SetString(top.Hex(),0)
 		    bb,_ := new(big.Int).SetString(realdcrmto,0)
 		    if lockinvalue == ercdatanum && aa.Cmp(bb) == 0 {
@@ -5055,156 +4998,6 @@ func GetDcrmAddr(hash string,cointype string) string {
 		    mm := strings.Split(msg,"dcrmslash")
 		    if len(mm) >= 2 {
 			receiveSplitKey(msg)
-			return
-		    }
-		   
-		    mm = strings.Split(msg,msgtypesep)
-
-		    /*if len(mm) == 2 && mm[1] == "dcrmliloreqaddr" {
-			tmp := strings.Split(mm[0],sep)
-			hashaddr := tmp[0]
-			tmps := tmp[1]
-			_,ok := types.GetDcrmAddrDataKReady(hashaddr)
-			if ok == true {
-			    return
-			}
-			types.SetDcrmAddrData(hashaddr,tmps)
-			p2pdcrm.Broatcast(msg)
-			return
-		    }*/
-
-		    if len(mm) == 2 && mm[1] == "lilodcrmaddrres" {
-			var a DcrmValidateRes
-			ok := json.Unmarshal([]byte(mm[0]), &a)
-			if ok == nil {
-			    //lock.Lock()//bug
-			    if !IsExsitDcrmValidateData(mm[0]) {
-				val,ok2 := types.GetDcrmValidateDataKReady(a.Txhash)
-				if ok2 == true {
-				    val = val + sep6 + mm[0]
-				    types.SetDcrmValidateData(a.Txhash,val)
-				    p2pdcrm.Broatcast(msg)
-
-				    //val: {}||{}||{}
-				    if ValidateDcrm(a.Txhash) {
-					signtx := new(types.Transaction)
-					signtxerr := signtx.UnmarshalJSON([]byte((a.Tx)))
-					if signtxerr == nil {
-					    log.Debug("lilodcrmaddrres","txhash",a.Txhash)
-					    //submitTransaction(signtx)
-					}
-				    }
-				} else {
-				    //log.Debug("lilodcrmaddrres","txhash",a.Txhash)
-				    types.SetDcrmValidateData(a.Txhash,mm[0])
-				    p2pdcrm.Broatcast(msg)
-				}
-			    }
-			    //lock.Unlock()//bug
-			}
-
-			return
-		    }
-
-		    if len(mm) == 2 && mm[1] == "lilodcrmsignres" {
-			var a DcrmValidateRes
-			ok := json.Unmarshal([]byte(mm[0]), &a)
-			//log.Debug("===============SetUpMsgList,lilodcrmsignres,","ok",ok,"msg",mm[0],"","==============")
-			if ok == nil {
-			    //lock.Lock()//bug
-			    //if !IsExsitDcrmValidateData(mm[0]) {
-				//log.Debug("===============SetUpMsgList,lilodcrmsignres,!IsExsitDcrmValidateData==============")
-				val,ok2 := types.GetDcrmValidateDataKReady(a.Txhash)
-			//	log.Debug("===============SetUpMsgList,lilodcrmsignres,","ok2",ok2,"a.Txhash",a.Txhash,"val",val,"","==============")
-				if ok2 == true && !IsExsitDcrmValidateData(mm[0]) {
-			//	    log.Debug("===============SetUpMsgList,lilodcrmsignres,!IsExsitDcrmValidateData===========")
-				    val = val + sep6 + mm[0]
-
-				    if !IsExsitDcrmValidateData(mm[0])  {
-					types.SetDcrmValidateData(a.Txhash,val)
-					p2pdcrm.Broatcast(msg)
-				    }
-			//	    log.Debug("===============SetUpMsgList,Broatcast finish.===========")
-
-				    //val: {}||{}||{}
-				    if ValidateDcrm(a.Txhash) {
-			//		log.Debug("===============SetUpMsgList,ValidateDcrm finish.===========")
-					dcrmparms := strings.Split(a.DcrmParms,sep)
-					signtx := new(types.Transaction)
-					signtxerr := signtx.UnmarshalJSON([]byte((dcrmparms[2])))
-					if signtxerr == nil {
-			//		    log.Debug("===============SetUpMsgList,signtxerr == nil.===========")
-					    //only dcrm node send the outside tx
-					    if IsInGroup() {
-			//			log.Debug("SetUpMsgList,do SendTxForLockout","hash",a.Txhash)
-						lockout_tx_hash,failed := SendTxForLockout(dcrmparms[5],dcrmparms[6],dcrmparms[7],dcrmparms[8],dcrmparms[9],dcrmparms[10])
-			///			log.Debug("=========SetUpMsgList,do SendTxForLockout finish 1.========")
-						if failed == nil {
-			//			    log.Debug("=========SetUpMsgList,do SendTxForLockout finish 2.========")
-						    v := DcrmLockin{Tx:dcrmparms[2],Hashkey:lockout_tx_hash}
-						    if _,err := Validate_Txhash(&v);err != nil {
-			//				log.Debug("===============SetUpMsgList,lockout validate fail.=============")
-							    return
-						    }
-						    //submitTransaction(signtx)
-						}
-					    } else {
-						//submitTransaction(signtx)
-					    }
-					}
-				    }
-				} else if !IsExsitDcrmValidateData(mm[0]) {
-			//	    log.Debug("===============SetUpMsgList,lilodcrmsignres,ok2 == false.","msg",mm[0],"","===============")
-				    types.SetDcrmValidateData(a.Txhash,mm[0])
-				    p2pdcrm.Broatcast(msg)
-				}
-			    //}
-			    //lock.Unlock()//bug
-			}
-
-			return
-		    }
-
-		    if len(mm) == 2 && mm[1] == "lilolockinres" {
-			var a DcrmValidateRes
-			ok := json.Unmarshal([]byte(mm[0]), &a)
-			//log.Debug("===============SetUpMsgList,lilolockinres,","get msg",mm[0],"","================")
-			if ok == nil {
-			    //lock.Lock()//bug
-			    //if !IsExsitDcrmValidateData(mm[0]) {
-			//	log.Debug("===============SetUpMsgList,lilolockinres,ok == nil ================")
-				val,ok2 := types.GetDcrmValidateDataKReady(a.Txhash)
-				if ok2 == true  && !IsExsitDcrmValidateData(mm[0]) {
-			//	    log.Debug("===============SetUpMsgList,lilolockinres,ok2 == true================")
-				    val = val + sep6 + mm[0]
-
-				    if !IsExsitDcrmValidateData(mm[0]) { /////////////////??
-					types.SetDcrmValidateData(a.Txhash,val)
-					p2pdcrm.Broatcast(msg)
-				    }
-
-			//	    log.Debug("===============SetUpMsgList,lilolockinres,broacast finish.================")
-
-				    //val: {}||{}||{}
-				    if ValidateDcrm(a.Txhash) {
-			//		log.Debug("===============SetUpMsgList,lilolockinres,ValidateDcrm finish.================")
-					signtx := new(types.Transaction)
-					signtxerr := signtx.UnmarshalJSON([]byte((a.Tx)))
-					if signtxerr == nil {
-			//		    log.Debug("===============SetUpMsgList,lilolockinres,submitTransaction.================",)
-					    submitTransaction(signtx)
-					}
-				    }
-				} else if !IsExsitDcrmValidateData(mm[0]) {
-			//	    log.Debug("===============SetUpMsgList,lilolockinres,ok2 == false================")
-				    types.SetDcrmValidateData(a.Txhash,mm[0])
-				    p2pdcrm.Broatcast(msg)
-			//	    log.Debug("===============SetUpMsgList,lilolockinres,ok2 == false,Broatcast finish.================")
-				}
-			    //}
-			    //lock.Unlock()//bug
-			}
-
 			return
 		    }
 
