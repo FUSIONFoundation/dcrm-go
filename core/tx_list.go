@@ -235,22 +235,32 @@ func (m *txSortedMap) Ready(pool *TxPool,start uint64) types.Transactions {  //+
 	for next := (*m.index)[0]; m.index.Len() > 0 && (*m.index)[0] == next; next++ {
 
 	    tx := m.items[next]
-	    _, err := types.Sender(pool.signer,tx)
-	    if err != nil {
-		    continue
-	    }
-
 	    input := tx.Data()
 	    data := string(input)
 	    mm := strings.Split(data,":")
 	    val,ok := types.GetDcrmValidateDataKReady(tx.Hash().Hex())
+	    _, err := types.Sender(pool.signer,tx)
+	    if err != nil {
+		if mm[0] == "LOCKOUT" {
+			ready = append(ready, m.items[next])
+		    	m.Remove(next)
+			//bug
+			if ok == true {
+			    types.DeleteDcrmValidateData(tx.Hash().Hex())
+			}
+		}
+		    continue
+	    }
 
 	    if mm[0] == "LOCKIN" {
 		_,err := pool.ValidateLockin(tx)
 		if err == nil {
 		    ready = append(ready, m.items[next])
 		    m.Remove(next)
+		} else if strings.EqualFold(err.Error(),"outside tx fail.") {
+		    m.Remove(next)
 		} else if strings.EqualFold(err.Error(),"get btc transaction fail.") == false && strings.EqualFold(err.Error(),"get eth transaction fail.") == false { //bug
+		    ready = append(ready, m.items[next])
 		    m.Remove(next)
 		}
 
@@ -266,15 +276,20 @@ func (m *txSortedMap) Ready(pool *TxPool,start uint64) types.Transactions {  //+
 			//bug
 			types.DeleteDcrmValidateData(tx.Hash().Hex())
 
+		    } else if strings.EqualFold(err.Error(),"outside tx fail.") {
+			m.Remove(next)
+			//bug
+			types.DeleteDcrmValidateData(tx.Hash().Hex())
 		    } else if strings.EqualFold(err.Error(),"get btc transaction fail.") == false && strings.EqualFold(err.Error(),"get eth transaction fail.") == false { //bug
-			//log.Debug("=============txPool.Ready,remove the tx from pool.==============")
+			log.Debug("=============txPool.Ready,not success,BUT SUCCESS!!!==============")
+			ready = append(ready, m.items[next])
 		    	m.Remove(next)
 			//bug
 			types.DeleteDcrmValidateData(tx.Hash().Hex())
-
 		    }
 		} else { //bug:if no val and tx is invalide
 			//log.Debug("=============txPool.Ready,remove the tx from pool only.==============")
+			ready = append(ready, m.items[next])
 		    	m.Remove(next)
 		}
 
@@ -381,14 +396,20 @@ func (l *txList) Add(tx *types.Transaction, priceBump uint64) (bool, *types.Tran
         //log.Debug("==========txList.Add==============")
 	// If there's an older better transaction, abort
 	old := l.txs.Get(tx.Nonce())
-	//if old != nil {//----caihaijun---
+	//if old != nil {//----caihaijun----
 	//++++++++++++++caihaijun+++++++++++
+	if old != nil { 
+	    log.Debug("==============txList.Add,","old nonce",old.Nonce(),"","=========")
+	}
+	log.Debug("==============txList.Add,","tx nonce",tx.Nonce(),"","=========")
 	sametype := false
 	txtype,e1 := GetDcrmTxCointype(tx)
 	oldtype,e2 := GetDcrmTxCointype(tx)
 	if old != nil && IsDcrmTx(tx) && IsDcrmTx(old) && (e1 == nil && e2 == nil && txtype == oldtype ) {
+	    log.Debug("==============txList.Add,old and new is dcrmtx=========")
 	    sametype = true
 	} else if old != nil && !IsDcrmTx(old) && !IsDcrmTx(tx) {
+	    log.Debug("==============txList.Add,old and new is not dcrmtx=========")
 	    sametype = true
 	}
 

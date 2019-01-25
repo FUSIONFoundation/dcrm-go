@@ -161,6 +161,12 @@ func (b *EthAPIBackend) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscri
 	return b.eth.BlockChain().SubscribeLogsEvent(ch)
 }
 
+//++++++++++++++++caihaijun++++++++++++++++
+func (b *EthAPIBackend) GetDcrmTxRealNonce(ctx context.Context,from string) (uint64,error) {
+	return b.eth.txPool.GetDcrmTxRealNonce(from)
+}
+//++++++++++++++++++end+++++++++++++++++++
+
 func (b *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
 	return b.eth.txPool.AddLocal(signedTx)
 }

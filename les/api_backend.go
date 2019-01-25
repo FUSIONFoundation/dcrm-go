@@ -127,6 +127,12 @@ func (b *LesApiBackend) GetPoolTransaction(txHash common.Hash) *types.Transactio
 	return b.eth.txPool.GetTransaction(txHash)
 }
 
+///++++++++++++++++caihaijun++++++++++++++++
+func (b *LesApiBackend) GetDcrmTxRealNonce(ctx context.Context,from string) (uint64,error) {
+	return 0,nil //b.eth.txPool.GetDcrmTxRealNonce(from)
+}
+//++++++++++++++++++end+++++++++++++++++++
+
 func (b *LesApiBackend) GetPoolNonce(ctx context.Context, addr common.Address) (uint64, error) {
 	return b.eth.txPool.GetNonce(ctx, addr)
 }
