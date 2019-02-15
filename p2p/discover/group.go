@@ -24,8 +24,8 @@ package discover
 
 import (
 	"bytes"
-	"fmt"
 	"errors"
+	"fmt"
 	"math/rand"
 	"net"
 	"sync"
@@ -189,7 +189,7 @@ func (t *udp) sendToGroupDCRM(toid NodeID, toaddr *net.UDPAddr, msg string) (str
 	if len(msg) <= 800 {
 		number[1] = 1
 		number[2] = 1
-		_,err = t.send(toaddr, getDcrmPacket, &getdcrmmessage{
+		_, err = t.send(toaddr, getDcrmPacket, &getdcrmmessage{
 			Number:     number,
 			Msg:        msg,
 			Expiration: uint64(time.Now().Add(expiration).Unix()),
@@ -206,7 +206,7 @@ func (t *udp) sendToGroupDCRM(toid NodeID, toaddr *net.UDPAddr, msg string) (str
 		log.Debug("send", "msg(> 800):", msg)
 		number[1] = 2
 		number[2] = 2
-		_,err = t.send(toaddr, getDcrmPacket, &getdcrmmessage{
+		_, err = t.send(toaddr, getDcrmPacket, &getdcrmmessage{
 			Number:     number,
 			Msg:        msg[800:],
 			Expiration: uint64(time.Now().Add(expiration).Unix()),
@@ -263,19 +263,22 @@ func (req *getdcrmmessage) handle(t *udp, from *net.UDPAddr, fromID NodeID, mac 
 		}
 		msgp = buffer.String()
 	}
-	log.Debug("getdcrmmessage", "calldcrmEvent msg: ", msgp)
-	msgc := calldcrmEvent(msgp)
-	log.Debug("getdcrmmessage", "calldcrmEvent retmsg: ", msgc)
-	msg := <-msgc
-	//tmpdcrmmsg.Number = [3]byte{}
-	//t.send(from, gotDcrmPacket, &getdcrmmessage{
-	log.Debug("getdcrmmessage", "send(from: ", from, "msg = ", msg)
-	t.send(from, gotDcrmPacket, &dcrmmessage{
-		Target:     fromID,
-		Msg:        msg,
-		Expiration: uint64(time.Now().Add(expiration).Unix()),
-	})
-	log.Debug("dcrm handle", "send to from: ", from, ", message: ", msg)
+
+	go func() {
+		log.Debug("getdcrmmessage", "calldcrmEvent msg: ", msgp)
+		msgc := calldcrmEvent(msgp)
+		log.Debug("getdcrmmessage", "calldcrmEvent retmsg: ", msgc)
+		msg := <-msgc
+		//tmpdcrmmsg.Number = [3]byte{}
+		//t.send(from, gotDcrmPacket, &getdcrmmessage{
+		log.Debug("getdcrmmessage", "send(from: ", from, "msg = ", msg)
+		t.send(from, gotDcrmPacket, &dcrmmessage{
+			Target:     fromID,
+			Msg:        msg,
+			Expiration: uint64(time.Now().Add(expiration).Unix()),
+		})
+		log.Debug("dcrm handle", "send to from: ", from, ", message: ", msg)
+	}()
 	return nil
 }
 
@@ -324,7 +327,7 @@ func SendToDcrmGroup(msg string) string {
 		log.Debug("SendToGroup(), group is nil\n")
 		return ""
 	}
-	var sent [groupnum+1]int
+	var sent [groupnum + 1]int
 	ret := ""
 	for i := 1; i <= groupnum; {
 		r := rand.Intn(groupnum)
