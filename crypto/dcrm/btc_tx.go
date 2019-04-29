@@ -430,6 +430,29 @@ func btc_createTransaction(msgprex string,dcrmaddr string,ch chan interface{}) (
 	}
 	log.Debug("","sourceOutputs",sourceOutputs)
 
+	/////bug
+	if len(sourceOutputs) == 0 {
+	    time.Sleep(time.Duration(2)*time.Second) //1000 == 1s
+	    unspentOutputs, err = listUnspent(dcrmaddr) //try again
+	    if len(unspentOutputs) == 0 && err == nil {
+		time.Sleep(time.Duration(2)*time.Second) //1000 == 1s
+		unspentOutputs, err = listUnspent_blockchaininfo(dcrmaddr) //try again
+	    }
+
+	    for _, unspentOutput := range unspentOutputs {
+		if !unspentOutput.Spendable {
+			continue
+		}
+		if unspentOutput.Confirmations < opts.RequiredConfirmations {
+			continue
+		}
+		sourceAddressOutputs := sourceOutputs[unspentOutput.Address]
+		sourceOutputs[unspentOutput.Address] = append(sourceAddressOutputs, unspentOutput)
+	    }
+	    log.Debug("","sourceOutputs 22222222222 ",sourceOutputs)
+	}
+	/////bug
+
 	// 设置交易输出
 	var txOuts []*wire.TxOut
 	cfg := chaincfg.MainNetParams
