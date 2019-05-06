@@ -705,13 +705,6 @@ func setBootstrapNodes(ctx *cli.Context, cfg *p2p.Config) {
 	case ctx.GlobalIsSet(NetworkIdFlag.Name):
 		fsnnetworkid := ctx.GlobalUint64(NetworkIdFlag.Name)
 		log.Debug("setBootstrapNodes", "fsnnetworkid", fsnnetworkid)
-		if fsnnetworkid == 40400 {
-			urls = params.FsnMainnetBootnodes
-			log.Debug("setBootstrapNodes", "urls", urls)
-		}else if fsnnetworkid == 40410 {
-			urls = params.FsnTestnetBootnodes
-			log.Debug("setBootstrapNodes", "urls", urls)
-		}
 	case cfg.BootstrapNodes != nil:
 		return // already set, don't apply defaults.
 	}
