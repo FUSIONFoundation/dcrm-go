@@ -5,12 +5,138 @@ import (
 	"errors"
 	"sort"
 	"strings"
+	"fmt"
+	"runtime/debug"
 
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/fusion/go-fusion/log"
+	"github.com/fusion/go-fusion/crypto/dcrm/rpcutils"
 )
 
-func LockoutIsConfirmed(addr string,txhash string) (bool,error) {
+const ELECTRSHOST = "http://5.189.139.168:4000"
+
+func listUnspent_electrs(addr string) (list []btcjson.ListUnspentResult, err error) {
+	defer func () {
+		if e := recover(); e != nil {
+			err = fmt.Errorf("Runtime error: %v\n%v", e, string(debug.Stack()))
+			return
+		}
+	} ()
+	path := `address/` + addr + `/utxo`
+	ret, err := rpcutils.HttpGet(ELECTRSHOST, path, nil)
+	if err != nil {
+		return
+	}
+	var utxos []electrsUtxo
+	err = json.Unmarshal(ret, &utxos)
+	if err != nil {
+		return
+	}
+	fmt.Printf("\n\n%v\n\n", string(ret))
+	fmt.Printf("\n\n%+v\n\n", utxos)
+	for _, utxo := range utxos {
+		res := btcjson.ListUnspentResult{
+			TxID: utxo.Txid,
+			Vout: uint32(utxo.Vout),
+			Address: addr,
+			Amount: utxo.Value/1e8,
+			Spendable: true,
+		}
+		if utxo.Status.Confirmed {
+			res.Confirmations = 6
+		} else {
+			res.Confirmations = 0
+		}
+		list = append(list, res)
+	}
+	sort.Sort(sortableLURSlice(list))
+	return
+}
+
+type electrsUtxo struct {
+	Txid string `json:"txid"`
+	Vout uint32
+	Status utxoStatus
+	Value float64
+}
+
+type utxoStatus struct {
+	Confirmed bool
+	Block_height float64
+	Block_hash string
+	Block_time float64
+}
+
+func LockOutIsConfirmed(addr string, txhash string) (bool, error) {
+	toAddressed, confirmed, err := getTransactionInfo(txhash)
+	if confirmed == false || err != nil {
+		return false, err
+	}
+	for _, toAddress := range toAddressed {
+		if toAddress == addr {
+			return true, nil
+		}
+	}
+
+	return false, errors.New("it is not confirmed.")
+}
+
+func getTransactionInfo(txhash string) (toAddresses []string, confirmed bool, err error) {
+	defer func () {
+		if e := recover(); e != nil {
+			err = fmt.Errorf("Runtime error: %v\n%v", e, string(debug.Stack()))
+			return
+		}
+	} ()
+
+	grtreq := `{"jsonrpc":"1.0","method":"getrawtransaction","params":["` + txhash + `",true],"id":1}`
+	client, _ := rpcutils.NewClient(SERVER_HOST, SERVER_PORT, USER, PASSWD, USESSL)
+	ret1, err := client.Send(grtreq)
+	if err != nil {
+		return
+	} else {
+		var ret1Obj interface{}
+		fmt.Println(ret1)
+		json.Unmarshal([]byte(ret1), &ret1Obj)
+		confirmations := int64(ret1Obj.(map[string]interface{})["result"].(map[string]interface{})["confirmations"].(float64))
+		confirmed = (confirmations >= BTC_BLOCK_CONFIRMS)
+	}
+
+	cmd := btcjson.NewGetRawTransactionCmd(txhash, nil)
+
+	marshalledJSON, err := btcjson.MarshalCmd(1, cmd)
+	if err != nil {
+		return
+	}
+
+	c, _ := rpcutils.NewClient(SERVER_HOST, SERVER_PORT, USER, PASSWD, USESSL)
+	retJSON, err := c.Send(string(marshalledJSON))
+	if err != nil {
+		return
+	}
+
+	var rawTx interface{}
+	json.Unmarshal([]byte(retJSON), &rawTx)
+	rawTxStr := rawTx.(map[string]interface{})["result"].(string)
+
+	cmd2 := btcjson.NewDecodeRawTransactionCmd(rawTxStr)
+
+	marshalledJSON2, err := btcjson.MarshalCmd(1, cmd2)
+	if err != nil {
+		return
+	}
+	retJSON2, err := c.Send(string(marshalledJSON2))
+	var tx interface{}
+	json.Unmarshal([]byte(retJSON2), &tx)
+	vouts := tx.(map[string]interface{})["result"].(map[string]interface{})["vout"].([]interface{})
+	for _, vout := range vouts {
+		toAddress := vout.(map[string]interface{})["scriptPubKey"].(map[string]interface{})["addresses"].([]interface{})[0].(string)
+		toAddresses = append(toAddresses, toAddress)
+	}
+	return
+}
+
+/*func LockoutIsConfirmed(addr string,txhash string) (bool,error) {
 	resstr := GetUTXO_BlockChainInfo(addr)
 	utxoLsRes, err := parseUnspent(resstr)
 	log.Debug("=============LockoutIsConfirmed,","utxoLsRes",utxoLsRes)
@@ -27,6 +153,7 @@ func LockoutIsConfirmed(addr string,txhash string) (bool,error) {
 
 	return false,errors.New("it is not confirmed.")
 }
+*/
 
 func listUnspent_blockchaininfo(addr string) ([]btcjson.ListUnspentResult, error) {
 	resstr := GetUTXO_BlockChainInfo(addr)

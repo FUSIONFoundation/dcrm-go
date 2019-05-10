@@ -721,6 +721,11 @@ func ChooseRealFusionAccountForLockout(amount string,lockoutto string,cointype s
 			    }
 
 			    ba := (*big.Int)(&result)
+			    /////////bug///////
+			    zero,_ := new(big.Int).SetString("0",10)
+			    if ba.Cmp(zero) == 0 {
+			    }
+			    ///////////////////
 			    var m DcrmAddrInfo
 			    m.DcrmAddr = key
 			    m.FusionAccount = s[0]

@@ -205,22 +205,21 @@ func ChooseDcrmAddrForLockoutByValue(dcrmaddr string,lockoutto string,value floa
 	}
 
 	log.Debug("==========ChooseDcrmAddrForLockoutByValue,","dcrmaddr",dcrmaddr,"lockoutto",lockoutto,"value",value,"","================")
-	//unspentOutputs, err := listUnspent_blockchaininfo(dcrmaddr)
-	unspentOutputs, err := listUnspent(dcrmaddr)
-	//unspentOutputs, err := listUnspentWithWallet(dcrmaddr)
+	//unspentOutputs, err := listUnspent(dcrmaddr)
+	unspentOutputs, err := listUnspent_electrs(dcrmaddr)
 	log.Debug("=========ChooseDcrmAddrForLockoutByValue,","unspentOutputs",unspentOutputs,"","================")
 	if err != nil {
 		return false
 	}
 	//////////bug/////
-	if len(unspentOutputs) == 0 && err == nil {
+	/*if len(unspentOutputs) == 0 && err == nil {
 	    time.Sleep(time.Duration(2)*time.Second) //1000 == 1s
 	    unspentOutputs, err = listUnspent_blockchaininfo(dcrmaddr) //try again
 	    if len(unspentOutputs) == 0 && err == nil {
 		time.Sleep(time.Duration(2)*time.Second) //1000 == 1s
 		unspentOutputs, err = listUnspent(dcrmaddr) //try again
 	    }
-	}
+	}*/
 	/////////////////
 
 	sourceOutputs := make(map[string][]btcjson.ListUnspentResult)
@@ -291,17 +290,17 @@ func GetDcrmAddrBalanceForLockout(dcrmaddr string,lockoutto string,value float64
 	}
 
 	log.Debug("==========GetDcrmAddrBalanceForLockout,","dcrmaddr",dcrmaddr,"lockoutto",lockoutto,"value",value,"","================")
-	//unspentOutputs, err := listUnspent_blockchaininfo(dcrmaddr)
-	unspentOutputs, err := listUnspent(dcrmaddr)
+	//unspentOutputs, err := listUnspent(dcrmaddr)
+	unspentOutputs, err := listUnspent_electrs(dcrmaddr)
 	//////////bug/////
-	if len(unspentOutputs) == 0 && err == nil {
+	/*if len(unspentOutputs) == 0 && err == nil {
 	    time.Sleep(time.Duration(2)*time.Second) //1000 == 1s
 	    unspentOutputs, err = listUnspent_blockchaininfo(dcrmaddr) //try again
 	    if len(unspentOutputs) == 0 && err == nil {
 		time.Sleep(time.Duration(2)*time.Second) //1000 == 1s
 		unspentOutputs, err = listUnspent(dcrmaddr) //try again
 	    }
-	}
+	}*/
 	/////////////////
 	//unspentOutputs, err := listUnspentWithWallet(dcrmaddr)
 	log.Debug("=========GetDcrmAddrBalanceForLockout,","unspentOutputs",unspentOutputs,"","================")
@@ -400,21 +399,21 @@ func btc_createTransaction(msgprex string,dcrmaddr string,ch chan interface{}) (
 	// account, and group by their change address.  Each grouping of
 	// outputs will be used as inputs for a single transaction sending to a
 	// new change account address.
-	unspentOutputs, err := listUnspent_blockchaininfo(opts.Dcrmaddr)
-	//unspentOutputs, err := listUnspentWithWallet(opts.Dcrmaddr)
+	//unspentOutputs, err := listUnspent_blockchaininfo(opts.Dcrmaddr)
+	unspentOutputs, err := listUnspent_electrs(opts.Dcrmaddr)
 
 	if err != nil {
 		return "",errContext(err, "failed to fetch unspent outputs")
 	}
 	//////////bug/////
-	if len(unspentOutputs) == 0 && err == nil {
+	/*if len(unspentOutputs) == 0 && err == nil {
 	    time.Sleep(time.Duration(2)*time.Second) //1000 == 1s
 	    unspentOutputs, err = listUnspent(dcrmaddr) //try again
 	    if len(unspentOutputs) == 0 && err == nil {
 		time.Sleep(time.Duration(2)*time.Second) //1000 == 1s
 		unspentOutputs, err = listUnspent_blockchaininfo(dcrmaddr) //try again
 	    }
-	}
+	}*/
 	/////////////////
 	sourceOutputs := make(map[string][]btcjson.ListUnspentResult)
 	
@@ -431,7 +430,7 @@ func btc_createTransaction(msgprex string,dcrmaddr string,ch chan interface{}) (
 	log.Debug("","sourceOutputs",sourceOutputs)
 
 	/////bug
-	if len(sourceOutputs) == 0 {
+	/*if len(sourceOutputs) == 0 {
 	    time.Sleep(time.Duration(2)*time.Second) //1000 == 1s
 	    unspentOutputs, err = listUnspent(dcrmaddr) //try again
 	    if len(unspentOutputs) == 0 && err == nil {
@@ -450,7 +449,7 @@ func btc_createTransaction(msgprex string,dcrmaddr string,ch chan interface{}) (
 		sourceOutputs[unspentOutput.Address] = append(sourceAddressOutputs, unspentOutput)
 	    }
 	    log.Debug("","sourceOutputs 22222222222 ",sourceOutputs)
-	}
+	}*/
 	/////bug
 
 	// 设置交易输出
