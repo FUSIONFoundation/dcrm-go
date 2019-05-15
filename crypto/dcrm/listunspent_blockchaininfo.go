@@ -35,9 +35,23 @@ func listUnspent_electrs(addr string) (list []btcjson.ListUnspentResult, err err
 	fmt.Printf("\n\n%v\n\n", string(ret))
 	fmt.Printf("\n\n%+v\n\n", utxos)
 	for _, utxo := range utxos {
+		path = `tx/` + utxo.Txid
+		txret, txerr := rpcutils.HttpGet(ELECTRSHOST, path, nil)
+		if txerr != nil {
+			log.Debug("======== get utxo script ========", "error", txerr)
+			continue
+		}
+		var tx electrsTx
+		txerr = json.Unmarshal(txret, &tx)
+		if txerr != nil {
+log.Debug("======== get utxo script ========", "error", txerr)
+			continue
+		}
+		utxo.Script = tx.Vout[int(utxo.Vout)].Scriptpubkey
 		res := btcjson.ListUnspentResult{
 			TxID: utxo.Txid,
 			Vout: uint32(utxo.Vout),
+			ScriptPubKey: utxo.Script,
 			Address: addr,
 			Amount: utxo.Value/1e8,
 			Spendable: true,
@@ -50,12 +64,23 @@ func listUnspent_electrs(addr string) (list []btcjson.ListUnspentResult, err err
 		list = append(list, res)
 	}
 	sort.Sort(sortableLURSlice(list))
+log.Debug("======== get utxo ========", "utxo list", list)
 	return
+}
+
+type electrsTx struct {
+	Txid string
+	Vout []electrsTxOut
+}
+
+type electrsTxOut struct {
+	Scriptpubkey string
 }
 
 type electrsUtxo struct {
 	Txid string `json:"txid"`
 	Vout uint32
+	Script string
 	Status utxoStatus
 	Value float64
 }
