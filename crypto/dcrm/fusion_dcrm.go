@@ -2982,7 +2982,6 @@ func Init(tmp string, paillier_dprivkey *big.Int,nodecnt int) {
 	Fee               float64 `json:"fee,omitempty"`
 	InvolvesWatchOnly bool     `json:"involveswatchonly,omitempty"`
 }
-
 // GetTransactionResult models the data from the gettransaction command.
 type GetTransactionResult struct {
 	Amount          float64                       `json:"amount"`
@@ -3156,6 +3155,12 @@ func ValidBTCTx(returnJson string,txhash string,realdcrmfrom string,realdcrmto s
 			return
 		    } else {
 			log.Debug("============ValidBTCTx,","Confirmations",btcres_noinputs.Result.Confirmations,"","============")
+			// +++++ gaozhengxin 6.1 +++++
+			if strings.EqualFold(sa, realdcrmfrom) {
+				ee := errors.New("cannont lockin an exchange output.")
+				res := RpcDcrmRes{ret: "", err: ee}
+			}
+			// +++++++++++++++++++++++++++
 			vvn,_ := new(big.Int).SetString(vv,10)
 			van,_ := new(big.Int).SetString(value,10)
 			if vvn != nil && van != nil && vvn.Cmp(van) == 0 && btcres_noinputs.Result.Confirmations >= BTC_BLOCK_CONFIRMS {
@@ -3240,6 +3245,12 @@ func ValidBTCTx(returnJson string,txhash string,realdcrmfrom string,realdcrmto s
 			return
 		    } else {
 			log.Debug("============ValidBTCTx,","Confirmations",btcres.Result.Confirmations,"","============")
+			// +++++ gaozhengxin 6.1 +++++
+			if strings.EqualFold(sa, realdcrmfrom) {
+				ee := errors.New("cannont lockin an exchange output.")
+				res := RpcDcrmRes{ret: "", err: ee}
+			}
+			// +++++++++++++++++++++++++++
 			vvn,_ := new(big.Int).SetString(vv,10)
 			van,_ := new(big.Int).SetString(value,10)
 			if vvn != nil && van != nil && vvn.Cmp(van) == 0 && btcres.Result.Confirmations >= BTC_BLOCK_CONFIRMS {
