@@ -3159,6 +3159,8 @@ func ValidBTCTx(returnJson string,txhash string,realdcrmfrom string,realdcrmto s
 			if strings.EqualFold(sa, realdcrmfrom) {
 				ee := errors.New("cannont lockin an exchange output.")
 				res := RpcDcrmRes{ret: "", err: ee}
+				ch <- res
+				return
 			}
 			// +++++++++++++++++++++++++++
 			vvn,_ := new(big.Int).SetString(vv,10)
@@ -3249,6 +3251,8 @@ func ValidBTCTx(returnJson string,txhash string,realdcrmfrom string,realdcrmto s
 			if strings.EqualFold(sa, realdcrmfrom) {
 				ee := errors.New("cannont lockin an exchange output.")
 				res := RpcDcrmRes{ret: "", err: ee}
+				ch <- res
+				return
 			}
 			// +++++++++++++++++++++++++++
 			vvn,_ := new(big.Int).SetString(vv,10)
